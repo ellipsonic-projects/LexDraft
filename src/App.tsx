@@ -1,0 +1,92 @@
+import React from 'react';
+import { AppProvider, useApp } from './context/AppContext';
+import { LandingPage } from './components/auth/LandingPage';
+import { Header } from './components/common/Header';
+import { Sidebar } from './components/common/Sidebar';
+import { CommandPalette } from './components/common/CommandPalette';
+import { Toast } from './components/common/Toast';
+import { BossDashboard } from './components/dashboard/BossDashboard';
+import { EmployeeDashboard } from './components/dashboard/EmployeeDashboard';
+import { TemplateStudio } from './components/templates/TemplateStudio';
+import { DocumentGenerator } from './components/generation/DocumentGenerator';
+import { DocumentsList } from './components/documents/DocumentsList';
+import { LegalDocumentEditor } from './components/editor/LegalDocumentEditor';
+import { WorkflowKanban } from './components/workflow/WorkflowKanban';
+import { ActivityLogView } from './components/activity/ActivityLogView';
+import { AnalyticsView } from './components/analytics/AnalyticsView';
+import { SettingsView } from './components/settings/SettingsView';
+
+const MainContent: React.FC = () => {
+  const { activeTab, theme } = useApp();
+  const isDark = theme === 'dark';
+
+  const renderView = () => {
+    switch (activeTab) {
+      case 'boss_dashboard':
+        return <BossDashboard />;
+      case 'employee_dashboard':
+        return <EmployeeDashboard />;
+      case 'template_studio':
+        return <TemplateStudio />;
+      case 'document_generator':
+        return <DocumentGenerator />;
+      case 'documents':
+        return <DocumentsList />;
+      case 'document_editor':
+        return <LegalDocumentEditor />;
+      case 'workflow':
+        return <WorkflowKanban />;
+      case 'activity':
+        return <ActivityLogView />;
+      case 'analytics':
+        return <AnalyticsView />;
+      case 'settings':
+        return <SettingsView />;
+      default:
+        return <BossDashboard />;
+    }
+  };
+
+  return (
+    <div className={`flex-1 overflow-y-auto transition-colors ${
+      isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
+    }`}>
+      {renderView()}
+    </div>
+  );
+};
+
+const AppShellContent: React.FC = () => {
+  const { isAuthenticated, theme } = useApp();
+  const isDark = theme === 'dark';
+
+  return (
+    <div className={`min-h-screen flex flex-col selection:bg-blue-900/30 selection:text-blue-900 transition-colors ${
+      isDark ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
+    }`}>
+      {!isAuthenticated ? (
+        <LandingPage />
+      ) : (
+        <>
+          <Header />
+          <div className="flex-1 flex overflow-hidden">
+            <Sidebar />
+            <MainContent />
+          </div>
+          <CommandPalette />
+          <Toast />
+        </>
+      )}
+    </div>
+  );
+};
+
+export function App() {
+  return (
+    <AppProvider>
+      <AppShellContent />
+    </AppProvider>
+  );
+}
+
+export default App;
