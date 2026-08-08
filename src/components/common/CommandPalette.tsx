@@ -12,7 +12,8 @@ export const CommandPalette: React.FC = () => {
     setActiveTab,
     setSelectedDocumentId,
     setSelectedTemplateId,
-    theme
+    theme,
+    clients
   } = useApp();
 
   const [query, setQuery] = useState('');
@@ -35,7 +36,10 @@ export const CommandPalette: React.FC = () => {
   if (!isCommandPaletteOpen) return null;
 
   const filteredTemplates = templates.filter(t => t.name.toLowerCase().includes(query.toLowerCase()) || t.category.toLowerCase().includes(query.toLowerCase()));
-  const filteredDocuments = documents.filter(d => d.title.toLowerCase().includes(query.toLowerCase()) || d.clientName.toLowerCase().includes(query.toLowerCase()));
+  const filteredDocuments = documents.filter(d => {
+    const clientName = clients.find(c => c.id === d.clientId)?.name || '';
+    return d.title.toLowerCase().includes(query.toLowerCase()) || clientName.toLowerCase().includes(query.toLowerCase());
+  });
   const filteredTasks = tasks.filter(t => t.title.toLowerCase().includes(query.toLowerCase()) || t.assigneeName.toLowerCase().includes(query.toLowerCase()));
 
   return (
@@ -153,7 +157,7 @@ export const CommandPalette: React.FC = () => {
                       <FileText className="w-4 h-4 text-indigo-500" />
                       <div>
                         <p className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-900'}`}>{d.title}</p>
-                        <p className="text-[10px] text-slate-500">Client: {d.clientName} • Status: {d.status.toUpperCase()}</p>
+                        <p className="text-[10px] text-slate-500">Client: {clients.find(c => c.id === d.clientId)?.name || 'Unknown Client'} • Status: {d.status.toUpperCase()}</p>
                       </div>
                     </div>
                     <span className="text-[10px] bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 font-bold px-2 py-0.5 rounded border border-indigo-500/20">Open Editor</span>

@@ -1,4 +1,14 @@
-import { User, Organization, LegalTemplate, LegalDocument, WorkflowTask, ActivityLog, NotificationItem } from '../types';
+import {
+  User,
+  Client,
+  Matter,
+  LegalTemplate,
+  LegalDocument,
+  WorkflowTask,
+  ActivityLog,
+  NotificationItem,
+  Organization
+} from '../types';
 
 export const initialUsers: User[] = [
   {
@@ -28,6 +38,44 @@ export const initialOrganization: Organization = {
   totalMembers: 2
 };
 
+export const initialClients: Client[] = [
+  {
+    id: 'client_aarav',
+    name: 'Aarav Mehta',
+    contactEmail: 'aarav@mehtapremises.com',
+    contactPhone: '+91 98765 43210',
+    createdAt: '2026-07-01T09:00:00Z'
+  },
+  {
+    id: 'client_techcorp',
+    name: 'TechCorp Solutions Inc',
+    contactEmail: 'legal@techcorp.com',
+    contactPhone: '+1 555 019 2834',
+    createdAt: '2026-07-10T11:30:00Z'
+  }
+];
+
+export const initialMatters: Matter[] = [
+  {
+    id: 'matter_aarav_lease',
+    clientId: 'client_aarav',
+    title: 'Aarav Mehta — Commercial Lease',
+    matterCode: 'MAT-2026-001',
+    status: 'active',
+    documentIds: ['doc_101'],
+    createdAt: '2026-07-02T10:00:00Z'
+  },
+  {
+    id: 'matter_techcorp_nda',
+    clientId: 'client_techcorp',
+    title: 'TechCorp — Standard Mutual NDA',
+    matterCode: 'MAT-2026-002',
+    status: 'active',
+    documentIds: [],
+    createdAt: '2026-07-11T14:00:00Z'
+  }
+];
+
 export const initialTemplates: LegalTemplate[] = [
   {
     id: 'tpl_rental',
@@ -42,6 +90,7 @@ export const initialTemplates: LegalTemplate[] = [
       { id: 'v4', key: 'Monthly_Rent', label: 'Monthly Rent (₹)', type: 'currency', required: true, defaultValue: '45000' },
       { id: 'v5', key: 'Security_Deposit', label: 'Security Deposit (₹)', type: 'currency', required: true, defaultValue: '270000' },
       { id: 'v6', key: 'Lease_Start_Date', label: 'Lease Commencement Date', type: 'date', required: true, defaultValue: '2026-09-01' },
+      { id: 'v9', key: 'Lease_Term_Months', label: 'Lease Duration (Months)', type: 'number', required: true, defaultValue: '11' },
       { id: 'v7', key: 'Notice_Period_Months', label: 'Notice Period (Months)', type: 'number', required: true, defaultValue: '2' },
       { id: 'v8', key: 'Jurisdiction_City', label: 'Court Jurisdiction City', type: 'text', required: true, defaultValue: 'Bengaluru' }
     ],
@@ -57,8 +106,8 @@ export const initialTemplates: LegalTemplate[] = [
 <h2>1. DEMISED PREMISES</h2>
 <p>The Lessor hereby agrees to lease out and the Lessee hereby agrees to take on lease the premises situated at <strong>{{Property_Address}}</strong> (hereinafter referred to as the "Demised Premises").</p>
 
-<h2>2. RENT AND DEPOSIT</h2>
-<p>The Lessee shall pay to the Lessor a monthly rent of <strong>₹{{Monthly_Rent}}</strong> payable on or before the 5th of each calendar month. The Lessee has deposited a interest-free refundable security deposit of <strong>₹{{Security_Deposit}}</strong> with the Lessor.</p>
+<h2>2. TERM AND RENT</h2>
+<p>The lease term shall be for a duration of <strong>{{Lease_Term_Months}} months</strong> starting from <strong>{{Lease_Start_Date}}</strong>. The Lessee shall pay to the Lessor a monthly rent of <strong>₹{{Monthly_Rent}}</strong> payable on or before the 5th of each calendar month. The Lessee has deposited a interest-free refundable security deposit of <strong>₹{{Security_Deposit}}</strong> with the Lessor.</p>
 
 <h2>3. TERMINATION AND NOTICE PERIOD</h2>
 <p>Either party may terminate this agreement by giving <strong>{{Notice_Period_Months}} months</strong> written notice to the other party.</p>
@@ -71,6 +120,26 @@ export const initialTemplates: LegalTemplate[] = [
     version: '1.2',
     usageCount: 42,
     status: 'active',
+    versionHistory: [
+      {
+        version: '1.0',
+        editedBy: 'Adv. Rajesh Varma',
+        editedAt: '2026-07-15T10:00:00Z',
+        changeSummary: 'Initial standard template creation.'
+      },
+      {
+        version: '1.1',
+        editedBy: 'Adv. Rajesh Varma',
+        editedAt: '2026-07-28T09:15:00Z',
+        changeSummary: 'Updated demised premises description.'
+      },
+      {
+        version: '1.2',
+        editedBy: 'Adv. Rajesh Varma',
+        editedAt: '2026-08-01T14:30:00Z',
+        changeSummary: 'Merged security deposit variables and added lease term field.'
+      }
+    ],
     pendingCustomizations: [
       {
         id: 'cust_101',
@@ -113,7 +182,21 @@ export const initialTemplates: LegalTemplate[] = [
     updatedAt: '2026-07-28T09:15:00Z',
     version: '2.0',
     usageCount: 88,
-    status: 'active'
+    status: 'active',
+    versionHistory: [
+      {
+        version: '1.0',
+        editedBy: 'Adv. Rajesh Varma',
+        editedAt: '2026-06-10T11:00:00Z',
+        changeSummary: 'Initial standard NDA draft.'
+      },
+      {
+        version: '2.0',
+        editedBy: 'Adv. Rajesh Varma',
+        editedAt: '2026-07-28T09:15:00Z',
+        changeSummary: 'Upgraded mutual diligence clauses to modern corporate compliance norms.'
+      }
+    ]
   }
 ];
 
@@ -121,8 +204,10 @@ export const initialDocuments: LegalDocument[] = [
   {
     id: 'doc_101',
     templateId: 'tpl_rental',
+    templateVersionAtGeneration: '1.2',
     title: 'Lease Agreement - Aarav Mehta Premises',
-    clientName: 'Aarav Mehta',
+    clientId: 'client_aarav',
+    matterId: 'matter_aarav_lease',
     category: 'Real Estate',
     authorId: 'usr_lawyer',
     authorName: 'Adv. Ananya Roy',
@@ -136,6 +221,7 @@ export const initialDocuments: LegalDocument[] = [
       Monthly_Rent: '45000',
       Security_Deposit: '270000',
       Lease_Start_Date: '2026-09-01',
+      Lease_Term_Months: '11',
       Notice_Period_Months: '2',
       Jurisdiction_City: 'Bengaluru'
     },
@@ -163,6 +249,7 @@ export const initialDocuments: LegalDocument[] = [
     comments: [
       {
         id: 'cmt_1',
+        parentCommentId: null,
         authorId: 'usr_partner',
         authorName: 'Adv. Rajesh Varma',
         authorRole: 'boss',
@@ -184,11 +271,15 @@ export const initialDocuments: LegalDocument[] = [
 <h2>1. DEMISED PREMISES</h2>
 <p>The Lessor hereby agrees to lease out the premises situated at <strong>Flat 402, Lotus Towers, MG Road, Bengaluru</strong>.</p>
 
-<h2>2. RENT AND DEPOSIT</h2>
-<p>The Lessee shall pay to the Lessor a monthly rent of <strong>₹45,000</strong> payable on or before the 5th of each calendar month. The Lessee has deposited a security deposit of <strong>₹2,70,000</strong>.</p>
+<h2>2. TERM AND RENT</h2>
+<p>The lease term shall be for a duration of <strong>11 months</strong> starting from <strong>2026-09-01</strong>. The Lessee shall pay to the Lessor a monthly rent of <strong>₹45,000</strong> payable on or before the 5th of each calendar month. The Lessee has deposited a security deposit of <strong>₹2,70,000</strong>.</p>
 
 <h2>3. TERMINATION AND NOTICE PERIOD</h2>
 <p>Either party may terminate this agreement by giving <strong>2 months</strong> written notice to the other party.</p>`,
+    reviewHistory: [],
+    expiryDate: null,
+    lockedAt: null,
+    pdfExportUrl: null,
     createdAt: '2026-08-03T11:00:00Z',
     updatedAt: '2026-08-04T09:30:00Z'
   }
@@ -199,14 +290,15 @@ export const initialWorkflowTasks: WorkflowTask[] = [
     id: 'task_201',
     documentId: 'doc_101',
     templateId: 'tpl_rental',
-    templateName: 'Lease Agreement',
-    title: 'Draft Commercial Lease Agreement',
-    clientName: 'Aarav Mehta',
+    templateName: 'Residential & Commercial Lease Agreement',
+    title: 'Draft Commercial Lease - Aarav Mehta',
+    clientId: 'client_aarav',
+    matterId: 'matter_aarav_lease',
     assigneeId: 'usr_lawyer',
     assigneeName: 'Adv. Ananya Roy',
     assigneeAvatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200',
     assignedById: 'usr_partner',
-    assignedByName: 'Adv. Rajesh Varma (Senior Partner)',
+    assignedByName: 'Adv. Rajesh Varma',
     status: 'under_review',
     priority: 'urgent', // Case Urgency
     dueDate: '2026-08-06',
@@ -238,7 +330,7 @@ export const initialActivityLogs: ActivityLog[] = [
     action: 'Assigned Urgent Task',
     entityType: 'task',
     entityId: 'task_201',
-    entityName: 'Draft Commercial Lease Agreement',
+    entityName: 'Draft Commercial Lease - Aarav Mehta',
     details: 'Assigned task to Adv. Ananya Roy with Urgent Case Priority.',
     timestamp: '2026-08-03T09:00:00Z'
   }
@@ -257,7 +349,7 @@ export const initialNotifications: NotificationItem[] = [
   {
     id: 'notif_2',
     title: 'Pending Template Customization Request',
-    message: 'Adv. Ananya Roy requested custom variable addition to "Residential Lease Agreement".',
+    message: 'Adv. Ananya Roy requested custom variable addition to "Residential & Commercial Lease Agreement".',
     timestamp: '1 hour ago',
     read: false,
     type: 'customization',

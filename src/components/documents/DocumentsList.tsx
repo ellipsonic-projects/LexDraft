@@ -6,7 +6,8 @@ import {
   Trash2,
   PlusCircle,
   Edit3,
-  ChevronLeft
+  ChevronLeft,
+  RefreshCw
 } from 'lucide-react';
 import { DocumentStatus } from '../../types';
 import { LegalDocumentEditor } from '../editor/LegalDocumentEditor';
@@ -18,11 +19,17 @@ export const DocumentsList: React.FC = () => {
     setSelectedDocumentId,
     setActiveTab,
     deleteDocument,
-    theme
+    theme,
+    clients,
+    currentUser,
+    renewDocument,
+    matters
   } = useApp();
 
   const isDark = theme === 'dark';
   const [statusFilter, setStatusFilter] = useState<string>('All');
+  const [selectedClientId, setSelectedClientId] = useState<string>('All');
+  const [selectedMatterId, setSelectedMatterId] = useState<string>('All');
   const [searchFilter, setSearchFilter] = useState<string>('');
 
   const activeDoc = documents.find(d => d.id === selectedDocumentId);
@@ -31,8 +38,11 @@ export const DocumentsList: React.FC = () => {
 
   const filteredDocs = documents.filter(doc => {
     const matchesStatus = statusFilter === 'All' || doc.status === statusFilter;
-    const matchesSearch = doc.title.toLowerCase().includes(searchFilter.toLowerCase()) || doc.clientName.toLowerCase().includes(searchFilter.toLowerCase());
-    return matchesStatus && matchesSearch;
+    const matchesClient = selectedClientId === 'All' || doc.clientId === selectedClientId;
+    const matchesMatter = selectedMatterId === 'All' || doc.matterId === selectedMatterId;
+    const clientName = clients.find(c => c.id === doc.clientId)?.name || '';
+    const matchesSearch = doc.title.toLowerCase().includes(searchFilter.toLowerCase()) || clientName.toLowerCase().includes(searchFilter.toLowerCase());
+    return matchesStatus && matchesClient && matchesMatter && matchesSearch;
   });
 
   const getStatusBadge = (status: DocumentStatus) => {
@@ -105,7 +115,7 @@ export const DocumentsList: React.FC = () => {
       <div className={`flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-xl border ${
         isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
       }`}>
-        <div className="flex items-center space-x-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
+        <div className="flex flex-wrap items-center gap-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
           {statuses.map(st => (
             <button
               key={st}
@@ -119,6 +129,39 @@ export const DocumentsList: React.FC = () => {
               {st.replace('_', ' ')}
             </button>
           ))}
+
+          <div className="h-4 w-px bg-slate-300 dark:bg-slate-800 mx-1" />
+
+          {/* Client Filter Selector */}
+          <select
+            value={selectedClientId}
+            onChange={(e) => {
+              setSelectedClientId(e.target.value);
+              setSelectedMatterId('All');
+            }}
+            className={`text-xs p-1.5 rounded-lg border focus:outline-none ${
+              isDark ? 'bg-slate-950 border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+            }`}
+          >
+            <option value="All">All Clients</option>
+            {clients.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+
+          {/* Matter Filter Selector */}
+          <select
+            value={selectedMatterId}
+            onChange={(e) => setSelectedMatterId(e.target.value)}
+            className={`text-xs p-1.5 rounded-lg border focus:outline-none ${
+              isDark ? 'bg-slate-950 border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
+            }`}
+          >
+            <option value="All">All Matters</option>
+            {matters.filter(m => selectedClientId === 'All' || m.clientId === selectedClientId).map(m => (
+              <option key={m.id} value={m.id}>{m.title}</option>
+            ))}
+          </select>
         </div>
 
         <div className="relative w-full sm:w-64">
@@ -168,7 +211,7 @@ export const DocumentsList: React.FC = () => {
                         }}>
                           {doc.title}
                         </p>
-                        <p className="text-[11px] text-slate-500">Client: <strong className={isDark ? 'text-slate-300' : 'text-slate-700'}>{doc.clientName}</strong></p>
+                        <p className="text-[11px] text-slate-500">Client: <strong className={isDark ? 'text-slate-300' : 'text-slate-700'}>{clients.find(c => c.id === doc.clientId)?.name || 'Unknown Client'}</strong></p>
                       </div>
                     </td>
                     <td className="p-4 text-slate-500">{doc.category}</td>
@@ -188,6 +231,20 @@ export const DocumentsList: React.FC = () => {
                         <Edit3 className="w-3.5 h-3.5" />
                         <span>Open Editor</span>
                       </button>
+
+                      {doc.status === 'approved' && currentUser.role === 'boss' && (
+                        <button
+                          onClick={() => {
+                            renewDocument(doc.id);
+                          }}
+                          className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold rounded-xl text-xs shadow-xs transition-all flex items-center space-x-1 inline-flex"
+                          title="Renew & Clone Document"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Renew</span>
+                        </button>
+                      )}
+
                       <button
                         onClick={() => deleteDocument(doc.id)}
                         className="p-1.5 rounded-lg hover:bg-rose-500/10 text-slate-400 hover:text-rose-600 transition-colors"

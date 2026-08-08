@@ -108,7 +108,9 @@ export const TemplateStudio: React.FC = () => {
       createdBy: currentUser.name,
       version: '1.0'
     });
-    setSelectedTemplateId(newTpl.id);
+    if (newTpl) {
+      setSelectedTemplateId(newTpl.id);
+    }
     setActiveSubTab('library');
     setRawText('');
     setExtractedVariables([]);

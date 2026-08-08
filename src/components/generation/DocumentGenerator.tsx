@@ -17,16 +17,41 @@ export const DocumentGenerator: React.FC = () => {
     generateDocument,
     setActiveTab,
     setSelectedDocumentId,
-    theme
+    theme,
+    clients,
+    matters,
+    tasks,
+    selectedTaskId,
+    setSelectedTaskId,
+    showToast
   } = useApp();
 
   const isDark = theme === 'dark';
   const [step, setStep] = useState<1 | 2 | 3>(selectedTemplateId ? 2 : 1);
   const [activeTemplateId, setActiveTemplateId] = useState<string>(selectedTemplateId || (templates[0]?.id || ''));
-  const [clientName, setClientName] = useState<string>('Aarav Mehta');
+  const [clientId, setClientId] = useState<string>('');
+  const [matterId, setMatterId] = useState<string>('');
   const [priority, setPriority] = useState<TaskPriority>('high');
   const [dueDate, setDueDate] = useState<string>(new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [formValues, setFormValues] = useState<Record<string, any>>({});
+
+  useEffect(() => {
+    if (selectedTaskId) {
+      const activeTask = tasks.find(t => t.id === selectedTaskId);
+      if (activeTask) {
+        setClientId(activeTask.clientId);
+        setMatterId(activeTask.matterId);
+        setPriority(activeTask.priority);
+        setDueDate(activeTask.dueDate);
+      }
+    } else {
+      if (clients.length > 0) {
+        setClientId(clients[0].id);
+        const matching = matters.filter(m => m.clientId === clients[0].id && m.status === 'active');
+        setMatterId(matching[0]?.id || '');
+      }
+    }
+  }, [selectedTaskId, tasks, clients, matters]);
 
   const selectedTemplate = templates.find(t => t.id === activeTemplateId) || templates[0];
 
@@ -79,10 +104,24 @@ export const DocumentGenerator: React.FC = () => {
   };
 
   const handleGenerate = () => {
-    if (!selectedTemplate || !clientName) return;
-    const doc = generateDocument(selectedTemplate.id, clientName, formValues, priority, dueDate);
-    setSelectedDocumentId(doc.id);
-    setActiveTab('document_editor');
+    if (!selectedTemplate || !clientId || !matterId) {
+      showToast('Please select a client and matter.', 'warning');
+      return;
+    }
+    const doc = generateDocument(
+      selectedTemplate.id,
+      clientId,
+      matterId,
+      formValues,
+      priority,
+      dueDate,
+      selectedTaskId || undefined
+    );
+    if (doc) {
+      setSelectedDocumentId(doc.id);
+      setSelectedTaskId(null); // Clear selected task
+      setActiveTab('document_editor');
+    }
   };
 
   return (
@@ -207,20 +246,44 @@ export const DocumentGenerator: React.FC = () => {
               </button>
             </div>
 
-            <div className={`grid grid-cols-1 sm:grid-cols-3 gap-4 p-4 rounded-xl border ${
+            <div className={`grid grid-cols-1 sm:grid-cols-4 gap-4 p-4 rounded-xl border ${
               isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'
             }`}>
               <div>
-                <label className="text-[11px] font-semibold text-slate-500">Client / Party Name</label>
-                <input
-                  type="text"
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  placeholder="e.g. Aarav Mehta"
+                <label className="text-[11px] font-semibold text-slate-500">Client Name</label>
+                <select
+                  disabled={!!selectedTaskId}
+                  value={clientId}
+                  onChange={(e) => {
+                    const cId = e.target.value;
+                    setClientId(cId);
+                    const matching = matters.filter(m => m.clientId === cId && m.status === 'active');
+                    setMatterId(matching[0]?.id || '');
+                  }}
                   className={`w-full text-xs p-2.5 rounded-xl border focus:outline-none mt-1 font-semibold ${
                     isDark ? 'bg-slate-900 text-slate-100 border-slate-800' : 'bg-white text-slate-900 border-slate-200'
-                  }`}
-                />
+                  } ${selectedTaskId ? 'opacity-70 cursor-not-allowed' : ''}`}
+                >
+                  {clients.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-semibold text-slate-500">Related Matter</label>
+                <select
+                  disabled={!!selectedTaskId}
+                  value={matterId}
+                  onChange={(e) => setMatterId(e.target.value)}
+                  className={`w-full text-xs p-2.5 rounded-xl border focus:outline-none mt-1 font-semibold ${
+                    isDark ? 'bg-slate-900 text-slate-100 border-slate-800' : 'bg-white text-slate-900 border-slate-200'
+                  } ${selectedTaskId ? 'opacity-70 cursor-not-allowed' : ''}`}
+                >
+                  {matters.filter(m => m.clientId === clientId && m.status === 'active').map(m => (
+                    <option key={m.id} value={m.id}>{m.title} ({m.matterCode})</option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -338,7 +401,7 @@ export const DocumentGenerator: React.FC = () => {
               </div>
               <div className={`flex justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                 <span className="text-slate-500">Target Client:</span>
-                <span className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{clientName || 'Not set'}</span>
+                <span className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{clients.find(c => c.id === clientId)?.name || 'Not set'}</span>
               </div>
               <div className={`flex justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
                 <span className="text-slate-500">Priority:</span>

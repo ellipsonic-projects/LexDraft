@@ -20,7 +20,9 @@ import {
   Highlighter,
   X,
   ShieldCheck,
-  Edit3
+  Edit3,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 import { VersionHistoryModal } from './VersionHistoryModal';
 
@@ -35,10 +37,20 @@ export const LegalDocumentEditor: React.FC = () => {
     approveDocument,
     rejectDocument,
     addInlineComment,
-    theme
+    theme,
+    clients,
+    tasks,
+    markDocumentDelivered,
+    renewDocument,
+    templates
   } = useApp();
 
   const doc = documents.find(d => d.id === selectedDocumentId) || documents[0];
+  const linkedTask = tasks.find(t => t.documentId === doc?.id);
+  const isDelivered = linkedTask ? linkedTask.status === 'completed' : false;
+  const isApproved = doc?.status === 'approved';
+  const template = templates.find(t => t.id === doc?.templateId);
+  const isStale = template ? doc?.templateVersionAtGeneration !== template.version : false;
 
   const [contentHtml, setContentHtml] = useState(doc?.content || '');
   const [showVersionModal, setShowVersionModal] = useState(false);
@@ -50,6 +62,8 @@ export const LegalDocumentEditor: React.FC = () => {
   const [selectedText, setSelectedText] = useState('');
   const [commentInput, setCommentInput] = useState('');
   const [changeNoteInput, setChangeNoteInput] = useState('Updated legal clauses and variable inputs.');
+  const [replyTargetId, setReplyTargetId] = useState<string | null>(null);
+  const [replyInput, setReplyInput] = useState('');
 
   const [selectedTone, setSelectedTone] = useState<'strict' | 'balanced' | 'plain'>('strict');
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
@@ -144,7 +158,7 @@ export const LegalDocumentEditor: React.FC = () => {
               </span>
             </div>
             <p className="text-[11px] text-slate-500">
-              Client: <strong className="text-slate-700 dark:text-slate-300">{doc.clientName}</strong> • Author: {doc.authorName}
+              Client: <strong className="text-slate-700 dark:text-slate-300">{clients.find(c => c.id === doc.clientId)?.name || 'Unknown Client'}</strong> • Author: {doc.authorName}
             </p>
           </div>
         </div>
@@ -192,15 +206,49 @@ export const LegalDocumentEditor: React.FC = () => {
             <Printer className="w-4 h-4" />
           </button>
 
-          <button
-            onClick={() => setShowSaveModal(true)}
-            className="px-3.5 py-1.5 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center space-x-1.5 shadow-xs"
-          >
-            <Save className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Save Draft Version</span>
-          </button>
+          {!isApproved && (
+            <button
+              onClick={() => setShowSaveModal(true)}
+              className="px-3.5 py-1.5 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center space-x-1.5 shadow-xs"
+            >
+              <Save className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Save Draft Version</span>
+            </button>
+          )}
 
-          {!isBoss ? (
+          {isApproved ? (
+            isBoss ? (
+              <div className="flex items-center space-x-2">
+                {!isDelivered ? (
+                  <button
+                    onClick={() => markDocumentDelivered(doc.id)}
+                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md flex items-center space-x-1.5 animate-bounce"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-white" />
+                    <span>Mark as Delivered</span>
+                  </button>
+                ) : (
+                  <div className="px-4 py-1.5 bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-xs rounded-xl border border-slate-300 dark:border-slate-700 flex items-center space-x-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                    <span>Sealed & Delivered</span>
+                  </div>
+                )}
+                
+                <button
+                  onClick={() => renewDocument(doc.id)}
+                  className="px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold text-xs rounded-xl shadow-md flex items-center space-x-1.5"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Renew Agreement</span>
+                </button>
+              </div>
+            ) : (
+              <div className="px-4 py-1.5 bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs rounded-xl border border-emerald-500/20 flex items-center space-x-1.5">
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Sealed & Approved</span>
+              </div>
+            )
+          ) : !isBoss ? (
             <button
               onClick={() => submitDocumentForReview(doc.id)}
               className="px-4 py-1.5 bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-900/20 flex items-center space-x-1.5"
@@ -209,13 +257,15 @@ export const LegalDocumentEditor: React.FC = () => {
               <span>Submit for Partner Review</span>
             </button>
           ) : (
-            <button
-              onClick={() => setShowReviewModal(true)}
-              className="px-4 py-1.5 bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-900/20 flex items-center space-x-1.5"
-            >
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>Partner Review Action</span>
-            </button>
+            doc.status === 'under_review' && (
+              <button
+                onClick={() => setShowReviewModal(true)}
+                className="px-4 py-1.5 bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-900/20 flex items-center space-x-1.5"
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Partner Review Action</span>
+              </button>
+            )
           )}
         </div>
       </div>
@@ -272,12 +322,21 @@ export const LegalDocumentEditor: React.FC = () => {
         </button>
       </div>
 
+      {isStale && (
+        <div className={`px-6 py-3 border-b flex items-center space-x-2.5 text-xs font-semibold ${
+          isDark ? 'bg-rose-500/10 border-rose-500/20 text-rose-300' : 'bg-rose-50 border-rose-200 text-rose-900'
+        }`}>
+          <AlertCircle className="w-4.5 h-4.5 text-rose-500 shrink-0 animate-pulse" />
+          <span>Warning: This document was generated using template v{doc.templateVersionAtGeneration}, but the master template is now at v{template?.version}. Variables or clauses may be out of date.</span>
+        </div>
+      )}
+
       {/* Main Editor Paper Container */}
       <div className="flex-1 flex overflow-hidden relative">
         <div className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-100 dark:bg-slate-950">
           <div
             ref={editorRef}
-            contentEditable
+            contentEditable={!isApproved}
             onMouseUp={handleSelection}
             onKeyUp={handleSelection}
             onInput={(e) => setContentHtml(e.currentTarget.innerHTML)}
@@ -359,19 +418,81 @@ export const LegalDocumentEditor: React.FC = () => {
               </div>
 
               <div className="space-y-3">
-                {doc.comments.map((cmt) => (
-                  <div key={cmt.id} className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-800 dark:text-slate-200">{cmt.authorName}</span>
-                      <span className="text-[10px] text-slate-400">{new Date(cmt.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
+                {doc.comments.filter(c => !c.parentCommentId).map((cmt) => {
+                  const replies = doc.comments.filter(r => r.parentCommentId === cmt.id);
+                  return (
+                    <div key={cmt.id} className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-800 dark:text-slate-200">{cmt.authorName}</span>
+                        <span className="text-[10px] text-slate-400">{new Date(cmt.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
 
-                    <p className="text-[11px] bg-blue-50 dark:bg-slate-900 text-blue-900 dark:text-blue-300 p-1.5 rounded border border-blue-200 dark:border-slate-800 font-mono">
-                      "{cmt.selectedText}"
-                    </p>
-                    <p className="text-slate-700 dark:text-slate-300">{cmt.commentText}</p>
-                  </div>
-                ))}
+                      {cmt.selectedText && cmt.selectedText !== 'Selected clause' && cmt.selectedText !== 'General Note' && (
+                        <p className="text-[11px] bg-blue-50 dark:bg-slate-900 text-blue-900 dark:text-blue-300 p-1.5 rounded border border-blue-200 dark:border-slate-800 font-mono">
+                          "{cmt.selectedText}"
+                        </p>
+                      )}
+                      <p className="text-slate-700 dark:text-slate-300">{cmt.commentText}</p>
+
+                      {replies.length > 0 && (
+                        <div className="pl-3 mt-2 space-y-2 border-l border-indigo-500/20 dark:border-slate-800">
+                          {replies.map(reply => (
+                            <div key={reply.id} className="p-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 space-y-1">
+                              <div className="flex items-center justify-between text-[10px]">
+                                <span className="font-bold text-slate-700 dark:text-slate-300">{reply.authorName}</span>
+                                <span className="text-slate-400">{new Date(reply.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                              </div>
+                              <p className="text-slate-600 dark:text-slate-400 text-[11px]">{reply.commentText}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex justify-end pt-1">
+                        {replyTargetId === cmt.id ? (
+                          <div className="w-full space-y-2">
+                            <input
+                              type="text"
+                              value={replyInput}
+                              onChange={(e) => setReplyInput(e.target.value)}
+                              placeholder="Type reply..."
+                              className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200 text-[11px] p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 focus:outline-none"
+                            />
+                            <div className="flex justify-end space-x-1.5">
+                              <button
+                                onClick={() => setReplyTargetId(null)}
+                                className="px-2 py-1 text-[10px] bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded font-semibold"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={() => {
+                                  if (!replyInput.trim()) return;
+                                  addInlineComment(doc.id, '', replyInput, cmt.id);
+                                  setReplyInput('');
+                                  setReplyTargetId(null);
+                                }}
+                                className="px-2 py-1 text-[10px] bg-indigo-650 hover:bg-indigo-750 text-white rounded font-semibold"
+                              >
+                                Reply
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setReplyTargetId(cmt.id);
+                              setReplyInput('');
+                            }}
+                            className="text-[10px] font-bold text-indigo-650 dark:text-indigo-400 hover:underline"
+                          >
+                            Reply
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

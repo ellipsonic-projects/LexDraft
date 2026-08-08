@@ -21,7 +21,10 @@ export const EmployeeDashboard: React.FC = () => {
     setActiveTab,
     setSelectedDocumentId,
     submitDocumentForReview,
-    theme
+    theme,
+    clients,
+    setSelectedTaskId,
+    setSelectedTemplateId
   } = useApp();
 
   const isDark = theme === 'dark';
@@ -29,6 +32,12 @@ export const EmployeeDashboard: React.FC = () => {
   const myDraftDocs = documents.filter(d => d.authorId === currentUser.id && d.status === 'draft');
   const myUnderReviewDocs = documents.filter(d => d.authorId === currentUser.id && d.status === 'under_review');
   const myApprovedDocs = documents.filter(d => d.authorId === currentUser.id && d.status === 'approved');
+  const myExpiringDocs = myApprovedDocs.filter(d => {
+    if (!d.expiryDate) return false;
+    const diffTime = new Date(d.expiryDate).getTime() - new Date().getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays <= 30 && diffDays > 0;
+  });
 
   const getUrgencyBadge = (priority: TaskPriority) => {
     switch (priority) {
@@ -75,6 +84,20 @@ export const EmployeeDashboard: React.FC = () => {
           <span>Generate Document From Template</span>
         </button>
       </div>
+
+      {myExpiringDocs.length > 0 && (
+        <div className={`p-4 rounded-xl border flex items-center space-x-3 text-xs ${
+          isDark ? 'bg-amber-500/10 border-amber-500/20 text-amber-200' : 'bg-amber-50 border-amber-200 text-amber-900'
+        }`}>
+          <AlertTriangle className="w-5 h-5 text-amber-500 shrink-0" />
+          <div>
+            <p className="font-bold">You have expiring agreements requiring renewal attention ({myExpiringDocs.length})</p>
+            <p className="text-[11px] mt-0.5 text-slate-500">
+              Please contact Rajesh Varma (Senior Partner) to authorize renewal cloning for: {myExpiringDocs.map(d => `"${d.title}"`).join(', ')}.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* KPI Widgets */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -156,7 +179,7 @@ export const EmployeeDashboard: React.FC = () => {
                   </div>
 
                   <div className="grid grid-cols-2 gap-2 text-xs text-slate-500">
-                    <div>Client: <strong className={isDark ? 'text-slate-200' : 'text-slate-800'}>{t.clientName}</strong></div>
+                    <div>Client: <strong className={isDark ? 'text-slate-200' : 'text-slate-800'}>{clients.find(c => c.id === t.clientId)?.name || 'Unknown Client'}</strong></div>
                     <div>Target Due Date: <span className="text-blue-900 dark:text-blue-400 font-mono font-bold">{t.dueDate}</span></div>
                   </div>
 
@@ -176,6 +199,8 @@ export const EmployeeDashboard: React.FC = () => {
                           setSelectedDocumentId(t.documentId);
                           setActiveTab('documents');
                         } else {
+                          setSelectedTaskId(t.id);
+                          setSelectedTemplateId(t.templateId);
                           setActiveTab('document_generator');
                         }
                       }}
@@ -230,7 +255,7 @@ export const EmployeeDashboard: React.FC = () => {
                   <div className="space-y-1">
                     <p className={`text-xs font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{doc.title}</p>
                     <p className="text-[11px] text-slate-500">
-                      Version: <span className="text-blue-800 dark:text-blue-400 font-mono font-bold">v{doc.currentVersion}</span> • Client: {doc.clientName}
+                      Version: <span className="text-blue-800 dark:text-blue-400 font-mono font-bold">v{doc.currentVersion}</span> • Client: {clients.find(c => c.id === doc.clientId)?.name || 'Unknown Client'}
                     </p>
                   </div>
 

@@ -18,7 +18,9 @@ export const WorkflowKanban: React.FC = () => {
     assignTask,
     updateTaskStatus,
     theme,
-    showToast
+    showToast,
+    clients,
+    matters
   } = useApp();
 
   const isBoss = currentUser.role === 'boss';
@@ -26,7 +28,8 @@ export const WorkflowKanban: React.FC = () => {
   const [showAssignModal, setShowAssignModal] = useState(false);
 
   const [templateId, setTemplateId] = useState(templates[0]?.id || '');
-  const [clientName, setClientName] = useState('');
+  const [clientId, setClientId] = useState('');
+  const [matterId, setMatterId] = useState('');
   const [assigneeId, setAssigneeId] = useState(users.find(u => u.role === 'employee')?.id || '');
   const [priority, setPriority] = useState<TaskPriority>('high');
   const [dueDate, setDueDate] = useState(new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
@@ -46,17 +49,21 @@ export const WorkflowKanban: React.FC = () => {
       showToast('Task assignment is restricted to Senior Partners', 'warning');
       return;
     }
-    if (!templateId || !clientName || !assigneeId) return;
+    if (!templateId || !clientId || !matterId || !assigneeId) {
+      showToast('Please select a template, client, matter, and assignee.', 'warning');
+      return;
+    }
     assignTask({
       templateId,
-      clientName,
+      clientId,
+      matterId,
       assigneeId,
       priority,
       dueDate,
-      notes
+      notes,
+      documentId: null
     });
     setShowAssignModal(false);
-    setClientName('');
     setNotes('');
   };
 
@@ -137,7 +144,7 @@ export const WorkflowKanban: React.FC = () => {
                       }`}>
                         {t.title}
                       </h4>
-                      <p className="text-[11px] text-slate-500 mt-0.5">Client: {t.clientName}</p>
+                      <p className="text-[11px] text-slate-500 mt-0.5">Client: {clients.find(c => c.id === t.clientId)?.name || 'Unknown Client'}</p>
                     </div>
 
                     <div className={`flex items-center justify-between pt-2 border-t text-[10px] ${
@@ -147,6 +154,11 @@ export const WorkflowKanban: React.FC = () => {
 
                       {col.id !== 'completed' && (
                         <button
+                          disabled={
+                            currentUser.role !== 'boss' &&
+                            (t.assigneeId !== currentUser.id ||
+                              (t.status !== 'assigned' && t.status !== 'draft_ready'))
+                          }
                           onClick={() => {
                             const statuses: TaskStatus[] = ['assigned', 'in_progress', 'draft_ready', 'under_review', 'approved', 'completed'];
                             const idx = statuses.indexOf(t.status);
@@ -155,9 +167,19 @@ export const WorkflowKanban: React.FC = () => {
                             }
                           }}
                           className={`p-1 rounded transition-colors ${
-                            isDark ? 'bg-slate-800 text-slate-400 hover:bg-blue-900 hover:text-white' : 'bg-slate-100 text-slate-600 hover:bg-blue-900 hover:text-white'
+                            currentUser.role !== 'boss' &&
+                            (t.assigneeId !== currentUser.id ||
+                              (t.status !== 'assigned' && t.status !== 'draft_ready'))
+                              ? 'opacity-30 cursor-not-allowed text-slate-400'
+                              : isDark ? 'bg-slate-800 text-slate-400 hover:bg-blue-900 hover:text-white' : 'bg-slate-100 text-slate-600 hover:bg-blue-900 hover:text-white'
                           }`}
-                          title="Advance Status"
+                          title={
+                            currentUser.role !== 'boss' &&
+                            (t.assigneeId !== currentUser.id ||
+                              (t.status !== 'assigned' && t.status !== 'draft_ready'))
+                              ? "Action Restricted"
+                              : "Advance Status"
+                          }
                         >
                           <ChevronRight className="w-3.5 h-3.5" />
                         </button>
@@ -203,16 +225,40 @@ export const WorkflowKanban: React.FC = () => {
               </div>
 
               <div>
-                <label className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Client / Party Name</label>
-                <input
-                  type="text"
-                  value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  placeholder="e.g. Acme Corp Merger"
-                  className={`w-full text-xs p-2.5 rounded-xl border focus:outline-none mt-1 font-semibold ${
+                <label className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Select Client</label>
+                <select
+                  value={clientId}
+                  onChange={(e) => {
+                    const cId = e.target.value;
+                    setClientId(cId);
+                    const matching = matters.filter(m => m.clientId === cId && m.status === 'active');
+                    setMatterId(matching[0]?.id || '');
+                  }}
+                  className={`w-full text-xs p-2.5 rounded-xl border focus:outline-none mt-1 ${
                     isDark ? 'bg-slate-950 text-slate-200 border-slate-800' : 'bg-slate-50 text-slate-800 border-slate-200'
                   }`}
-                />
+                >
+                  <option value="">-- Choose Client --</option>
+                  {clients.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Select Matter</label>
+                <select
+                  value={matterId}
+                  onChange={(e) => setMatterId(e.target.value)}
+                  className={`w-full text-xs p-2.5 rounded-xl border focus:outline-none mt-1 ${
+                    isDark ? 'bg-slate-950 text-slate-200 border-slate-800' : 'bg-slate-50 text-slate-800 border-slate-200'
+                  }`}
+                >
+                  <option value="">-- Choose Matter --</option>
+                  {matters.filter(m => m.clientId === clientId && m.status === 'active').map(m => (
+                    <option key={m.id} value={m.id}>{m.title} ({m.matterCode})</option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">

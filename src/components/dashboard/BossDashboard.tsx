@@ -13,7 +13,8 @@ import {
   ShieldCheck,
   ChevronRight,
   Sparkles,
-  Kanban
+  Kanban,
+  RefreshCw
 } from 'lucide-react';
 
 export const BossDashboard: React.FC = () => {
@@ -25,10 +26,18 @@ export const BossDashboard: React.FC = () => {
     activityLogs,
     setActiveTab,
     setSelectedDocumentId,
-    theme
+    theme,
+    clients,
+    renewDocument
   } = useApp();
 
   const isDark = theme === 'dark';
+  const expiringDocs = documents.filter(d => {
+    if (d.status !== 'approved' || !d.expiryDate) return false;
+    const diffTime = new Date(d.expiryDate).getTime() - new Date().getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays <= 30 && diffDays > 0;
+  });
   const pendingReviews = documents.filter(d => d.status === 'under_review');
   const activeEmployees = users.filter(u => u.role === 'employee');
 
@@ -96,6 +105,46 @@ export const BossDashboard: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {expiringDocs.length > 0 && (
+        <div className={`p-5 rounded-2xl border ${
+          isDark ? 'bg-amber-500/10 border-amber-500/20 text-amber-200' : 'bg-amber-50 border-amber-200 text-amber-900'
+        } space-y-3`}>
+          <div className="flex items-center space-x-2">
+            <AlertCircle className="w-5 h-5 text-amber-500 animate-pulse" />
+            <h2 className="text-sm font-extrabold uppercase tracking-wide">Active Agreements Expiring Soon ({expiringDocs.length})</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {expiringDocs.map(doc => {
+              const client = clients.find(c => c.id === doc.clientId);
+              const diffTime = new Date(doc.expiryDate!).getTime() - new Date().getTime();
+              const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+              return (
+                <div key={doc.id} className={`p-3.5 rounded-xl border flex items-center justify-between text-xs font-semibold ${
+                  isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+                }`}>
+                  <div>
+                    <p className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{doc.title}</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">
+                      Client: {client?.name || 'Unknown'} • Expires: <span className="text-amber-500 font-bold">{doc.expiryDate}</span> ({diffDays} days left)
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      renewDocument(doc.id);
+                      setActiveTab('documents');
+                    }}
+                    className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold rounded-xl text-[11px] shadow-sm shrink-0 flex items-center space-x-1"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>Renew</span>
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* KPI Metric Widgets */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
@@ -203,39 +252,48 @@ export const BossDashboard: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-3">
-                {pendingReviews.map((doc) => (
-                  <div
-                    key={doc.id}
-                    className={`p-4 rounded-xl border transition-all flex items-center justify-between ${
-                      isDark
-                        ? 'bg-slate-950/70 border-slate-800 hover:border-blue-700/40'
-                        : 'bg-slate-50/80 border-slate-200 hover:border-blue-300'
-                    }`}
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <span className={`text-xs font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{doc.title}</span>
-                        <span className="px-2 py-0.5 text-[10px] font-bold bg-rose-500/10 text-rose-600 border border-rose-500/20 rounded capitalize">
-                          {doc.priority} Case Urgency
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500">
-                        Client: <strong className={isDark ? 'text-slate-300' : 'text-slate-700'}>{doc.clientName}</strong> • Lawyer: <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>{doc.authorName}</span>
-                      </p>
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        setSelectedDocumentId(doc.id);
-                        setActiveTab('documents');
-                      }}
-                      className="px-3.5 py-2 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-xl text-xs shadow-md shadow-blue-900/20 transition-all flex items-center space-x-1.5 shrink-0"
+                {pendingReviews.map((doc) => {
+                  const template = templates.find(t => t.id === doc.templateId);
+                  const isStale = template ? doc.templateVersionAtGeneration !== template.version : false;
+                  return (
+                    <div
+                      key={doc.id}
+                      className={`p-4 rounded-xl border transition-all flex items-center justify-between ${
+                        isDark
+                          ? 'bg-slate-950/70 border-slate-800 hover:border-blue-700/40'
+                          : 'bg-slate-50/80 border-slate-200 hover:border-blue-300'
+                      }`}
                     >
-                      <span>Review & Approve</span>
-                      <ArrowUpRight className="w-3.5 h-3.5 stroke-[2.5]" />
-                    </button>
-                  </div>
-                ))}
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-2">
+                          <span className={`text-xs font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{doc.title}</span>
+                          <span className="px-2 py-0.5 text-[10px] font-bold bg-rose-500/10 text-rose-600 border border-rose-500/20 rounded capitalize">
+                            {doc.priority} Case Urgency
+                          </span>
+                          {isStale && (
+                            <span className="px-2 py-0.5 text-[9px] font-extrabold uppercase bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 rounded animate-pulse" title={`Master template version is now v${template?.version}`}>
+                              Outdated Template
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500">
+                          Client: <strong className={isDark ? 'text-slate-300' : 'text-slate-700'}>{clients.find(c => c.id === doc.clientId)?.name || 'Unknown Client'}</strong> • Lawyer: <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>{doc.authorName}</span>
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          setSelectedDocumentId(doc.id);
+                          setActiveTab('documents');
+                        }}
+                        className="px-3.5 py-2 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-xl text-xs shadow-md shadow-blue-900/20 transition-all flex items-center space-x-1.5 shrink-0"
+                      >
+                        <span>Review & Approve</span>
+                        <ArrowUpRight className="w-3.5 h-3.5 stroke-[2.5]" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -273,7 +331,7 @@ export const BossDashboard: React.FC = () => {
                       </span>
                     </div>
                     <p className="text-slate-500 text-[11px]">
-                      Client: <strong className={isDark ? 'text-slate-300' : 'text-slate-700'}>{t.clientName}</strong> • Assigned Lawyer: <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>{t.assigneeName}</span>
+                      Client: <strong className={isDark ? 'text-slate-300' : 'text-slate-700'}>{clients.find(c => c.id === t.clientId)?.name || 'Unknown Client'}</strong> • Assigned Lawyer: <span className={isDark ? 'text-slate-300' : 'text-slate-700'}>{t.assigneeName}</span>
                     </p>
                   </div>
 

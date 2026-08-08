@@ -17,15 +17,17 @@ import { AnalyticsView } from './components/analytics/AnalyticsView';
 import { SettingsView } from './components/settings/SettingsView';
 
 const MainContent: React.FC = () => {
-  const { activeTab, theme } = useApp();
+  const { activeTab, theme, currentUser } = useApp();
   const isDark = theme === 'dark';
 
   const renderView = () => {
+    const isBoss = currentUser.role === 'boss';
+
     switch (activeTab) {
       case 'boss_dashboard':
-        return <BossDashboard />;
+        return isBoss ? <BossDashboard /> : <EmployeeDashboard />;
       case 'employee_dashboard':
-        return <EmployeeDashboard />;
+        return !isBoss ? <EmployeeDashboard /> : <BossDashboard />;
       case 'template_studio':
         return <TemplateStudio />;
       case 'document_generator':
@@ -39,11 +41,27 @@ const MainContent: React.FC = () => {
       case 'activity':
         return <ActivityLogView />;
       case 'analytics':
-        return <AnalyticsView />;
+        return isBoss ? (
+          <AnalyticsView />
+        ) : (
+          <div className="flex flex-col items-center justify-center min-h-[70vh] space-y-3">
+            <div className="px-3 py-1 bg-rose-500/10 text-rose-600 border border-rose-500/20 text-[10px] font-bold rounded uppercase">Access Denied</div>
+            <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100">Senior Partner Authorization Required</h2>
+            <p className="text-xs text-slate-500 max-w-sm text-center">Analytics reports and metric insights are restricted to Partners.</p>
+          </div>
+        );
       case 'settings':
-        return <SettingsView />;
+        return isBoss ? (
+          <SettingsView />
+        ) : (
+          <div className="flex flex-col items-center justify-center min-h-[70vh] space-y-3">
+            <div className="px-3 py-1 bg-rose-500/10 text-rose-600 border border-rose-500/20 text-[10px] font-bold rounded uppercase">Access Denied</div>
+            <h2 className="text-base font-extrabold text-slate-900 dark:text-slate-100">Senior Partner Authorization Required</h2>
+            <p className="text-xs text-slate-500 max-w-sm text-center">System and tenant configurations are restricted to Partners.</p>
+          </div>
+        );
       default:
-        return <BossDashboard />;
+        return isBoss ? <BossDashboard /> : <EmployeeDashboard />;
     }
   };
 

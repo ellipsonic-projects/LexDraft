@@ -3,11 +3,15 @@ import { useApp } from '../../context/AppContext';
 import { History, Search } from 'lucide-react';
 
 export const ActivityLogView: React.FC = () => {
-  const { activityLogs, theme } = useApp();
+  const { activityLogs, theme, currentUser } = useApp();
   const isDark = theme === 'dark';
   const [filterQuery, setFilterQuery] = useState('');
 
-  const filteredLogs = activityLogs.filter(l =>
+  const ownLogs = activityLogs.filter(l =>
+    currentUser.role === 'boss' ? true : l.userId === currentUser.id
+  );
+
+  const filteredLogs = ownLogs.filter(l =>
     l.userName.toLowerCase().includes(filterQuery.toLowerCase()) ||
     l.action.toLowerCase().includes(filterQuery.toLowerCase()) ||
     l.entityName.toLowerCase().includes(filterQuery.toLowerCase())

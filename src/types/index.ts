@@ -12,7 +12,25 @@ export interface User {
   role: UserRole;
   title: string;
   avatar: string;
-  status: 'online' | 'busy' | 'offline';
+  status: 'online' | 'offline';
+}
+
+export interface Client {
+  id: string;
+  name: string;
+  contactEmail: string;
+  contactPhone: string;
+  createdAt: string; // ISO timestamp
+}
+
+export interface Matter {
+  id: string;
+  clientId: string;
+  title: string; // e.g., "Aarav Mehta — Commercial Lease"
+  matterCode: string; // firm-internal reference number
+  status: 'active' | 'closed';
+  documentIds: string[];
+  createdAt: string; // ISO timestamp
 }
 
 export interface Organization {
@@ -44,6 +62,13 @@ export interface TemplateCustomizationRequest {
   timestamp: string;
 }
 
+export interface TemplateVersionEntry {
+  version: string;
+  editedBy: string;
+  editedAt: string; // ISO timestamp
+  changeSummary: string;
+}
+
 export interface LegalTemplate {
   id: string;
   name: string;
@@ -57,7 +82,8 @@ export interface LegalTemplate {
   updatedAt: string;
   version: string;
   usageCount: number;
-  status?: 'active' | 'pending_approval' | 'rejected';
+  status: 'active' | 'inactive';
+  versionHistory: TemplateVersionEntry[];
   pendingCustomizations?: TemplateCustomizationRequest[];
 }
 
@@ -68,11 +94,12 @@ export interface DocumentVersion {
   authorName: string;
   changeDescription: string;
   content: string;
-  variablesState: Record<string, any>;
+  variablesState: Record<string, string>;
 }
 
 export interface InlineComment {
   id: string;
+  parentCommentId: string | null; // enables threaded replies
   authorId: string;
   authorName: string;
   authorRole: UserRole;
@@ -82,11 +109,23 @@ export interface InlineComment {
   resolved: boolean;
 }
 
+export interface ReviewCycle {
+  cycleNumber: number;
+  documentVersionAtReview: number;
+  reviewerId: string;
+  reviewerName: string;
+  decision: 'approved' | 'rejected';
+  notes: string;
+  timestamp: string; // ISO timestamp
+}
+
 export interface LegalDocument {
   id: string;
   templateId: string;
+  templateVersionAtGeneration: string;
   title: string;
-  clientName: string;
+  clientId: string;
+  matterId: string;
   category: string;
   authorId: string;
   authorName: string;
@@ -94,22 +133,26 @@ export interface LegalDocument {
   priority: TaskPriority;
   dueDate: string;
   content: string;
-  variables: Record<string, any>;
+  variables: Record<string, string>;
   currentVersion: number;
   versions: DocumentVersion[];
   comments: InlineComment[];
-  reviewNotes?: string;
+  reviewHistory: ReviewCycle[];
+  expiryDate: string | null;
+  lockedAt: string | null;
+  pdfExportUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface WorkflowTask {
   id: string;
-  documentId?: string;
+  documentId: string | null;
   templateId: string;
   templateName: string;
   title: string;
-  clientName: string;
+  clientId: string;
+  matterId: string;
   assigneeId: string;
   assigneeName: string;
   assigneeAvatar: string;
@@ -130,7 +173,7 @@ export interface ActivityLog {
   userName: string;
   userRole: UserRole;
   action: string;
-  entityType: 'document' | 'template' | 'task' | 'organization' | 'customization';
+  entityType: 'document' | 'template' | 'task' | 'customization';
   entityId: string;
   entityName: string;
   details: string;
@@ -143,6 +186,6 @@ export interface NotificationItem {
   message: string;
   timestamp: string;
   read: boolean;
-  type: 'review' | 'approval' | 'rejection' | 'task' | 'customization';
-  linkId?: string;
+  type: 'review' | 'approval' | 'rejection' | 'customization' | 'task' | 'expiry';
+  linkId: string;
 }
