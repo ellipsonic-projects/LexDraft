@@ -75,8 +75,11 @@ export const LegalDocumentEditor: React.FC = () => {
   useEffect(() => {
     if (doc) {
       setContentHtml(doc.content);
+      if (editorRef.current) {
+        editorRef.current.innerHTML = doc.content;
+      }
     }
-  }, [doc?.id]);
+  }, [doc?.id, doc?.content]);
 
   if (!doc) {
     return <div className="p-12 text-center text-slate-500">No document selected.</div>;
@@ -126,6 +129,9 @@ export const LegalDocumentEditor: React.FC = () => {
 
   const handleInsertClause = (clauseHtml: string) => {
     setContentHtml(prev => prev + clauseHtml);
+    if (editorRef.current) {
+      editorRef.current.innerHTML = editorRef.current.innerHTML + clauseHtml;
+    }
     setShowAIDrawer(false);
   };
 

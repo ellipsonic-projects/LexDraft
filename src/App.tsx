@@ -27,7 +27,7 @@ const MainContent: React.FC = () => {
       case 'boss_dashboard':
         return isBoss ? <BossDashboard /> : <EmployeeDashboard />;
       case 'employee_dashboard':
-        return !isBoss ? <EmployeeDashboard /> : <BossDashboard />;
+        return <EmployeeDashboard />;
       case 'template_studio':
         return <TemplateStudio />;
       case 'document_generator':

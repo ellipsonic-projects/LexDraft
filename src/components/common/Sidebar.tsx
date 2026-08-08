@@ -13,7 +13,17 @@ import {
 } from 'lucide-react';
 
 export const Sidebar: React.FC = () => {
-  const { currentUser, activeTab, setActiveTab, templates, documents, tasks, theme } = useApp();
+  const {
+    currentUser,
+    activeTab,
+    setActiveTab,
+    templates,
+    documents,
+    tasks,
+    theme,
+    setSelectedTaskId,
+    setSelectedTemplateId
+  } = useApp();
 
   const isBoss = currentUser.role === 'boss';
   const isDark = theme === 'dark';
@@ -82,7 +92,11 @@ export const Sidebar: React.FC = () => {
       <div className="p-3.5 space-y-6">
         {/* Quick Launch Generator Button */}
         <button
-          onClick={() => setActiveTab('document_generator')}
+          onClick={() => {
+            setSelectedTaskId(null);
+            setSelectedTemplateId(null);
+            setActiveTab('document_generator');
+          }}
           className="w-full bg-gradient-to-r from-blue-900 via-blue-800 to-indigo-700 hover:from-blue-800 hover:to-indigo-800 text-white font-bold text-xs py-2.5 px-4 rounded-xl flex items-center justify-center space-x-2 shadow-md shadow-blue-900/20 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
         >
           <PlusCircle className="w-4 h-4 text-white stroke-[2.5]" />

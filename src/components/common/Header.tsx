@@ -26,6 +26,7 @@ export const Header: React.FC = () => {
     logout,
     setIsCommandPaletteOpen,
     setActiveTab,
+    setSelectedDocumentId,
     markNotificationRead,
     clearAllNotifications
   } = useApp();
@@ -176,6 +177,7 @@ export const Header: React.FC = () => {
                         markNotificationRead(n.id);
                         if (n.linkId) {
                           if (n.type === 'review' || n.type === 'approval' || n.type === 'rejection') {
+                            setSelectedDocumentId(n.linkId);
                             setActiveTab('documents');
                           } else if (n.type === 'customization') {
                             setActiveTab('template_studio');
