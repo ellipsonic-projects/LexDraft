@@ -4,7 +4,12 @@ import {
   getDocumentById,
   postGenerateDocument,
   postSaveDraft,
-  postRestoreVersion
+  postRestoreVersion,
+  getDocumentPdf,
+  postDeliverDocument,
+  postRenewDocument,
+  getExpiringDocuments,
+  postCheckExpiries
 } from '../controllers/documents.controller';
 import {
   postSubmitReview,
@@ -19,7 +24,8 @@ import { authorize } from '../middlewares/authorize';
 import { validate } from '../middlewares/validate';
 import {
   generateDocumentSchema,
-  saveDraftSchema
+  saveDraftSchema,
+  renewDocumentSchema
 } from '../schemas/documents.schemas';
 import {
   reviewDecisionSchema,
@@ -32,6 +38,20 @@ const router = Router();
 // All document routes require authentication
 router.use(authenticate);
 
+// ─── Document Queries & Expiry Check (must precede /:id) ──────────────────────
+
+/**
+ * GET /api/documents/expiring
+ * Returns documents nearing expiration with calculated days remaining.
+ */
+router.get('/expiring', getExpiringDocuments);
+
+/**
+ * POST /api/documents/check-expiries
+ * Automatically checks and notifies of upcoming expiries.
+ */
+router.post('/check-expiries', postCheckExpiries);
+
 /**
  * GET /api/documents
  * List documents visible to user (BOSS: all; EMPLOYEE: own authored).
@@ -39,17 +59,23 @@ router.use(authenticate);
 router.get('/', getDocuments);
 
 /**
+ * POST /api/documents/generate
+ * Generates document from active template with variable compilation.
+ */
+router.post('/generate', validate(generateDocumentSchema), postGenerateDocument);
+
+/**
+ * GET /api/documents/:id/pdf
+ * Returns cryptographic verification and PDF download metadata for a sealed document.
+ */
+router.get('/:id/pdf', getDocumentPdf);
+
+/**
  * GET /api/documents/:id
  * Retrieve single document with versions, comments, and review history.
  * Enforces strict IDOR (EMPLOYEE cannot view others' documents).
  */
 router.get('/:id', getDocumentById);
-
-/**
- * POST /api/documents/generate
- * Generates document from active template with variable compilation.
- */
-router.post('/generate', validate(generateDocumentSchema), postGenerateDocument);
 
 /**
  * POST /api/documents/:id/save-draft
@@ -62,6 +88,25 @@ router.post('/:id/save-draft', validate(saveDraftSchema), postSaveDraft);
  * Restores historical version without deleting previous versions.
  */
 router.post('/:id/restore-version/:versionNumber', postRestoreVersion);
+
+// ─── Phase 7: Delivery & Renewal Endpoints ────────────────────────────────────
+
+/**
+ * POST /api/documents/:id/deliver
+ * Partner marks document as delivered to client and completes linked task.
+ */
+router.post('/:id/deliver', authorize('BOSS'), postDeliverDocument);
+
+/**
+ * POST /api/documents/:id/renew
+ * Partner renews an approved/sealed document by cloning it into a new draft.
+ */
+router.post(
+  '/:id/renew',
+  authorize('BOSS'),
+  validate(renewDocumentSchema),
+  postRenewDocument
+);
 
 // ─── Review & Approval Endpoints ──────────────────────────────────────────────
 

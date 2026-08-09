@@ -1,5 +1,6 @@
 import { DocumentStatus, TaskStatus, EntityType, NotificationType } from '@prisma/client';
 import { prisma } from '../lib/prisma';
+import { computeExpiryDate } from '../utils/expiry';
 
 const commentAuthorSelect = {
   id: true,
@@ -105,6 +106,8 @@ export const reviewDecisionTx = async (
     title: string;
     authorId: string;
     currentVersion: number;
+    templateId?: string;
+    variables?: any;
   }
 ) => {
   return prisma.$transaction(async (tx) => {
@@ -136,15 +139,33 @@ export const reviewDecisionTx = async (
       }
     });
 
-    // 3. Update document status
+    // 3. Update document status, lock timestamp, pdf export URL, and expiry date
     const targetDocStatus =
       decision === 'approved' ? DocumentStatus.approved : DocumentStatus.rejected;
+
+    let computedExpiryDate: Date | null = null;
+    let pdfUrl: string | null = null;
+    let lockedAtDate: Date | null = null;
+
+    if (decision === 'approved') {
+      lockedAtDate = new Date();
+      pdfUrl = `/exports/doc_${documentId}_sealed.pdf`;
+      if (document.templateId && document.variables) {
+        computedExpiryDate = computeExpiryDate(document.templateId, document.variables);
+      }
+    }
 
     const updatedDoc = await tx.legalDocument.update({
       where: { id: documentId },
       data: {
         status: targetDocStatus,
-        ...(decision === 'approved' ? { lockedAt: new Date() } : {})
+        ...(decision === 'approved'
+          ? {
+              lockedAt: lockedAtDate,
+              pdfExportUrl: pdfUrl,
+              expiryDate: computedExpiryDate
+            }
+          : {})
       }
     });
 

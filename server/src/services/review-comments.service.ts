@@ -103,7 +103,9 @@ export const submitReviewDecision = async (
       id: doc.id,
       title: doc.title,
       authorId: doc.authorId,
-      currentVersion: doc.currentVersion
+      currentVersion: doc.currentVersion,
+      templateId: doc.templateId,
+      variables: doc.variables as Record<string, string>
     }
   );
 };

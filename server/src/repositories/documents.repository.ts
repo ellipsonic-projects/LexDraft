@@ -415,3 +415,163 @@ export const restoreVersionTx = async (data: RestoreVersionTxData) => {
     });
   });
 };
+
+// ─── Phase 7: Delivery, Renewal & Expiry Operations ──────────────────────────
+
+export interface DeliverDocumentTxData {
+  documentId: string;
+  documentTitle: string;
+  authorId: string;
+  userId: string;
+  userName: string;
+  organizationId: string;
+}
+
+/**
+ * Atomically marks document as delivered, completes any linked workflow task,
+ * dispatches notifications, and records an activity log.
+ */
+export const deliverDocumentTx = async (data: DeliverDocumentTxData) => {
+  return prisma.$transaction(async (tx) => {
+    // 1. Advance linked workflow tasks to completed
+    await tx.workflowTask.updateMany({
+      where: { documentId: data.documentId },
+      data: { status: 'completed' }
+    });
+
+    // 2. Dispatch notification to document author
+    await tx.notification.create({
+      data: {
+        userId: data.authorId,
+        title: 'Document Delivered to Client',
+        message: `${data.userName} marked "${data.documentTitle}" as delivered to client. Linked task completed.`,
+        type: 'task',
+        linkId: data.documentId
+      }
+    });
+
+    // 3. Activity Log
+    await tx.activityLog.create({
+      data: {
+        userId: data.userId,
+        action: 'Delivered Document to Client',
+        entityType: EntityType.document,
+        entityId: data.documentId,
+        entityName: data.documentTitle,
+        details: 'Senior Partner marked document as delivered to client and finalized linked task.',
+        organizationId: data.organizationId
+      }
+    });
+
+    return tx.legalDocument.findUniqueOrThrow({
+      where: { id: data.documentId },
+      include: documentDetailInclude
+    });
+  });
+};
+
+export interface RenewDocumentTxData {
+  originalDocumentId: string;
+  templateId: string;
+  templateVersion: string;
+  title: string;
+  clientId: string;
+  matterId: string;
+  authorId: string;
+  authorName: string;
+  priority: TaskPriority;
+  dueDate: Date;
+  content: string;
+  variables: Record<string, string>;
+  originalDocumentTitle: string;
+  organizationId: string;
+}
+
+/**
+ * Atomically clones an approved/expired document into a brand new draft document,
+ * creates initial version snapshot, records activity log, and dispatches notifications.
+ * Preserves the original document and all its historical snapshots.
+ */
+export const renewDocumentTx = async (data: RenewDocumentTxData) => {
+  return prisma.$transaction(async (tx) => {
+    // 1. Create new LegalDocument
+    const newDoc = await tx.legalDocument.create({
+      data: {
+        templateId: data.templateId,
+        templateVersionAtGeneration: data.templateVersion,
+        title: data.title,
+        clientId: data.clientId,
+        matterId: data.matterId,
+        authorId: data.authorId,
+        status: DocumentStatus.draft,
+        priority: data.priority,
+        dueDate: data.dueDate,
+        content: data.content,
+        variables: data.variables,
+        currentVersion: 1,
+        renewedFromDocumentId: data.originalDocumentId,
+        organizationId: data.organizationId
+      }
+    });
+
+    // 2. Create initial DocumentVersion (v1) snapshot
+    await tx.documentVersion.create({
+      data: {
+        documentId: newDoc.id,
+        versionNumber: 1,
+        content: data.content,
+        variablesState: data.variables,
+        changeDescription: `Renewed document cloned from sealed original: "${data.originalDocumentTitle}".`,
+        authorId: data.authorId
+      }
+    });
+
+    // 3. Activity Log
+    await tx.activityLog.create({
+      data: {
+        userId: data.authorId,
+        action: 'Renewed Legal Document',
+        entityType: EntityType.document,
+        entityId: newDoc.id,
+        entityName: newDoc.title,
+        details: `Created new draft renewal cloned from sealed document "${data.originalDocumentTitle}" (ID: ${data.originalDocumentId}).`,
+        organizationId: data.organizationId
+      }
+    });
+
+    // 4. Notification
+    await tx.notification.create({
+      data: {
+        userId: data.authorId,
+        title: 'Document Renewed',
+        message: `New draft renewal created for "${data.title}".`,
+        type: 'review',
+        linkId: newDoc.id
+      }
+    });
+
+    return tx.legalDocument.findUniqueOrThrow({
+      where: { id: newDoc.id },
+      include: documentDetailInclude
+    });
+  });
+};
+
+/**
+ * Returns documents with expiry dates, optionally filtered by author for EMPLOYEE.
+ */
+export const findExpiringDocuments = async (
+  organizationId: string,
+  authorId?: string
+) => {
+  return prisma.legalDocument.findMany({
+    where: {
+      organizationId,
+      ...(authorId ? { authorId } : {}),
+      expiryDate: { not: null }
+    },
+    include: documentListInclude,
+    orderBy: { expiryDate: 'asc' }
+  });
+};
+

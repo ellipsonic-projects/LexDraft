@@ -1,17 +1,23 @@
 import { DocumentStatus, TaskPriority } from '@prisma/client';
+import crypto from 'crypto';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middlewares/errorHandler';
+import { getExpiryStatus } from '../utils/expiry';
 import {
   findAllDocuments,
   findDocumentById,
   generateDocumentTx,
   saveDraftTx,
   restoreVersionTx,
+  deliverDocumentTx,
+  renewDocumentTx,
+  findExpiringDocuments,
   DocumentFilters
 } from '../repositories/documents.repository';
 import {
   GenerateDocumentInput,
-  SaveDraftInput
+  SaveDraftInput,
+  RenewDocumentInput
 } from '../schemas/documents.schemas';
 
 // ─── Document Service ─────────────────────────────────────────────────────────
@@ -257,3 +263,231 @@ export const restoreVersion = async (
     organizationId
   });
 };
+
+// ─── Phase 7 Service Operations ───────────────────────────────────────────────
+
+/**
+ * Returns cryptographic verification and PDF download metadata for a sealed document.
+ * Enforces IDOR for EMPLOYEE.
+ */
+export const getDocumentPdf = async (
+  documentId: string,
+  userId: string,
+  role: string,
+  organizationId: string
+) => {
+  const doc = await prisma.legalDocument.findFirst({
+    where: { id: documentId, organizationId },
+    include: {
+      author: { select: { id: true, name: true } },
+      client: { select: { id: true, name: true } },
+      template: { select: { id: true, name: true, version: true } }
+    }
+  });
+  if (!doc) {
+    throw new AppError('Document not found.', 404);
+  }
+
+  // IDOR check
+  if (role === 'EMPLOYEE' && doc.authorId !== userId) {
+    throw new AppError('Access denied. You can only view PDF export metadata for documents you authored.', 403);
+  }
+
+  const isSealed = doc.lockedAt !== null || doc.status === DocumentStatus.approved;
+
+  // Generate SHA-256 fingerprint of the document content + lockedAt for tamper verification
+  const fingerprintSource = `${doc.content}_${doc.lockedAt?.toISOString() || doc.updatedAt.toISOString()}`;
+  const sha256Fingerprint = crypto.createHash('sha256').update(fingerprintSource).digest('hex');
+
+  const cleanTitle = doc.title.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+  return {
+    documentId: doc.id,
+    title: doc.title,
+    fileName: `${cleanTitle}_v${doc.currentVersion}_${isSealed ? 'Sealed' : 'Draft'}.pdf`,
+    downloadUrl: doc.pdfExportUrl || `/exports/doc_${doc.id}_sealed.pdf`,
+    status: doc.status,
+    isSealed,
+    lockedAt: doc.lockedAt,
+    expiryDate: doc.expiryDate,
+    currentVersion: doc.currentVersion,
+    templateVersion: doc.templateVersionAtGeneration,
+    sha256Fingerprint,
+    authorName: doc.author.name,
+    clientName: doc.client.name,
+    generatedAt: new Date().toISOString()
+  };
+};
+
+/**
+ * Partner marks document as delivered to client.
+ * Enforces:
+ *   - Must be BOSS role.
+ *   - Document must exist in organization and be in 'approved' status.
+ *   - Linked tasks transition to 'completed'.
+ */
+export const deliverDocument = async (
+  documentId: string,
+  userId: string,
+  userName: string,
+  role: string,
+  organizationId: string
+) => {
+  if (role !== 'BOSS') {
+    throw new AppError('Access denied. Only Senior Partners can mark documents as delivered to clients.', 403);
+  }
+
+  const doc = await prisma.legalDocument.findFirst({
+    where: { id: documentId, organizationId }
+  });
+  if (!doc) {
+    throw new AppError('Document not found.', 404);
+  }
+
+  if (doc.status !== DocumentStatus.approved) {
+    throw new AppError('Only approved and sealed documents can be marked as delivered.', 422);
+  }
+
+  return deliverDocumentTx({
+    documentId: doc.id,
+    documentTitle: doc.title,
+    authorId: doc.authorId,
+    userId,
+    userName,
+    organizationId
+  });
+};
+
+/**
+ * Renews an approved/expired document by cloning it into a new draft document.
+ * Enforces:
+ *   - Must be BOSS role.
+ *   - Original document must exist in organization and be in 'approved' status.
+ *   - Preserves original document and all its historical version records.
+ */
+export const renewDocument = async (
+  documentId: string,
+  data: RenewDocumentInput,
+  userId: string,
+  userName: string,
+  role: string,
+  organizationId: string
+) => {
+  if (role !== 'BOSS') {
+    throw new AppError('Access denied. Only Senior Partners can initiate document renewals.', 403);
+  }
+
+  const doc = await prisma.legalDocument.findFirst({
+    where: { id: documentId, organizationId },
+    include: { template: true }
+  });
+  if (!doc) {
+    throw new AppError('Document not found.', 404);
+  }
+
+  if (doc.status !== DocumentStatus.approved) {
+    throw new AppError('Only approved and sealed documents can be renewed.', 422);
+  }
+
+  const renewalTitle = data.title && data.title.trim() ? data.title.trim() : `${doc.title} (Renewed)`;
+  const dueDate = data.dueDate ? new Date(data.dueDate) : new Date(Date.now() + 14 * 24 * 60 * 1000);
+  const mergedVariables = { ...(doc.variables as Record<string, string>), ...(data.variables || {}) };
+
+  return renewDocumentTx({
+    originalDocumentId: doc.id,
+    templateId: doc.templateId,
+    templateVersion: doc.template.version || doc.templateVersionAtGeneration,
+    title: renewalTitle,
+    clientId: doc.clientId,
+    matterId: doc.matterId,
+    authorId: userId,
+    authorName: userName,
+    priority: doc.priority,
+    dueDate,
+    content: doc.content,
+    variables: mergedVariables,
+    originalDocumentTitle: doc.title,
+    organizationId
+  });
+};
+
+/**
+ * Returns documents with expiry dates and their calculated daysRemaining.
+ */
+export const listExpiringDocuments = async (
+  userId: string,
+  role: string,
+  organizationId: string
+) => {
+  const authorIdFilter = role === 'BOSS' ? undefined : userId;
+  const docs = await findExpiringDocuments(organizationId, authorIdFilter);
+
+  return docs.map((doc: any) => {
+    const expiryStatus = getExpiryStatus(doc.expiryDate);
+    return {
+      ...doc,
+      expiryStatus
+    };
+  });
+};
+
+/**
+ * Checks all active approved documents for upcoming expiry (<=30 days, <=7 days, or expired)
+ * and dispatches notifications if not already notified.
+ */
+export const checkAndNotifyExpiries = async (organizationId: string) => {
+  const docs = await prisma.legalDocument.findMany({
+    where: {
+      organizationId,
+      status: DocumentStatus.approved,
+      expiryDate: { not: null }
+    }
+  });
+
+  let notificationsCreated = 0;
+
+  for (const doc of docs) {
+    const status = getExpiryStatus(doc.expiryDate);
+    if (status.isExpired || status.isExpiringSoon30 || status.isExpiringSoon7) {
+      // Check if unread notification already exists for this document
+      const existingNotif = await prisma.notification.findFirst({
+        where: {
+          linkId: doc.id,
+          type: 'expiry',
+          read: false
+        }
+      });
+
+      if (!existingNotif) {
+        const title = status.isExpired
+          ? 'Document Has Expired'
+          : status.isExpiringSoon7
+          ? 'Document Expiring in 7 Days'
+          : 'Document Expiring in 30 Days';
+
+        const message = `"${doc.title}" ${
+          status.isExpired
+            ? `expired on ${doc.expiryDate!.toISOString().split('T')[0]}.`
+            : `will expire in ${status.daysRemaining} days on ${doc.expiryDate!.toISOString().split('T')[0]}.`
+        }`;
+
+        await prisma.notification.create({
+          data: {
+            userId: doc.authorId,
+            title,
+            message,
+            type: 'expiry',
+            linkId: doc.id
+          }
+        });
+        notificationsCreated++;
+      }
+    }
+  }
+
+  return {
+    checkedCount: docs.length,
+    notificationsCreated
+  };
+};
+

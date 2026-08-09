@@ -51,3 +51,20 @@ export const saveDraftSchema = z.object({
 });
 
 export type SaveDraftInput = z.infer<typeof saveDraftSchema>;
+
+export const renewDocumentSchema = z.object({
+  title: z
+    .string()
+    .min(3, 'Title must be at least 3 characters.')
+    .max(200, 'Title cannot exceed 200 characters.')
+    .optional(),
+  dueDate: z
+    .string()
+    .optional(),
+  variables: z
+    .record(z.string(), z.string())
+    .optional()
+});
+
+export type RenewDocumentInput = z.infer<typeof renewDocumentSchema>;
+
