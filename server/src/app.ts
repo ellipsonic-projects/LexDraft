@@ -11,6 +11,7 @@ import clientsMatterRoutes from './routes/clients-matters.routes';
 import tasksRoutes from './routes/tasks.routes';
 import templatesRoutes from './routes/templates.routes';
 import customizationRequestsRoutes from './routes/customization-requests.routes';
+import documentsRoutes from './routes/documents.routes';
 
 const app = express();
 
@@ -57,6 +58,7 @@ app.use('/api', clientsMatterRoutes);
 app.use('/api/tasks', tasksRoutes);
 app.use('/api/templates', templatesRoutes);
 app.use('/api/customization-requests', customizationRequestsRoutes);
+app.use('/api/documents', documentsRoutes);
 
 // 404 handler for unknown routes
 app.use((req, res) => {

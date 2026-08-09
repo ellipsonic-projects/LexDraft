@@ -1,16 +1,18 @@
 import { DocumentStatus, TaskStatus } from '@prisma/client';
 
 /**
- * Validates document status changes based on state transition rules
+ * Validates document status changes based on state transition rules.
+ * Approved status is sealed and final.
  */
 export const validateDocumentTransition = (
   from: DocumentStatus,
   to: DocumentStatus
 ): boolean => {
-  if (from === to) return true;
-
-  // Sealing is final, approved documents cannot be modified
+  // Approved / Sealed documents cannot undergo state transitions
   if (from === DocumentStatus.approved) return false;
+
+  // No-op transition is invalid for review workflow operations
+  if (from === to) return false;
 
   switch (from) {
     case DocumentStatus.draft:
@@ -28,16 +30,18 @@ export const validateDocumentTransition = (
 };
 
 /**
- * Validates workflow task status changes based on pipeline transitions
+ * Validates workflow task status changes based on pipeline transitions.
+ * Completed status is final.
  */
 export const validateTaskTransition = (
   from: TaskStatus,
   to: TaskStatus
 ): boolean => {
-  if (from === to) return true;
-
   // Completed is final
   if (from === TaskStatus.completed) return false;
+
+  // No-op transition is invalid for workflow task progressions
+  if (from === to) return false;
 
   switch (from) {
     case TaskStatus.assigned:
