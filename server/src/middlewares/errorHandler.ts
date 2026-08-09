@@ -46,7 +46,7 @@ export const errorHandler = (
   err: unknown,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): void => {
   const isAppError = err instanceof AppError;
   const statusCode = isAppError ? err.statusCode : 500;

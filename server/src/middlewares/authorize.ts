@@ -12,7 +12,7 @@ import { AppError } from './errorHandler';
  */
 export const authorize =
   (...allowedRoles: UserRole[]) =>
-  (req: Request, res: Response, next: NextFunction): void => {
+  (req: Request, _res: Response, next: NextFunction): void => {
     if (!req.user) {
       return next(new AppError('Authentication required.', 401));
     }

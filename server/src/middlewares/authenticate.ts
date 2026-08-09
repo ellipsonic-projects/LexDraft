@@ -18,7 +18,7 @@ declare global {
  */
 export const authenticate = (
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ): void => {
   const authHeader = req.headers.authorization;

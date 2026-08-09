@@ -7,6 +7,10 @@ import rateLimit from 'express-rate-limit';
 import { env } from './config/env';
 import { errorHandler } from './middlewares/errorHandler';
 import authRoutes from './routes/auth.routes';
+import clientsMatterRoutes from './routes/clients-matters.routes';
+import tasksRoutes from './routes/tasks.routes';
+import templatesRoutes from './routes/templates.routes';
+import customizationRequestsRoutes from './routes/customization-requests.routes';
 
 const app = express();
 
@@ -39,7 +43,7 @@ app.use(cookieParser());
 app.use(morgan(env.NODE_ENV === 'development' ? 'dev' : 'combined'));
 
 // Status / Health Check Checkpoint
-app.get('/api/status', (req, res) => {
+app.get('/api/status', (_req, res) => {
   res.status(200).json({
     status: 'ok',
     timestamp: new Date().toISOString(),
@@ -49,6 +53,10 @@ app.get('/api/status', (req, res) => {
 
 // --- API Routes ---
 app.use('/api/auth', authRoutes);
+app.use('/api', clientsMatterRoutes);
+app.use('/api/tasks', tasksRoutes);
+app.use('/api/templates', templatesRoutes);
+app.use('/api/customization-requests', customizationRequestsRoutes);
 
 // 404 handler for unknown routes
 app.use((req, res) => {

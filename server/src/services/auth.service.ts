@@ -37,6 +37,7 @@ export const loginUser = async (
   const payload: AccessTokenPayload = {
     userId: user.id,
     email: user.email,
+    name: user.name,
     role: user.role as 'BOSS' | 'EMPLOYEE',
     organizationId: user.organizationId
   };
@@ -96,6 +97,7 @@ export const refreshUserSession = async (
   const payload: AccessTokenPayload = {
     userId: user.id,
     email: user.email,
+    name: user.name,
     role: user.role as 'BOSS' | 'EMPLOYEE',
     organizationId: user.organizationId
   };
