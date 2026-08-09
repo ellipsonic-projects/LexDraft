@@ -1,0 +1,335 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum UserRole {
+  BOSS
+  EMPLOYEE
+}
+
+enum DocumentStatus {
+  draft
+  under_review
+  approved
+  rejected
+}
+
+enum TaskStatus {
+  assigned
+  in_progress
+  draft_ready
+  under_review
+  approved
+  completed
+}
+
+enum TaskPriority {
+  low
+  medium
+  high
+  urgent
+}
+
+enum VariableType {
+  text
+  currency
+  date
+  number
+  multiline
+  address
+  select
+}
+
+enum MatterStatus {
+  active
+  closed
+}
+
+enum CustomizationRequestStatus {
+  pending
+  approved
+  rejected
+}
+
+enum NotificationType {
+  review
+  approval
+  rejection
+  customization
+  task
+  expiry
+}
+
+enum EntityType {
+  document
+  template
+  task
+  customization
+}
+
+model Organization {
+  id           String          @id @default(uuid())
+  name         String
+  plan         String          // 'Enterprise' | 'Pro' | 'Starter'
+  totalMembers Int             @default(1)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  users        User[]
+  clients      Client[]
+  templates    LegalTemplate[]
+  documents    LegalDocument[]
+  tasks        WorkflowTask[]
+  activityLogs ActivityLog[]
+}
+
+model User {
+  id                    String                 @id @default(uuid())
+  email                 String                 @unique
+  passwordHash          String
+  name                  String
+  title                 String
+  role                  UserRole
+  avatarUrl             String?
+  status                String                 @default("online") // "online" | "offline"
+  organizationId        String
+  organization          Organization           @relation(fields: [organizationId], references: [id])
+  refreshTokens         RefreshToken[]
+  authoredDocuments     LegalDocument[]        @relation("DocumentAuthor")
+  assignedTasks         WorkflowTask[]         @relation("TaskAssignee")
+  createdTasks          WorkflowTask[]         @relation("TaskCreator")
+  comments              InlineComment[]
+  reviewCycles          ReviewCycle[]
+  notifications         Notification[]
+  activityLogs          ActivityLog[]
+  templateVersionEdits  TemplateVersion[]
+  customizationRequests CustomizationRequest[]
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  tokenHash String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Client {
+  id             String          @id @default(uuid())
+  name           String
+  contactEmail   String
+  contactPhone   String
+  organizationId String
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  matters        Matter[]
+  documents      LegalDocument[]
+  tasks          WorkflowTask[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+}
+
+model Matter {
+  id             String          @id @default(uuid())
+  clientId       String
+  client         Client          @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  title          String
+  matterCode     String          // Org-scoped unique code
+  status         MatterStatus    @default(active)
+  documents      LegalDocument[]
+  tasks          WorkflowTask[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([matterCode, clientId])
+}
+
+model LegalTemplate {
+  id                    String                 @id @default(uuid())
+  name                  String
+  category              String                 // e.g., 'Real Estate' | 'Corporate' | 'IP & Tech' | 'Employment' | 'Litigation' | 'General'
+  description           String
+  originalFileName      String
+  contentTemplate       String
+  version               String                 @default("1.0")
+  usageCount            Int                    @default(0)
+  status                String                 @default("active") // "active" | "inactive"
+  organizationId        String
+  organization          Organization           @relation(fields: [organizationId], references: [id])
+  variables             TemplateVariable[]
+  versions              TemplateVersion[]
+  customizationRequests CustomizationRequest[]
+  documents             LegalDocument[]
+  tasks                 WorkflowTask[]
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+}
+
+model TemplateVariable {
+  id           String        @id @default(uuid())
+  templateId   String
+  template     LegalTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  key          String
+  label        String
+  type         VariableType
+  required     Boolean
+  defaultValue String?
+  options      String[]      // For select type variables
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
+model TemplateVersion {
+  id            String        @id @default(uuid())
+  templateId    String
+  template      LegalTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  versionText   String
+  changeSummary String
+  editedById    String
+  editedBy      User          @relation(fields: [editedById], references: [id])
+  editedAt      DateTime      @default(now())
+}
+
+model CustomizationRequest {
+  id              String                     @id @default(uuid())
+  templateId      String
+  template        LegalTemplate              @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  requestedById   String
+  requestedBy     User                       @relation(fields: [requestedById], references: [id], onDelete: Cascade)
+  customVariables Json                       // JSON array of variables
+  reason          String
+  status          CustomizationRequestStatus @default(pending)
+  timestamp       DateTime                   @default(now())
+}
+
+model LegalDocument {
+  id                          String            @id @default(uuid())
+  templateId                  String
+  template                    LegalTemplate     @relation(fields: [templateId], references: [id])
+  templateVersionAtGeneration String
+  title                       String
+  clientId                    String
+  client                      Client            @relation(fields: [clientId], references: [id])
+  matterId                    String
+  matter                      Matter            @relation(fields: [matterId], references: [id])
+  authorId                    String
+  author                      User              @relation("DocumentAuthor", fields: [authorId], references: [id])
+  status                      DocumentStatus    @default(draft)
+  priority                    TaskPriority      @default(medium)
+  dueDate                     DateTime
+  content                     String
+  variables                   Json              // Record<string, string>
+  currentVersion              Int               @default(1)
+  versions                    DocumentVersion[]
+  comments                    InlineComment[]
+  reviewHistory               ReviewCycle[]
+  expiryDate                  DateTime?
+  lockedAt                    DateTime?
+  pdfExportUrl                String?
+  renewedFromDocumentId       String?
+  renewedFromDocument         LegalDocument?    @relation("DocumentRenewal", fields: [renewedFromDocumentId], references: [id])
+  renewedDocuments            LegalDocument[]   @relation("DocumentRenewal")
+  organizationId              String
+  organization                Organization      @relation(fields: [organizationId], references: [id])
+  tasks                       WorkflowTask[]
+  createdAt                   DateTime          @default(now())
+  updatedAt                   DateTime          @updatedAt
+}
+
+model DocumentVersion {
+  id                String        @id @default(uuid())
+  documentId        String
+  document          LegalDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  versionNumber     Int
+  content           String
+  variablesState    Json          // Record<string, string>
+  changeDescription String
+  authorId          String
+  createdAt         DateTime      @default(now())
+}
+
+model WorkflowTask {
+  id             String         @id @default(uuid())
+  documentId     String?
+  document       LegalDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  templateId     String
+  template       LegalTemplate  @relation(fields: [templateId], references: [id])
+  title          String
+  clientId       String
+  client         Client         @relation(fields: [clientId], references: [id])
+  matterId       String
+  matter         Matter         @relation(fields: [matterId], references: [id])
+  assigneeId     String
+  assignee       User           @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  assignedById   String
+  assignedBy     User           @relation("TaskCreator", fields: [assignedById], references: [id])
+  status         TaskStatus     @default(assigned)
+  priority       TaskPriority   @default(medium)
+  dueDate        DateTime
+  notes          String?
+  requirements   String?
+  organizationId String
+  organization   Organization   @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model InlineComment {
+  id              String          @id @default(uuid())
+  documentId      String
+  document        LegalDocument   @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  authorId        String
+  author          User            @relation(fields: [authorId], references: [id])
+  parentCommentId String?
+  parentComment   InlineComment?  @relation("CommentReplies", fields: [parentCommentId], references: [id], onDelete: Cascade)
+  replies         InlineComment[] @relation("CommentReplies")
+  selectedText    String
+  commentText     String
+  resolved        Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+}
+
+model ReviewCycle {
+  id                      String        @id @default(uuid())
+  documentId              String
+  document                LegalDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  reviewerId              String
+  reviewer                User          @relation(fields: [reviewerId], references: [id])
+  cycleNumber             Int
+  documentVersionAtReview Int
+  decision                String        // "approved" | "rejected"
+  notes                   String
+  createdAt               DateTime      @default(now())
+}
+
+model ActivityLog {
+  id             String       @id @default(uuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id])
+  action         String
+  entityType     EntityType
+  entityId       String
+  entityName     String
+  details        String
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  timestamp      DateTime     @default(now())
+}
+
+model Notification {
+  id         String           @id @default(uuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title      String
+  message    String
+  type       NotificationType
+  linkId     String
+  read       Boolean          @default(false)
+  createdAt  DateTime         @default(now())
+}
