@@ -12,6 +12,9 @@ import tasksRoutes from './routes/tasks.routes';
 import templatesRoutes from './routes/templates.routes';
 import customizationRequestsRoutes from './routes/customization-requests.routes';
 import documentsRoutes from './routes/documents.routes';
+import notificationsRoutes from './routes/notifications.routes';
+import activityRoutes from './routes/activity.routes';
+import analyticsRoutes from './routes/analytics.routes';
 
 const app = express();
 
@@ -59,6 +62,9 @@ app.use('/api/tasks', tasksRoutes);
 app.use('/api/templates', templatesRoutes);
 app.use('/api/customization-requests', customizationRequestsRoutes);
 app.use('/api/documents', documentsRoutes);
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api/activity-logs', activityRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // 404 handler for unknown routes
 app.use((req, res) => {
