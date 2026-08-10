@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { useApp } from '../../context/AppContext';
 import {
-  Kanban,
+  Kanban as KanbanIcon,
   Plus,
   ChevronRight,
   X,
-  Lock
+  Lock,
+  Calendar,
+  User,
+  Briefcase
 } from 'lucide-react';
 import { TaskStatus, TaskPriority } from '../../types';
 
@@ -37,12 +40,12 @@ export const WorkflowKanban: React.FC = () => {
   const [notes, setNotes] = useState('');
 
   const columns: { id: TaskStatus; label: string; color: string }[] = [
-    { id: 'assigned', label: 'Assigned', color: isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-200 bg-slate-100/60' },
-    { id: 'in_progress', label: 'In Progress', color: isDark ? 'border-indigo-500/30 bg-indigo-500/5' : 'border-indigo-200 bg-indigo-50/50' },
-    { id: 'draft_ready', label: 'Draft Ready', color: isDark ? 'border-blue-800/30 bg-blue-900/5' : 'border-blue-200 bg-blue-50/50' },
-    { id: 'under_review', label: 'Under Review', color: isDark ? 'border-blue-800/40 bg-blue-900/10' : 'border-blue-300 bg-blue-100/50' },
-    { id: 'approved', label: 'Approved', color: isDark ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-emerald-200 bg-emerald-50/50' },
-    { id: 'completed', label: 'Completed', color: isDark ? 'border-slate-800 bg-slate-950/60' : 'border-slate-200 bg-white' }
+    { id: 'assigned', label: 'Assigned', color: isDark ? 'bg-slate-900 border-slate-800' : 'bg-[#EEF1F4] border-[#E2E7ED]' },
+    { id: 'in_progress', label: 'In Progress', color: isDark ? 'bg-slate-900 border-slate-800' : 'bg-[#EEF1F4] border-[#E2E7ED]' },
+    { id: 'draft_ready', label: 'Draft Ready', color: isDark ? 'bg-slate-900 border-slate-800' : 'bg-[#EEF1F4] border-[#E2E7ED]' },
+    { id: 'under_review', label: 'Under Review', color: isDark ? 'bg-slate-900 border-slate-800' : 'bg-[#EEF1F4] border-[#E2E7ED]' },
+    { id: 'approved', label: 'Approved', color: isDark ? 'bg-slate-900 border-slate-800' : 'bg-[#EEF1F4] border-[#E2E7ED]' },
+    { id: 'completed', label: 'Completed', color: isDark ? 'bg-slate-900 border-slate-800' : 'bg-[#EEF1F4] border-[#E2E7ED]' }
   ];
 
   const handleCreateTask = () => {
@@ -75,168 +78,164 @@ export const WorkflowKanban: React.FC = () => {
   };
 
   return (
-    <div className="p-8 space-y-8 max-w-7xl mx-auto animate-in fade-in duration-200">
-      <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl border shadow-lg transition-colors ${
-        isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-      }`}>
-        <div>
+    <div className="p-6 space-y-6 w-full animate-page-fade">
+      {/* Editorial Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[#E2E7ED] dark:border-slate-800 pb-5">
+        <div className="space-y-1">
           <div className="flex items-center space-x-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-900/10 text-blue-900 dark:text-blue-400 border border-blue-800/30 uppercase tracking-wider flex items-center space-x-1">
-              <Kanban className="w-3.5 h-3.5" />
-              <span>Firm Workflow Pipeline</span>
-            </span>
+            <span className="text-[10px] uppercase tracking-widest text-slate-450 font-bold">Firm Workflow</span>
+            <span className="text-[10px] text-slate-350 dark:text-slate-550">• Status Columns</span>
           </div>
-          <h1 className={`text-2xl font-extrabold mt-2 tracking-tight ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-            Document Assignment & Review Kanban
+          <h1 className="text-4xl serif-display font-light italic text-ink-black dark:text-paper-white mt-1">
+            Pipeline, <span className="font-normal font-sohne not-italic text-slate-400">Task Kanban Board</span>
           </h1>
-          <p className="text-xs text-slate-500 mt-1 max-w-xl">
-            Track document drafting lifecycle from assignment, drafting, partner review to final execution.
+          <p className="text-xs text-slate-400 dark:text-slate-505 font-light max-w-xl">
+            Track document status transitions from assignment, drafting, to partner review and client delivery.
           </p>
         </div>
 
-        {/* Assign Task Button - Restricted to Boss */}
         {isBoss ? (
           <button
             onClick={() => setShowAssignModal(true)}
-            className="px-5 py-2.5 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-xl text-xs shadow-lg shadow-blue-900/20 transition-all flex items-center space-x-2 shrink-0"
+            className="btn-filled rounded-full text-xs flex items-center space-x-1.5 cursor-pointer shadow-sm"
           >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <Plus className="w-4 h-4" />
             <span>Assign New Task</span>
           </button>
         ) : (
-          <div className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-xl text-xs font-semibold flex items-center space-x-1.5 border border-slate-200 dark:border-slate-700">
-            <Lock className="w-3.5 h-3.5 text-slate-400" />
-            <span>Partner Task Assignment Only</span>
+          <div className="px-4.5 py-2.5 bg-mist-gray dark:bg-slate-900 text-slate-500 rounded-full text-xs font-medium flex items-center space-x-2 border border-slate-200 dark:border-slate-800">
+            <Lock className="w-3.5 h-3.5" />
+            <span>Task creation restricted to Partners</span>
           </div>
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 overflow-x-auto pb-4">
+      {/* Kanban Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-5 items-start">
         {columns.map((col) => {
-          const colTasks = tasks.filter(t => t.status === col.id);
+          const columnTasks = tasks.filter(t => t.status === col.id);
           return (
-            <div
-              key={col.id}
-              className={`rounded-2xl border p-4 flex flex-col justify-between min-h-[65vh] space-y-4 ${col.color}`}
+            <div 
+              key={col.id} 
+              className={`rounded-[24px] border border-dashed p-4 min-h-[500px] flex flex-col space-y-4 ${col.color}`}
             >
-              <div className={`flex items-center justify-between border-b pb-2.5 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
-                <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{col.label}</span>
-                <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${
-                  isDark ? 'bg-slate-950 text-blue-400 border-slate-800' : 'bg-white text-blue-900 border-slate-200 shadow-xs'
-                }`}>
-                  {colTasks.length}
+              {/* Column Title */}
+              <div className="flex items-center justify-between px-1">
+                <span className="text-xs font-semibold text-ink-black dark:text-white capitalize">{col.label}</span>
+                <span className="px-2 py-0.5 text-[10px] font-semibold bg-white dark:bg-slate-950 border border-slate-100 dark:border-slate-800 rounded-full leading-none">
+                  {columnTasks.length}
                 </span>
               </div>
 
-              <div className="flex-1 space-y-3 overflow-y-auto">
-                {colTasks.map((t) => (
-                  <div
-                    key={t.id}
-                    className={`p-3.5 rounded-xl border transition-all space-y-2 shadow-md group ${
-                      isDark ? 'bg-slate-900 border-slate-800 hover:border-blue-800/40' : 'bg-white border-slate-200 hover:border-blue-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className={`px-2 py-0.5 text-[9px] font-bold rounded uppercase ${
-                        t.priority === 'urgent' ? 'bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20' : 'bg-blue-900/10 text-blue-900 dark:text-blue-400 border border-blue-800/20'
-                      }`}>
-                        {t.priority}
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-mono">{t.dueDate}</span>
-                    </div>
+              {/* Tasks List */}
+              <div className="space-y-3 flex-1 overflow-y-auto max-h-[70vh] pr-1">
+                {columnTasks.map((t) => {
+                  const client = clients.find(c => c.id === t.clientId);
+                  const isAssignedToMe = t.assigneeId === currentUser.id;
+                  const canAdvance = isBoss || (isAssignedToMe && t.status !== 'under_review' && t.status !== 'approved' && t.status !== 'completed');
+                  
+                  return (
+                    <div 
+                      key={t.id}
+                      className="floating-artifact p-4.5 space-y-3.5 hover:border-slate-350 dark:hover:border-slate-700 transition-all duration-200 group"
+                    >
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className={`text-[10px] font-bold uppercase tracking-wider ${
+                            t.priority === 'urgent' ? 'text-sienna-brown dark:text-blush-peach' : 'text-slate-400'
+                          }`}>
+                            {t.priority}
+                          </span>
+                          {t.documentId && <span title="Locked to Document"><Lock className="w-3 h-3 text-slate-450" /></span>}
+                        </div>
+                        <h4 className="text-xs font-semibold text-ink-black dark:text-paper-white leading-snug">
+                          {t.title}
+                        </h4>
+                      </div>
 
-                    <div>
-                      <h4 className={`text-xs font-bold transition-colors ${
-                        isDark ? 'text-slate-200 group-hover:text-blue-400' : 'text-slate-900 group-hover:text-blue-900'
-                      }`}>
-                        {t.title}
-                      </h4>
-                      <p className="text-[11px] text-slate-500 mt-0.5">Client: {clients.find(c => c.id === t.clientId)?.name || 'Unknown Client'}</p>
-                    </div>
+                      <div className="space-y-1.5 text-[10px] text-slate-450 dark:text-slate-500 font-light leading-normal">
+                        <div className="flex items-center space-x-1.5">
+                          <Briefcase className="w-3 h-3 text-slate-400" />
+                          <span>Client: <span className="font-normal text-slate-700 dark:text-slate-300">{client?.name || 'Unknown'}</span></span>
+                        </div>
+                        <div className="flex items-center space-x-1.5">
+                          <User className="w-3 h-3 text-slate-400" />
+                          <span>Lawyer: <span className="font-normal text-slate-700 dark:text-slate-300">{t.assigneeName}</span></span>
+                        </div>
+                        <div className="flex items-center space-x-1.5">
+                          <Calendar className="w-3 h-3 text-slate-400" />
+                          <span className="font-mono">Due: {t.dueDate}</span>
+                        </div>
+                      </div>
 
-                    <div className={`flex items-center justify-between pt-2 border-t text-[10px] ${
-                      isDark ? 'border-slate-800' : 'border-slate-100'
-                    }`}>
-                      <span className="text-slate-500">{t.assigneeName}</span>
+                      {/* Notes snippet */}
+                      {t.notes && (
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500 leading-normal border-t border-slate-100 dark:border-slate-800 pt-2 font-light line-clamp-2">
+                          {t.notes}
+                        </p>
+                      )}
 
-                      {col.id !== 'completed' && (
-                        <button
-                          disabled={
-                            currentUser.role !== 'boss' &&
-                            (t.assigneeId !== currentUser.id ||
-                              (t.status !== 'assigned' && t.status !== 'draft_ready'))
-                          }
-                          onClick={() => {
-                            const statuses: TaskStatus[] = ['assigned', 'in_progress', 'draft_ready', 'under_review', 'approved', 'completed'];
-                            const idx = statuses.indexOf(t.status);
-                            if (idx < statuses.length - 1) {
-                              updateTaskStatus(t.id, statuses[idx + 1]);
-                            }
-                          }}
-                          className={`p-1 rounded transition-colors ${
-                            currentUser.role !== 'boss' &&
-                            (t.assigneeId !== currentUser.id ||
-                              (t.status !== 'assigned' && t.status !== 'draft_ready'))
-                              ? 'opacity-30 cursor-not-allowed text-slate-400'
-                              : isDark ? 'bg-slate-800 text-slate-400 hover:bg-blue-900 hover:text-white' : 'bg-slate-100 text-slate-600 hover:bg-blue-900 hover:text-white'
-                          }`}
-                          title={
-                            currentUser.role !== 'boss' &&
-                            (t.assigneeId !== currentUser.id ||
-                              (t.status !== 'assigned' && t.status !== 'draft_ready'))
-                              ? "Action Restricted"
-                              : "Advance Status"
-                          }
-                        >
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </button>
+                      {/* Advance Button (Whisper-quiet look) */}
+                      {canAdvance && t.status !== 'completed' && (
+                        <div className="flex justify-end pt-1">
+                          <button
+                            onClick={() => {
+                              const statusOrder: TaskStatus[] = ['assigned', 'in_progress', 'draft_ready', 'under_review', 'approved', 'completed'];
+                              const currentIndex = statusOrder.indexOf(t.status);
+                              if (currentIndex !== -1 && currentIndex < statusOrder.length - 1) {
+                                updateTaskStatus(t.id, statusOrder[currentIndex + 1]);
+                              }
+                            }}
+                            className="p-1 rounded-full bg-mist-gray hover:bg-ink-black hover:text-white dark:bg-slate-900 dark:hover:bg-paper-white dark:hover:text-ink-black text-slate-500 transition-colors cursor-pointer"
+                            title="Move to Next State"
+                          >
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           );
         })}
       </div>
 
+      {/* Assign Task Modal */}
       {showAssignModal && isBoss && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className={`w-full max-w-lg border rounded-2xl shadow-2xl p-6 space-y-5 ${
-            isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-          }`}>
-            <div className={`flex items-center justify-between border-b pb-3 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
-              <h3 className={`text-base font-bold flex items-center space-x-2 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-                <Plus className="w-5 h-5 text-blue-900" />
-                <span>Assign New Document Task</span>
+        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md border border-slate-150 dark:border-slate-850 rounded-[24px] bg-white dark:bg-slate-900 shadow-2xl p-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="text-base font-semibold serif-heading text-ink-black dark:text-paper-white">
+                Assign Document Task
               </h3>
-              <button onClick={() => setShowAssignModal(false)} className="text-slate-400 hover:text-slate-700">
-                <X className="w-5 h-5" />
+              <button 
+                onClick={() => setShowAssignModal(false)} 
+                className="text-slate-400 hover:text-ink-black dark:hover:text-white p-1 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Task Title</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Task Title</label>
                 <input
                   type="text"
                   value={taskTitle}
                   onChange={(e) => setTaskTitle(e.target.value)}
-                  placeholder="e.g., Draft Mutual NDA Agreement"
-                  className={`w-full text-xs p-2.5 rounded-xl border focus:outline-none mt-1 ${
-                    isDark ? 'bg-slate-950 text-slate-200 border-slate-800' : 'bg-slate-50 text-slate-800 border-slate-200'
-                  }`}
+                  placeholder="e.g. Draft TechCorp Service Agreement"
+                  className="w-full input-composer"
                 />
               </div>
 
               <div>
-                <label className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Select Template</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Legal Template</label>
                 <select
                   value={templateId}
                   onChange={(e) => setTemplateId(e.target.value)}
-                  className={`w-full text-xs p-2.5 rounded-xl border focus:outline-none mt-1 ${
-                    isDark ? 'bg-slate-950 text-slate-200 border-slate-800' : 'bg-slate-50 text-slate-800 border-slate-200'
-                  }`}
+                  className="w-full input-composer text-xs py-2"
                 >
                   {templates.map(t => (
                     <option key={t.id} value={t.id}>{t.name} ({t.category})</option>
@@ -245,7 +244,7 @@ export const WorkflowKanban: React.FC = () => {
               </div>
 
               <div>
-                <label className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Select Client</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Select Client</label>
                 <select
                   value={clientId}
                   onChange={(e) => {
@@ -254,9 +253,7 @@ export const WorkflowKanban: React.FC = () => {
                     const matching = matters.filter(m => m.clientId === cId && m.status === 'active');
                     setMatterId(matching[0]?.id || '');
                   }}
-                  className={`w-full text-xs p-2.5 rounded-xl border focus:outline-none mt-1 ${
-                    isDark ? 'bg-slate-950 text-slate-200 border-slate-800' : 'bg-slate-50 text-slate-800 border-slate-200'
-                  }`}
+                  className="w-full input-composer text-xs py-2"
                 >
                   <option value="">-- Choose Client --</option>
                   {clients.map(c => (
@@ -266,13 +263,11 @@ export const WorkflowKanban: React.FC = () => {
               </div>
 
               <div>
-                <label className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Select Matter</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Select Matter</label>
                 <select
                   value={matterId}
                   onChange={(e) => setMatterId(e.target.value)}
-                  className={`w-full text-xs p-2.5 rounded-xl border focus:outline-none mt-1 ${
-                    isDark ? 'bg-slate-950 text-slate-200 border-slate-800' : 'bg-slate-50 text-slate-800 border-slate-200'
-                  }`}
+                  className="w-full input-composer text-xs py-2"
                 >
                   <option value="">-- Choose Matter --</option>
                   {matters.filter(m => m.clientId === clientId && m.status === 'active').map(m => (
@@ -283,13 +278,11 @@ export const WorkflowKanban: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Assign Associate Lawyer</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Associate Lawyer</label>
                   <select
                     value={assigneeId}
                     onChange={(e) => setAssigneeId(e.target.value)}
-                    className={`w-full text-xs p-2.5 rounded-xl border focus:outline-none mt-1 ${
-                      isDark ? 'bg-slate-950 text-slate-200 border-slate-800' : 'bg-slate-50 text-slate-800 border-slate-200'
-                    }`}
+                    className="w-full input-composer text-xs py-2"
                   >
                     {users.filter(u => u.role === 'employee').map(u => (
                       <option key={u.id} value={u.id}>{u.name} ({u.title})</option>
@@ -298,13 +291,11 @@ export const WorkflowKanban: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Priority Level</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Priority</label>
                   <select
                     value={priority}
                     onChange={(e) => setPriority(e.target.value as TaskPriority)}
-                    className={`w-full text-xs p-2.5 rounded-xl border focus:outline-none mt-1 capitalize ${
-                      isDark ? 'bg-slate-950 text-slate-200 border-slate-800' : 'bg-slate-50 text-slate-800 border-slate-200'
-                    }`}
+                    className="w-full input-composer text-xs py-2 capitalize"
                   >
                     <option value="low">Low</option>
                     <option value="medium">Medium</option>
@@ -313,14 +304,42 @@ export const WorkflowKanban: React.FC = () => {
                   </select>
                 </div>
               </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Target Due Date</label>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  className="w-full input-composer text-xs py-2"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Additional Notes</label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Enter notes/requirements..."
+                  className="w-full input-composer text-xs h-16 resize-none"
+                />
+              </div>
             </div>
 
-            <button
-              onClick={handleCreateTask}
-              className="w-full py-3 bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs rounded-xl shadow-lg shadow-blue-900/20 transition-all"
-            >
-              Create Assignment Task
-            </button>
+            <div className="flex items-center justify-between gap-3 pt-2">
+              <button
+                onClick={() => setShowAssignModal(false)}
+                className="btn-ghost text-xs rounded-full flex-1 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreateTask}
+                className="btn-filled text-xs rounded-full flex-1 cursor-pointer"
+              >
+                Assign Task
+              </button>
+            </div>
           </div>
         </div>
       )}

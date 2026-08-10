@@ -82,7 +82,7 @@ export const LegalDocumentEditor: React.FC = () => {
   }, [doc?.id, doc?.content]);
 
   if (!doc) {
-    return <div className="p-12 text-center text-slate-500">No document selected.</div>;
+    return <div className="p-12 text-center text-slate-500 font-light">No document selected.</div>;
   }
 
   const isBoss = currentUser.role === 'boss';
@@ -119,9 +119,9 @@ export const LegalDocumentEditor: React.FC = () => {
     setIsAiLoading(true);
     setTimeout(() => {
       setAiSuggestions([
-        'Risk Flag: Notice period clause (Section 3) lacks indemnification protection for breach.',
-        'Ambiguity Flag: Severability clause missing. Recommended to insert standard severability text.',
-        'Tone Suggestion: Clause 2 (Security Deposit) can be converted to Strict Protective tone.'
+        'Notice period clause (Section 3) lacks protective parameters.',
+        'Severability standard clause missing in boilerplate provisions.',
+        'Convert Section 2 to a stricter protective tone formulation.'
       ]);
       setIsAiLoading(false);
     }, 800);
@@ -141,30 +141,24 @@ export const LegalDocumentEditor: React.FC = () => {
     }`}>
       {/* Top Document Action Bar */}
       <div className={`border-b px-6 py-3 flex items-center justify-between z-20 shrink-0 ${
-        isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
+        isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
       }`}>
         <div className="flex items-center space-x-3">
-          <div className="p-2 rounded-xl bg-blue-900/10 border border-blue-800/20 text-blue-900 dark:text-blue-400">
-            <Edit3 className="w-4 h-4" />
+          <div className="p-2 rounded-xl bg-ink-black text-paper-white dark:bg-paper-white dark:text-ink-black">
+            <Edit3 className="w-3.5 h-3.5" />
           </div>
           <div>
-            <div className="flex items-center space-x-2">
-              <h1 className="text-sm font-bold text-slate-900 dark:text-slate-100">{doc.title}</h1>
-              <span className="px-2 py-0.5 text-[10px] font-mono font-bold bg-blue-900/10 text-blue-900 dark:text-blue-400 border border-blue-800/30 rounded">
+            <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+              <h1 className="text-xs font-semibold text-ink-black dark:text-white leading-none">{doc.title}</h1>
+              <span className="px-1.5 py-0.5 text-[9px] font-mono bg-mist-gray dark:bg-slate-800 text-slate-505 rounded-sm">
                 v{doc.currentVersion}
               </span>
-              <span className={`px-2 py-0.5 text-[10px] font-bold rounded capitalize ${
-                doc.status === 'approved'
-                  ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30'
-                  : doc.status === 'under_review'
-                  ? 'bg-blue-900/10 text-blue-900 dark:text-blue-400 border border-blue-800/30'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700'
-              }`}>
+              <span className="px-2 py-0.5 text-[9px] font-semibold rounded-full uppercase tracking-wider bg-blush-peach text-sienna-brown dark:bg-sienna-brown dark:text-blush-peach">
                 {doc.status.replace('_', ' ')}
               </span>
             </div>
-            <p className="text-[11px] text-slate-500">
-              Client: <strong className="text-slate-700 dark:text-slate-300">{clients.find(c => c.id === doc.clientId)?.name || 'Unknown Client'}</strong> • Author: {doc.authorName}
+            <p className="text-[10px] text-slate-400 mt-1 font-light">
+              Client: <span className="font-normal text-slate-600 dark:text-slate-300">{clients.find(c => c.id === doc.clientId)?.name || 'Unknown'}</span> • Associate: {doc.authorName}
             </p>
           </div>
         </div>
@@ -172,53 +166,45 @@ export const LegalDocumentEditor: React.FC = () => {
         <div className="flex items-center space-x-2">
           <button
             onClick={() => setShowVersionModal(true)}
-            className={`px-3 py-1.5 border rounded-xl text-xs font-semibold flex items-center space-x-1.5 transition-colors ${
-              isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
-            }`}
+            className="btn-ghost py-1.5 px-3 rounded-full text-[11px] flex items-center space-x-1 cursor-pointer"
           >
-            <History className="w-3.5 h-3.5 text-blue-900 dark:text-blue-400" />
-            <span>Version History ({doc.versions.length})</span>
+            <History className="w-3 h-3 text-slate-405" />
+            <span>Versions ({doc.versions.length})</span>
           </button>
 
           <button
             onClick={() => setShowAIDrawer(!showAIDrawer)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all ${
-              showAIDrawer
-                ? 'bg-blue-900 text-white shadow-md shadow-blue-900/20'
-                : isDark ? 'bg-slate-800 border border-slate-700 text-slate-200' : 'bg-slate-100 border border-slate-200 text-slate-700'
+            className={`btn-ghost py-1.5 px-3 rounded-full text-[11px] flex items-center space-x-1 cursor-pointer ${
+              showAIDrawer ? 'bg-blush-peach dark:bg-sienna-brown border-transparent text-sienna-brown dark:text-blush-peach' : ''
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>AI Legal Assistant</span>
+            <Sparkles className="w-3 h-3" />
+            <span>AI Copilot</span>
           </button>
 
           <button
             onClick={() => setShowCommentsDrawer(!showCommentsDrawer)}
-            className={`px-3 py-1.5 border rounded-xl text-xs font-semibold flex items-center space-x-1.5 ${
-              isDark ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-100 border-slate-200 text-slate-700'
-            }`}
+            className="btn-ghost py-1.5 px-3 rounded-full text-[11px] flex items-center space-x-1 cursor-pointer"
           >
-            <MessageSquare className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+            <MessageSquare className="w-3 h-3 text-slate-405" />
             <span>Comments ({doc.comments.filter(c => !c.resolved).length})</span>
           </button>
 
           <button
             onClick={handlePrint}
-            className={`p-2 border rounded-xl text-xs ${
-              isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
-            }`}
+            className="p-2 border border-slate-200 dark:border-slate-800 rounded-full hover:bg-slate-100 dark:hover:bg-slate-900 cursor-pointer"
             title="Print or Export PDF"
           >
-            <Printer className="w-4 h-4" />
+            <Printer className="w-3.5 h-3.5" />
           </button>
 
           {!isApproved && (
             <button
               onClick={() => setShowSaveModal(true)}
-              className="px-3.5 py-1.5 bg-slate-900 dark:bg-slate-800 hover:bg-slate-800 text-white font-bold rounded-xl text-xs flex items-center space-x-1.5 shadow-xs"
+              className="btn-filled py-1.5 px-4 rounded-full text-[11px] flex items-center space-x-1 cursor-pointer"
             >
-              <Save className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Save Draft Version</span>
+              <Save className="w-3 h-3" />
+              <span>Save Draft</span>
             </button>
           )}
 
@@ -228,48 +214,48 @@ export const LegalDocumentEditor: React.FC = () => {
                 {!isDelivered ? (
                   <button
                     onClick={() => markDocumentDelivered(doc.id)}
-                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md flex items-center space-x-1.5 animate-bounce"
+                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-[11px] rounded-full flex items-center space-x-1 cursor-pointer"
                   >
-                    <ShieldCheck className="w-3.5 h-3.5 text-white" />
-                    <span>Mark as Delivered</span>
+                    <ShieldCheck className="w-3 h-3" />
+                    <span>Deliver</span>
                   </button>
                 ) : (
-                  <div className="px-4 py-1.5 bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 font-bold text-xs rounded-xl border border-slate-300 dark:border-slate-700 flex items-center space-x-1.5">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
-                    <span>Sealed & Delivered</span>
+                  <div className="px-4 py-1.5 bg-mist-gray dark:bg-slate-900 text-slate-500 dark:text-slate-400 font-semibold text-[11px] rounded-full border border-slate-200 dark:border-slate-800 flex items-center space-x-1">
+                    <ShieldCheck className="w-3 h-3 text-emerald-500" />
+                    <span>Delivered</span>
                   </div>
                 )}
                 
                 <button
                   onClick={() => renewDocument(doc.id)}
-                  className="px-4 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold text-xs rounded-xl shadow-md flex items-center space-x-1.5"
+                  className="px-4 py-1.5 bg-blush-peach text-sienna-brown dark:bg-sienna-brown dark:text-blush-peach border border-sienna-brown/10 rounded-full text-[11px] font-semibold transition-transform active:scale-95 flex items-center space-x-1 cursor-pointer"
                 >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Renew Agreement</span>
+                  <RefreshCw className="w-3 h-3" />
+                  <span>Renew</span>
                 </button>
               </div>
             ) : (
-              <div className="px-4 py-1.5 bg-emerald-600/10 text-emerald-600 dark:text-emerald-400 font-bold text-xs rounded-xl border border-emerald-500/20 flex items-center space-x-1.5">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Sealed & Approved</span>
+              <div className="px-4 py-1.5 bg-emerald-600/10 text-emerald-600 dark:text-emerald-450 font-semibold text-[11px] rounded-full border border-emerald-500/20 flex items-center space-x-1.5">
+                <ShieldCheck className="w-3 h-3" />
+                <span>Sealed</span>
               </div>
             )
           ) : !isBoss ? (
             <button
               onClick={() => submitDocumentForReview(doc.id)}
-              className="px-4 py-1.5 bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-900/20 flex items-center space-x-1.5"
+              className="btn-filled py-1.5 px-4 rounded-full text-[11px] flex items-center space-x-1.5 cursor-pointer"
             >
-              <Send className="w-3.5 h-3.5" />
-              <span>Submit for Partner Review</span>
+              <Send className="w-3 h-3" />
+              <span>Submit Review</span>
             </button>
           ) : (
             doc.status === 'under_review' && (
               <button
                 onClick={() => setShowReviewModal(true)}
-                className="px-4 py-1.5 bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-900/20 flex items-center space-x-1.5"
+                className="btn-filled py-1.5 px-4 rounded-full text-[11px] flex items-center space-x-1.5 cursor-pointer bg-sienna-brown text-blush-peach dark:bg-blush-peach dark:text-sienna-brown border-0 hover:opacity-95"
               >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Partner Review Action</span>
+                <ShieldCheck className="w-3 h-3" />
+                <span>Sign-off Action</span>
               </button>
             )
           )}
@@ -278,13 +264,11 @@ export const LegalDocumentEditor: React.FC = () => {
 
       {/* Editor Formatting Toolbar */}
       <div className={`border-b px-6 py-2 flex items-center space-x-2 z-10 shrink-0 text-xs overflow-x-auto no-print ${
-        isDark ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
+        isDark ? 'bg-slate-900 border-slate-800 text-slate-350' : 'bg-slate-100 border-slate-200 text-slate-650'
       }`}>
         <select
           onChange={(e) => format('formatBlock', e.target.value)}
-          className={`text-xs p-1.5 rounded-lg border focus:outline-none ${
-            isDark ? 'bg-slate-950 border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
-          }`}
+          className="input-composer text-xs py-1 px-2.5"
         >
           <option value="P">Paragraph Text</option>
           <option value="H1">Title Header (H1)</option>
@@ -294,22 +278,22 @@ export const LegalDocumentEditor: React.FC = () => {
 
         <div className="h-4 w-px bg-slate-300 dark:bg-slate-800 mx-1" />
 
-        <button onClick={() => format('bold')} className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800" title="Bold"><Bold className="w-3.5 h-3.5" /></button>
-        <button onClick={() => format('italic')} className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800" title="Italic"><Italic className="w-3.5 h-3.5" /></button>
-        <button onClick={() => format('underline')} className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800" title="Underline"><Underline className="w-3.5 h-3.5" /></button>
-        <button onClick={() => format('strikeThrough')} className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800" title="Strikethrough"><Strikethrough className="w-3.5 h-3.5" /></button>
+        <button onClick={() => format('bold')} className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer" title="Bold"><Bold className="w-3 h-3" /></button>
+        <button onClick={() => format('italic')} className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer" title="Italic"><Italic className="w-3 h-3" /></button>
+        <button onClick={() => format('underline')} className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer" title="Underline"><Underline className="w-3 h-3" /></button>
+        <button onClick={() => format('strikeThrough')} className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer" title="Strikethrough"><Strikethrough className="w-3 h-3" /></button>
 
         <div className="h-4 w-px bg-slate-300 dark:bg-slate-800 mx-1" />
 
-        <button onClick={() => format('justifyLeft')} className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800"><AlignLeft className="w-3.5 h-3.5" /></button>
-        <button onClick={() => format('justifyCenter')} className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800"><AlignCenter className="w-3.5 h-3.5" /></button>
-        <button onClick={() => format('justifyRight')} className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800"><AlignRight className="w-3.5 h-3.5" /></button>
-        <button onClick={() => format('justifyFull')} className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800"><AlignJustify className="w-3.5 h-3.5" /></button>
+        <button onClick={() => format('justifyLeft')} className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer"><AlignLeft className="w-3 h-3" /></button>
+        <button onClick={() => format('justifyCenter')} className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer"><AlignCenter className="w-3 h-3" /></button>
+        <button onClick={() => format('justifyRight')} className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer"><AlignRight className="w-3 h-3" /></button>
+        <button onClick={() => format('justifyFull')} className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer"><AlignJustify className="w-3 h-3" /></button>
 
         <div className="h-4 w-px bg-slate-300 dark:bg-slate-800 mx-1" />
 
-        <button onClick={() => format('insertUnorderedList')} className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800"><List className="w-3.5 h-3.5" /></button>
-        <button onClick={() => format('insertOrderedList')} className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800"><ListOrdered className="w-3.5 h-3.5" /></button>
+        <button onClick={() => format('insertUnorderedList')} className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer"><List className="w-3 h-3" /></button>
+        <button onClick={() => format('insertOrderedList')} className="p-1.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer"><ListOrdered className="w-3 h-3" /></button>
 
         <div className="h-4 w-px bg-slate-300 dark:bg-slate-800 mx-1" />
 
@@ -319,27 +303,27 @@ export const LegalDocumentEditor: React.FC = () => {
               setShowCommentsDrawer(true);
             }
           }}
-          className={`px-2 py-1 rounded-lg text-xs font-semibold flex items-center space-x-1 ${
-            selectedText ? 'bg-blue-900/10 text-blue-900 dark:text-blue-400 border border-blue-800/30' : 'text-slate-400'
+          className={`px-3.5 py-1 rounded-full text-[10px] font-semibold flex items-center space-x-1 cursor-pointer transition-colors ${
+            selectedText ? 'bg-blush-peach text-sienna-brown dark:bg-sienna-brown dark:text-blush-peach' : 'text-slate-400'
           }`}
         >
-          <Highlighter className="w-3.5 h-3.5" />
+          <Highlighter className="w-3 h-3" />
           <span>Comment Selection</span>
         </button>
       </div>
 
       {isStale && (
-        <div className={`px-6 py-3 border-b flex items-center space-x-2.5 text-xs font-semibold ${
-          isDark ? 'bg-rose-500/10 border-rose-500/20 text-rose-300' : 'bg-rose-50 border-rose-200 text-rose-900'
+        <div className={`px-6 py-3 border-b flex items-center space-x-2 text-xs font-semibold ${
+          isDark ? 'bg-amber-500/10 border-amber-500/20 text-amber-250' : 'bg-amber-50 border-amber-200 text-amber-900'
         }`}>
-          <AlertCircle className="w-4.5 h-4.5 text-rose-500 shrink-0 animate-pulse" />
-          <span>Warning: This document was generated using template v{doc.templateVersionAtGeneration}, but the master template is now at v{template?.version}. Variables or clauses may be out of date.</span>
+          <AlertCircle className="w-4 h-4 text-amber-500 shrink-0" />
+          <span>Notice: This document template version is stale. The master template version has been updated.</span>
         </div>
       )}
 
       {/* Main Editor Paper Container */}
       <div className="flex-1 flex overflow-hidden relative">
-        <div className="flex-1 p-8 overflow-y-auto flex justify-center bg-slate-100 dark:bg-slate-950">
+        <div className="flex-1 p-8 overflow-y-auto flex justify-center bg-[#e6e6e9] dark:bg-[#08090b]">
           <div
             ref={editorRef}
             contentEditable={!isApproved}
@@ -347,39 +331,39 @@ export const LegalDocumentEditor: React.FC = () => {
             onKeyUp={handleSelection}
             onInput={(e) => setContentHtml(e.currentTarget.innerHTML)}
             dangerouslySetInnerHTML={{ __html: doc.content }}
-            className="legal-document-paper w-full max-w-4xl min-h-[85vh] p-12 rounded-xl focus:outline-none leading-relaxed text-sm shadow-xl"
+            className="legal-document-paper w-full max-w-4xl min-h-[85vh] focus:outline-none focus:ring-0 shadow-lg"
           />
         </div>
 
         {/* AI Assistant Drawer */}
         {showAIDrawer && (
-          <div className="w-80 sm:w-96 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 p-5 flex flex-col justify-between overflow-y-auto z-30 shadow-2xl animate-in slide-in-from-right duration-200">
+          <div className="w-80 sm:w-96 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-850 p-5 flex flex-col justify-between overflow-y-auto z-30 shadow-2xl animate-in slide-in-from-right duration-250">
             <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div className="flex items-center justify-between border-b border-slate-150 dark:border-slate-800 pb-3">
                 <div className="flex items-center space-x-2">
-                  <Sparkles className="w-4 h-4 text-blue-800 dark:text-blue-400" />
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">AI Legal Copilot</h3>
+                  <Sparkles className="w-4 h-4 text-slate-550" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-ink-black dark:text-paper-white font-sohne">AI Legal Assistant</h3>
                 </div>
-                <button onClick={() => setShowAIDrawer(false)} className="text-slate-400 hover:text-slate-700">
+                <button onClick={() => setShowAIDrawer(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <button
                   onClick={handleRunAiAnalysis}
                   disabled={isAiLoading}
-                  className="w-full py-2.5 bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs rounded-xl shadow transition-all"
+                  className="w-full py-2.5 bg-ink-black hover:opacity-90 dark:bg-paper-white dark:text-ink-black text-paper-white font-semibold text-xs rounded-full shadow-sm cursor-pointer disabled:opacity-50"
                 >
-                  {isAiLoading ? 'Scanning Document...' : 'Scan Legal Risks & Gaps'}
+                  {isAiLoading ? 'Analyzing Clauses...' : 'Run Variable Analysis'}
                 </button>
 
                 {aiSuggestions.map((s, idx) => (
-                  <div key={idx} className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 space-y-2">
-                    <p className="leading-snug">{s}</p>
+                  <div key={idx} className="p-4 bg-mist-gray dark:bg-slate-950 rounded-2xl border border-slate-150 dark:border-slate-800 text-xs text-slate-650 dark:text-slate-350 space-y-2">
+                    <p className="leading-relaxed font-light">{s}</p>
                     <button
                       onClick={() => handleInsertClause(`<h2>SEVERABILITY</h2><p>If any provision of this Agreement is held to be unenforceable, the remaining provisions shall continue in full force.</p>`)}
-                      className="text-[10px] font-bold text-blue-800 dark:text-blue-400 hover:underline"
+                      className="text-[10px] font-semibold text-sienna-brown dark:text-blush-peach hover:underline"
                     >
                       + Insert Recommended Severability Clause
                     </button>
@@ -392,32 +376,32 @@ export const LegalDocumentEditor: React.FC = () => {
 
         {/* Comments Drawer */}
         {showCommentsDrawer && (
-          <div className="w-80 sm:w-96 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 p-5 flex flex-col justify-between overflow-y-auto z-30 shadow-2xl animate-in slide-in-from-right duration-200">
+          <div className="w-80 sm:w-96 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-850 p-5 flex flex-col justify-between overflow-y-auto z-30 shadow-2xl animate-in slide-in-from-right duration-250">
             <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div className="flex items-center justify-between border-b border-slate-150 dark:border-slate-800 pb-3">
                 <div className="flex items-center space-x-2">
-                  <MessageSquare className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Inline Review Comments</h3>
+                  <MessageSquare className="w-4 h-4 text-slate-550" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-ink-black dark:text-paper-white font-sohne">Inline Comments</h3>
                 </div>
-                <button onClick={() => setShowCommentsDrawer(false)} className="text-slate-400 hover:text-slate-700">
+                <button onClick={() => setShowCommentsDrawer(false)} className="text-slate-400 hover:text-slate-700 cursor-pointer">
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="space-y-2 bg-slate-50 dark:bg-slate-950 p-3 rounded-xl border border-slate-200 dark:border-slate-800">
-                <p className="text-[11px] text-slate-500 font-semibold">
-                  Selected Text: <span className="text-blue-800 dark:text-blue-400 italic">"{selectedText || 'General Note'}"</span>
+              <div className="space-y-3 bg-mist-gray/50 dark:bg-slate-950 p-4 rounded-2xl border border-slate-150 dark:border-slate-800">
+                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                  Text Selection: <span className="text-sienna-brown dark:text-blush-peach italic">"{selectedText || 'General Note'}"</span>
                 </p>
                 <textarea
                   rows={2}
                   value={commentInput}
                   onChange={(e) => setCommentInput(e.target.value)}
-                  placeholder="Type comment or change request..."
-                  className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200 text-xs p-2 rounded-lg border border-slate-200 dark:border-slate-800 focus:outline-none"
+                  placeholder="Type comment details..."
+                  className="w-full input-composer text-xs h-16 resize-none"
                 />
                 <button
                   onClick={handleAddComment}
-                  className="w-full py-1.5 bg-blue-900 text-white font-bold text-xs rounded-lg"
+                  className="w-full py-2 bg-ink-black dark:bg-paper-white text-paper-white dark:text-ink-black font-semibold text-xs rounded-full cursor-pointer"
                 >
                   Post Comment
                 </button>
@@ -427,28 +411,28 @@ export const LegalDocumentEditor: React.FC = () => {
                 {doc.comments.filter(c => !c.parentCommentId).map((cmt) => {
                   const replies = doc.comments.filter(r => r.parentCommentId === cmt.id);
                   return (
-                    <div key={cmt.id} className="p-3 bg-slate-50 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 space-y-2 text-xs">
+                    <div key={cmt.id} className="p-3.5 bg-mist-gray/40 dark:bg-slate-950 rounded-2xl border border-slate-150 dark:border-slate-850 space-y-2 text-xs">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-slate-800 dark:text-slate-200">{cmt.authorName}</span>
-                        <span className="text-[10px] text-slate-400">{new Date(cmt.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span className="font-semibold text-ink-black dark:text-paper-white">{cmt.authorName}</span>
+                        <span className="text-[9px] text-slate-400 font-mono">{new Date(cmt.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
 
                       {cmt.selectedText && cmt.selectedText !== 'Selected clause' && cmt.selectedText !== 'General Note' && (
-                        <p className="text-[11px] bg-blue-50 dark:bg-slate-900 text-blue-900 dark:text-blue-300 p-1.5 rounded border border-blue-200 dark:border-slate-800 font-mono">
+                        <p className="text-[10px] bg-white dark:bg-slate-900 text-slate-500 p-2 rounded-xl border border-slate-100 dark:border-slate-800 font-mono">
                           "{cmt.selectedText}"
                         </p>
                       )}
-                      <p className="text-slate-700 dark:text-slate-300">{cmt.commentText}</p>
+                      <p className="text-slate-650 dark:text-slate-350 leading-relaxed font-light">{cmt.commentText}</p>
 
                       {replies.length > 0 && (
-                        <div className="pl-3 mt-2 space-y-2 border-l border-indigo-500/20 dark:border-slate-800">
+                        <div className="pl-3 mt-2 space-y-2 border-l border-slate-200 dark:border-slate-800">
                           {replies.map(reply => (
-                            <div key={reply.id} className="p-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-800 space-y-1">
-                              <div className="flex items-center justify-between text-[10px]">
-                                <span className="font-bold text-slate-700 dark:text-slate-300">{reply.authorName}</span>
-                                <span className="text-slate-400">{new Date(reply.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            <div key={reply.id} className="p-2.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-100 dark:border-slate-800 space-y-1">
+                              <div className="flex items-center justify-between text-[9px]">
+                                <span className="font-semibold text-slate-700 dark:text-slate-350">{reply.authorName}</span>
+                                <span className="text-slate-400 font-mono">{new Date(reply.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                               </div>
-                              <p className="text-slate-600 dark:text-slate-400 text-[11px]">{reply.commentText}</p>
+                              <p className="text-slate-500 dark:text-slate-400 text-[11px] leading-relaxed font-light">{reply.commentText}</p>
                             </div>
                           ))}
                         </div>
@@ -462,12 +446,12 @@ export const LegalDocumentEditor: React.FC = () => {
                               value={replyInput}
                               onChange={(e) => setReplyInput(e.target.value)}
                               placeholder="Type reply..."
-                              className="w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-200 text-[11px] p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 focus:outline-none"
+                              className="w-full input-composer text-xs"
                             />
                             <div className="flex justify-end space-x-1.5">
                               <button
                                 onClick={() => setReplyTargetId(null)}
-                                className="px-2 py-1 text-[10px] bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded font-semibold"
+                                className="px-2 py-1 text-[9px] bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-600 dark:text-slate-300 rounded font-semibold"
                               >
                                 Cancel
                               </button>
@@ -478,7 +462,7 @@ export const LegalDocumentEditor: React.FC = () => {
                                   setReplyInput('');
                                   setReplyTargetId(null);
                                 }}
-                                className="px-2 py-1 text-[10px] bg-indigo-650 hover:bg-indigo-750 text-white rounded font-semibold"
+                                className="px-2.5 py-1 text-[9px] bg-ink-black dark:bg-paper-white text-paper-white dark:text-ink-black rounded font-semibold"
                               >
                                 Reply
                               </button>
@@ -490,7 +474,7 @@ export const LegalDocumentEditor: React.FC = () => {
                               setReplyTargetId(cmt.id);
                               setReplyInput('');
                             }}
-                            className="text-[10px] font-bold text-indigo-650 dark:text-indigo-400 hover:underline"
+                            className="text-[9px] font-semibold text-sienna-brown dark:text-blush-peach hover:underline"
                           >
                             Reply
                           </button>
@@ -507,40 +491,38 @@ export const LegalDocumentEditor: React.FC = () => {
 
       {/* Save Draft Version Modal */}
       {showSaveModal && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 space-y-4">
-            <div className="flex items-center space-x-2">
-              <div className="p-2 bg-emerald-500/10 text-emerald-600 rounded-xl border border-emerald-500/20">
-                <Save className="w-5 h-5" />
-              </div>
-              <h3 className="text-base font-extrabold text-slate-900 dark:text-slate-100">
-                Save Version Snapshot (v{doc.currentVersion + 1})
+        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-850 rounded-[24px] shadow-2xl p-6 space-y-5 animate-page-fade">
+            <div className="flex items-center space-x-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <Save className="w-4 h-4 text-slate-400" />
+              <h3 className="text-base font-semibold serif-heading text-ink-black dark:text-paper-white">
+                Save Version Snapshot
               </h3>
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Version Change Description</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Version Commit Message</label>
               <textarea
                 rows={3}
                 value={changeNoteInput}
                 onChange={(e) => setChangeNoteInput(e.target.value)}
                 placeholder="Detail changes made in this draft checkpoint..."
-                className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-200 text-xs p-3 rounded-xl border border-slate-200 dark:border-slate-800 focus:outline-none mt-1 font-medium"
+                className="w-full input-composer text-xs h-16 resize-none"
               />
             </div>
 
-            <div className="flex justify-end space-x-2 pt-2">
+            <div className="flex items-center justify-between gap-3 pt-2">
               <button
                 onClick={() => setShowSaveModal(false)}
-                className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs rounded-xl"
+                className="btn-ghost text-xs rounded-full flex-1 cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleConfirmSave}
-                className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-md shadow-emerald-600/20"
+                className="btn-filled text-xs rounded-full flex-1 cursor-pointer"
               >
-                Save Version v{doc.currentVersion + 1}
+                Save Snapshot
               </button>
             </div>
           </div>
@@ -549,35 +531,37 @@ export const LegalDocumentEditor: React.FC = () => {
 
       {/* Partner Approval Modal */}
       {showReviewModal && (
-        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl p-6 space-y-4">
-            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center space-x-2">
-              <ShieldCheck className="w-5 h-5 text-blue-900 dark:text-blue-400" />
-              <span>Partner Review Sign-Off</span>
-            </h3>
+        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 border border-slate-150 dark:border-slate-850 rounded-[24px] shadow-2xl p-6 space-y-5 animate-page-fade">
+            <div className="flex items-center space-x-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+              <ShieldCheck className="w-4 h-4 text-slate-450" />
+              <h3 className="text-base font-semibold serif-heading text-ink-black dark:text-paper-white">
+                Partner Review Action
+              </h3>
+            </div>
 
-            <p className="text-xs text-slate-500">
-              Reviewing "{doc.title}" submitted by associate <strong className="text-slate-800 dark:text-slate-200">{doc.authorName}</strong>.
+            <p className="text-xs text-slate-400 font-light">
+              Reviewing "{doc.title}" draft agreement.
             </p>
 
             <div>
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Partner Notes / Instructions</label>
+              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Feedback Notes / Instructions</label>
               <textarea
                 rows={3}
                 value={reviewNotes}
                 onChange={(e) => setReviewNotes(e.target.value)}
                 placeholder="Enter feedback notes or sign-off instructions..."
-                className="w-full bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-200 text-xs p-3 rounded-xl border border-slate-200 dark:border-slate-800 focus:outline-none mt-1"
+                className="w-full input-composer text-xs h-16 resize-none"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-3 pt-2">
+            <div className="flex items-center justify-between gap-3 pt-2">
               <button
                 onClick={() => {
                   rejectDocument(doc.id, reviewNotes);
                   setShowReviewModal(false);
                 }}
-                className="py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 font-bold text-xs rounded-xl border border-rose-500/30"
+                className="btn-ghost text-xs rounded-full flex-1 cursor-pointer border-rose-500/20 text-rose-600 hover:bg-rose-500 hover:text-white"
               >
                 Request Revisions
               </button>
@@ -586,9 +570,9 @@ export const LegalDocumentEditor: React.FC = () => {
                   approveDocument(doc.id, reviewNotes);
                   setShowReviewModal(false);
                 }}
-                className="py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl shadow-lg shadow-emerald-600/20"
+                className="btn-filled text-xs rounded-full flex-1 cursor-pointer bg-emerald-600 text-white border-0 hover:bg-emerald-500"
               >
-                Approve & Seal Document
+                Seal & Approve
               </button>
             </div>
           </div>

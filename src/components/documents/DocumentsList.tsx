@@ -48,33 +48,33 @@ export const DocumentsList: React.FC = () => {
   const getStatusBadge = (status: DocumentStatus) => {
     switch (status) {
       case 'approved':
-        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/30">Approved & Sealed</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 uppercase tracking-wider">Sealed</span>;
       case 'under_review':
-        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-900/10 text-blue-900 dark:text-blue-400 border border-blue-800/30">Under Review</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-blush-peach text-sienna-brown dark:bg-sienna-brown dark:text-blush-peach border border-sienna-brown/10 uppercase tracking-wider">In Review</span>;
       case 'rejected':
-        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/30">Revisions Requested</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-rose-500/10 text-rose-700 dark:text-rose-450 border border-rose-500/20 uppercase tracking-wider">Revisions</span>;
       default:
-        return <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">Draft</span>;
+        return <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-mist-gray dark:bg-slate-800 text-slate-500 uppercase tracking-wider">Draft</span>;
     }
   };
 
-  // If a document is selected, render the Combined Vault Editor!
+  // If a document is selected, render the Editor
   if (activeDoc) {
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full animate-page-fade">
         <div className={`p-3 border-b px-6 flex items-center justify-between ${
-          isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          isDark ? 'bg-slate-950 border-slate-900' : 'bg-white border-slate-100'
         }`}>
           <button
             onClick={() => setSelectedDocumentId(null)}
-            className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs rounded-xl flex items-center space-x-1.5 hover:bg-slate-200"
+            className="btn-ghost py-1.5 px-4 rounded-full text-xs flex items-center space-x-1 cursor-pointer"
           >
-            <ChevronLeft className="w-4 h-4" />
-            <span>Back to Document Vault</span>
+            <ChevronLeft className="w-3.5 h-3.5" />
+            <span>Vault</span>
           </button>
 
-          <span className="text-xs text-slate-500 font-semibold">
-            Combined Vault & Rich Legal Editor • Version Snapshot Control
+          <span className="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">
+            Rich Legal Editor • Version Snapshot Control
           </span>
         </div>
 
@@ -84,53 +84,52 @@ export const DocumentsList: React.FC = () => {
   }
 
   return (
-    <div className="p-8 space-y-8 max-w-7xl mx-auto animate-in fade-in duration-200">
-      <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl border shadow-lg transition-colors ${
-        isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-      }`}>
-        <div>
+    <div className="p-6 space-y-6 w-full animate-page-fade">
+      {/* Editorial Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[#E2E7ED] dark:border-slate-800 pb-5">
+        <div className="space-y-1">
           <div className="flex items-center space-x-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-900/10 text-blue-900 dark:text-blue-400 border border-blue-800/30 uppercase tracking-wider flex items-center space-x-1">
-              <FileText className="w-3.5 h-3.5" />
-              <span>Combined Document Vault & Editor</span>
-            </span>
+            <span className="text-[10px] uppercase tracking-widest text-slate-450 font-bold">Firm Archives</span>
+            <span className="text-[10px] text-slate-350 dark:text-slate-550">• Secure Vault</span>
           </div>
-          <h1 className={`text-2xl font-extrabold mt-2 tracking-tight ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-            Firm Legal Document Repository
+          <h1 className="text-4xl serif-display font-light italic text-ink-black dark:text-paper-white mt-1">
+            Vault, <span className="font-normal font-sohne not-italic text-slate-400">Legal Documents</span>
           </h1>
-          <p className="text-xs text-slate-500 mt-1 max-w-xl">
-            Select any agreement to open the integrated Rich Editor with version snapshots, line diffing, and partner review sign-off.
+          <p className="text-xs text-slate-400 dark:text-slate-505 font-light max-w-xl">
+            Integrated Repository with version history, line diff comparisons, and partner approval sign-off.
           </p>
         </div>
 
         <button
           onClick={() => setActiveTab('document_generator')}
-          className="px-5 py-2.5 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-xl text-xs shadow-lg shadow-blue-900/20 transition-all flex items-center space-x-2 shrink-0"
+          className="btn-filled rounded-full text-xs flex items-center space-x-1.5 cursor-pointer shadow-sm"
         >
-          <PlusCircle className="w-4 h-4 stroke-[2.5]" />
-          <span>Generate New Document</span>
+          <PlusCircle className="w-3.5 h-3.5" />
+          <span>New AI Document</span>
         </button>
       </div>
 
-      <div className={`flex flex-col sm:flex-row items-center justify-between gap-4 p-4 rounded-xl border ${
-        isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-      }`}>
-        <div className="flex flex-wrap items-center gap-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
-          {statuses.map(st => (
-            <button
-              key={st}
-              onClick={() => setStatusFilter(st)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap capitalize transition-all ${
-                statusFilter === st
-                  ? 'bg-blue-900/10 text-blue-900 dark:text-blue-400 border border-blue-800/40 font-bold'
-                  : 'text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`}
-            >
-              {st.replace('_', ' ')}
-            </button>
-          ))}
+      {/* Filters Toolbar */}
+      <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-4 overflow-x-auto w-full lg:w-auto pb-1 lg:pb-0">
+          {/* Status selector using raw text underlines for active */}
+          <div className="flex items-center space-x-4">
+            {statuses.map(st => (
+              <button
+                key={st}
+                onClick={() => setStatusFilter(st)}
+                className={`text-xs tracking-wider transition-colors cursor-pointer font-sohne uppercase ${
+                  statusFilter === st
+                    ? 'text-ink-black dark:text-white font-semibold underline underline-offset-4'
+                    : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+              >
+                {st === 'All' ? 'All Status' : st.replace('_', ' ')}
+              </button>
+            ))}
+          </div>
 
-          <div className="h-4 w-px bg-slate-300 dark:bg-slate-800 mx-1" />
+          <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 hidden sm:block" />
 
           {/* Client Filter Selector */}
           <select
@@ -139,9 +138,7 @@ export const DocumentsList: React.FC = () => {
               setSelectedClientId(e.target.value);
               setSelectedMatterId('All');
             }}
-            className={`text-xs p-1.5 rounded-lg border focus:outline-none ${
-              isDark ? 'bg-slate-950 border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
-            }`}
+            className="input-composer text-xs py-1 px-3"
           >
             <option value="All">All Clients</option>
             {clients.map(c => (
@@ -153,9 +150,7 @@ export const DocumentsList: React.FC = () => {
           <select
             value={selectedMatterId}
             onChange={(e) => setSelectedMatterId(e.target.value)}
-            className={`text-xs p-1.5 rounded-lg border focus:outline-none ${
-              isDark ? 'bg-slate-950 border-slate-800 text-slate-200' : 'bg-white border-slate-200 text-slate-800'
-            }`}
+            className="input-composer text-xs py-1 px-3"
           >
             <option value="All">All Matters</option>
             {matters.filter(m => selectedClientId === 'All' || m.clientId === selectedClientId).map(m => (
@@ -165,92 +160,88 @@ export const DocumentsList: React.FC = () => {
         </div>
 
         <div className="relative w-full sm:w-64">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3.5 top-3" />
           <input
             type="text"
-            placeholder="Search documents or clients..."
+            placeholder="Search documents..."
             value={searchFilter}
             onChange={(e) => setSearchFilter(e.target.value)}
-            className={`w-full text-xs rounded-lg pl-9 pr-3 py-2 border focus:outline-none ${
-              isDark ? 'bg-slate-950 text-slate-200 border-slate-800 focus:border-blue-800/50' : 'bg-slate-50 text-slate-800 border-slate-200 focus:border-blue-800'
-            }`}
+            className="w-full input-composer text-xs pl-9 pr-3 py-2.5"
           />
         </div>
       </div>
 
-      <div className={`rounded-2xl border shadow-xl overflow-hidden ${
-        isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-      }`}>
+      {/* Document Catalog Artifact */}
+      <div className="floating-artifact p-0 overflow-hidden">
         {filteredDocs.length === 0 ? (
-          <div className="p-12 text-center text-slate-400 text-xs">No documents match your filters.</div>
+          <div className="p-12 text-center text-slate-400 text-xs font-light">No documents found.</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs border-collapse">
               <thead className={`font-semibold border-b uppercase tracking-wider text-[10px] ${
-                isDark ? 'bg-slate-950 text-slate-400 border-slate-800' : 'bg-slate-50 text-slate-500 border-slate-200'
+                isDark ? 'bg-slate-950 text-slate-400 border-slate-800' : 'bg-mist-gray/40 text-slate-505 border-slate-100'
               }`}>
                 <tr>
-                  <th className="p-4">Document Title & Client</th>
+                  <th className="p-4 pl-6">Document Title & Client</th>
                   <th className="p-4">Category</th>
                   <th className="p-4">Version</th>
-                  <th className="p-4">Author Lawyer</th>
+                  <th className="p-4">Lawyer</th>
                   <th className="p-4">Status</th>
                   <th className="p-4">Last Updated</th>
-                  <th className="p-4 text-right">Actions</th>
+                  <th className="p-4 pr-6 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className={`divide-y ${isDark ? 'divide-slate-800' : 'divide-slate-100'}`}>
                 {filteredDocs.map((doc) => (
-                  <tr key={doc.id} className={`transition-colors ${isDark ? 'hover:bg-slate-800/40' : 'hover:bg-slate-50'}`}>
-                    <td className="p-4">
-                      <div>
-                        <p className={`font-bold hover:text-blue-900 dark:hover:text-blue-400 cursor-pointer ${
-                          isDark ? 'text-slate-200' : 'text-slate-900'
-                        }`} onClick={() => {
-                          setSelectedDocumentId(doc.id);
-                        }}>
+                  <tr key={doc.id} className={`transition-colors ${isDark ? 'hover:bg-slate-900/40' : 'hover:bg-mist-gray/10'}`}>
+                    <td className="p-4 pl-6">
+                      <div className="space-y-0.5">
+                        <p 
+                          className={`font-semibold text-xs cursor-pointer ${
+                            isDark ? 'text-slate-200 hover:text-white' : 'text-ink-black hover:text-slate-700'
+                          }`} 
+                          onClick={() => setSelectedDocumentId(doc.id)}
+                        >
                           {doc.title}
                         </p>
-                        <p className="text-[11px] text-slate-500">Client: <strong className={isDark ? 'text-slate-300' : 'text-slate-700'}>{clients.find(c => c.id === doc.clientId)?.name || 'Unknown Client'}</strong></p>
+                        <p className="text-[10px] text-slate-400 font-light">
+                          Client: <span className="text-slate-500 font-normal">{clients.find(c => c.id === doc.clientId)?.name || 'Unknown'}</span>
+                        </p>
                       </div>
                     </td>
-                    <td className="p-4 text-slate-500">{doc.category}</td>
-                    <td className="p-4 font-mono text-blue-900 dark:text-blue-400 font-bold">v{doc.currentVersion}</td>
-                    <td className={`p-4 font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>{doc.authorName}</td>
+                    <td className="p-4 text-slate-400">{doc.category}</td>
+                    <td className="p-4 font-mono font-medium text-slate-550">v{doc.currentVersion}</td>
+                    <td className="p-4 text-slate-500 font-medium">{doc.authorName}</td>
                     <td className="p-4">{getStatusBadge(doc.status)}</td>
-                    <td className="p-4 text-slate-400 font-mono text-[11px]">
+                    <td className="p-4 text-slate-400 font-mono text-[10px]">
                       {new Date(doc.updatedAt).toLocaleDateString()}
                     </td>
-                    <td className="p-4 text-right space-x-2">
+                    <td className="p-4 pr-6 text-right space-x-2">
                       <button
-                        onClick={() => {
-                          setSelectedDocumentId(doc.id);
-                        }}
-                        className="px-3.5 py-1.5 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-xl text-xs shadow-xs transition-all flex items-center space-x-1 inline-flex"
+                        onClick={() => setSelectedDocumentId(doc.id)}
+                        className="px-3 py-1 bg-ink-black hover:opacity-90 dark:bg-paper-white text-paper-white dark:text-ink-black rounded-full text-[10px] font-semibold transition-transform active:scale-95 inline-flex items-center space-x-1 cursor-pointer"
                       >
-                        <Edit3 className="w-3.5 h-3.5" />
-                        <span>Open Editor</span>
+                        <Edit3 className="w-3 h-3" />
+                        <span>Edit</span>
                       </button>
 
                       {doc.status === 'approved' && currentUser.role === 'boss' && (
                         <button
-                          onClick={() => {
-                            renewDocument(doc.id);
-                          }}
-                          className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold rounded-xl text-xs shadow-xs transition-all flex items-center space-x-1 inline-flex"
-                          title="Renew & Clone Document"
+                          onClick={() => renewDocument(doc.id)}
+                          className="px-3 py-1 bg-blush-peach text-sienna-brown dark:bg-sienna-brown dark:text-blush-peach border border-sienna-brown/10 rounded-full text-[10px] font-semibold transition-transform active:scale-95 inline-flex items-center space-x-1 cursor-pointer"
+                          title="Renew Document"
                         >
-                          <RefreshCw className="w-3.5 h-3.5" />
+                          <RefreshCw className="w-3 h-3" />
                           <span>Renew</span>
                         </button>
                       )}
 
                       <button
                         onClick={() => deleteDocument(doc.id)}
-                        className="p-1.5 rounded-lg hover:bg-rose-500/10 text-slate-400 hover:text-rose-600 transition-colors"
+                        className="p-1.5 rounded-full hover:bg-rose-500/10 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer inline-flex"
                         title="Delete Document"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </td>
                   </tr>

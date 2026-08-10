@@ -125,62 +125,56 @@ export const DocumentGenerator: React.FC = () => {
   };
 
   return (
-    <div className="p-8 space-y-8 max-w-6xl mx-auto animate-in fade-in duration-200">
+    <div className="p-6 space-y-6 w-full animate-page-fade">
       {/* Top Banner */}
-      <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl border shadow-lg transition-colors ${
-        isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-      }`}>
-        <div>
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[#E2E7ED] dark:border-slate-800 pb-5">
+        <div className="space-y-1">
           <div className="flex items-center space-x-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-900/10 text-blue-900 dark:text-blue-400 border border-blue-800/30 uppercase tracking-wider flex items-center space-x-1">
-              <Wand2 className="w-3.5 h-3.5" />
-              <span>AI Document Compilation Engine</span>
-            </span>
+            <span className="text-[10px] uppercase tracking-widest text-slate-450 font-bold">Document Creator</span>
+            <span className="text-[10px] text-slate-350 dark:text-slate-550">• AI Compilation Engine</span>
           </div>
-          <h1 className={`text-2xl font-extrabold mt-2 tracking-tight ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-            Generate Legal Document from Template
+          <h1 className="text-4xl serif-display font-light italic text-ink-black dark:text-paper-white mt-1">
+            Generator, <span className="font-normal font-sohne not-italic text-slate-400">Step-by-Step Draft Setup</span>
           </h1>
-          <p className="text-xs text-slate-500 mt-1 max-w-xl">
-            Select a template, populate client metadata, and let LexDraft compile a customized legal draft in seconds.
+          <p className="text-xs text-slate-450 dark:text-slate-500 font-light max-w-xl">
+            Select a template, populate client variables, and let LexDraft compile a customized draft agreement.
           </p>
         </div>
 
-        {/* Wizard Progress */}
-        <div className={`flex items-center space-x-2 p-2 rounded-xl border shrink-0 ${
-          isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-100 border-slate-200'
+        {/* Wizard Progress - Capsule Pill Style */}
+        <div className={`flex items-center p-0.5 rounded-full border shrink-0 ${
+          isDark ? 'bg-slate-900 border-slate-800' : 'bg-mist-gray/60 border-slate-200/60'
         }`}>
           <button
             onClick={() => setStep(1)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              step === 1 ? 'bg-blue-900 text-white shadow-xs' : 'text-slate-500'
+            className={`px-3 py-1.5 rounded-full text-[10px] font-semibold transition-all cursor-pointer ${
+              step === 1 ? 'bg-ink-black text-paper-white dark:bg-paper-white dark:text-ink-black shadow-sm' : 'text-slate-400'
             }`}
           >
-            1. Select Template
+            1. Template
           </button>
-          <span className="text-slate-400 text-xs">→</span>
           <button
             onClick={() => setStep(2)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              step === 2 ? 'bg-blue-900 text-white shadow-xs' : 'text-slate-500'
+            className={`px-3 py-1.5 rounded-full text-[10px] font-semibold transition-all cursor-pointer ${
+              step === 2 ? 'bg-ink-black text-paper-white dark:bg-paper-white dark:text-ink-black shadow-sm' : 'text-slate-400'
             }`}
           >
-            2. Fill Variables
+            2. Fields
           </button>
-          <span className="text-slate-400 text-xs">→</span>
           <button
             onClick={() => setStep(3)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-              step === 3 ? 'bg-blue-900 text-white shadow-xs' : 'text-slate-500'
+            className={`px-3 py-1.5 rounded-full text-[10px] font-semibold transition-all cursor-pointer ${
+              step === 3 ? 'bg-ink-black text-paper-white dark:bg-paper-white dark:text-ink-black shadow-sm' : 'text-slate-400'
             }`}
           >
-            3. Compile Preview
+            3. Preview
           </button>
         </div>
       </div>
 
       {step === 1 && (
         <div className="space-y-6">
-          <h2 className={`text-base font-extrabold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>Step 1: Choose Legal Template</h2>
+          <h2 className="text-base font-semibold text-ink-black dark:text-white">Choose Reusable Legal Template</h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {templates.map((tpl) => (
@@ -191,29 +185,26 @@ export const DocumentGenerator: React.FC = () => {
                   setSelectedTemplateId(tpl.id);
                   setStep(2);
                 }}
-                className={`p-6 rounded-2xl border transition-all cursor-pointer space-y-4 shadow-xl ${
+                className={`p-6 rounded-2xl border transition-all cursor-pointer space-y-4 hover:border-slate-350 dark:hover:border-slate-700 shadow-sm ${
                   activeTemplateId === tpl.id
-                    ? 'bg-blue-900/10 border-blue-800/60 ring-2 ring-blue-800/40'
-                    : isDark ? 'bg-slate-900 border-slate-800 hover:border-slate-700' : 'bg-white border-slate-200 hover:border-blue-300'
+                    ? 'bg-mist-gray border-slate-300 dark:bg-slate-900 dark:border-slate-800'
+                    : isDark ? 'bg-slate-900/40 border-slate-900' : 'bg-white border-slate-100'
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-900/10 text-blue-900 dark:text-blue-400 border border-blue-800/20 uppercase">
+                  <span className="text-[9px] tracking-wider text-slate-400 uppercase font-semibold">
                     {tpl.category}
                   </span>
-                  <span className="text-[10px] text-slate-400">v{tpl.version}</span>
+                  <span className="text-[10px] text-slate-400 font-mono">v{tpl.version}</span>
                 </div>
 
                 <div>
-                  <h3 className={`text-base font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{tpl.name}</h3>
-                  <p className="text-xs text-slate-500 mt-1 line-clamp-2">{tpl.description}</p>
+                  <h3 className="text-sm font-semibold text-ink-black dark:text-paper-white">{tpl.name}</h3>
+                  <p className="text-xs text-slate-450 dark:text-slate-500 mt-1 line-clamp-2 leading-relaxed font-light">{tpl.description}</p>
                 </div>
 
-                <div className={`p-3 rounded-xl border text-xs flex items-center justify-between ${
-                  isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
-                }`}>
-                  <span className="text-slate-500 font-medium">Extracted Fields:</span>
-                  <span className="font-bold text-blue-900 dark:text-blue-400">{tpl.extractedVariables.length} Variables</span>
+                <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800 text-[10px] text-slate-400">
+                  <span className="font-semibold">{tpl.extractedVariables.length} variable fields</span>
                 </div>
               </div>
             ))}
@@ -223,34 +214,28 @@ export const DocumentGenerator: React.FC = () => {
 
       {step === 2 && selectedTemplate && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className={`lg:col-span-2 rounded-2xl border p-6 shadow-xl space-y-6 ${
-            isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-          }`}>
-            <div className={`flex items-center justify-between border-b pb-4 ${
-              isDark ? 'border-slate-800' : 'border-slate-100'
-            }`}>
+          <div className="lg:col-span-2 floating-artifact p-6 space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
               <div>
-                <h2 className={`text-base font-bold flex items-center space-x-2 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-                  <FileText className="w-4 h-4 text-blue-900 dark:text-blue-400" />
-                  <span>Step 2: Enter Variable Values ({selectedTemplate.name})</span>
+                <h2 className="text-base font-semibold text-ink-black dark:text-paper-white flex items-center space-x-2">
+                  <FileText className="w-4 h-4 text-slate-400" />
+                  <span>Configure Variable Values</span>
                 </h2>
-                <p className="text-xs text-slate-500 mt-0.5">Fill dynamic form fields to customize this agreement</p>
+                <p className="text-[11px] text-slate-400 mt-0.5 font-light">{selectedTemplate.name}</p>
               </div>
 
               <button
                 onClick={handleAutofillPreset}
-                className="px-3 py-1.5 bg-blue-900/10 text-blue-900 dark:text-blue-400 border border-blue-800/30 hover:bg-blue-900/20 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition-all"
+                className="btn-ghost rounded-full text-[10px] font-semibold flex items-center space-x-1 cursor-pointer"
               >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Autofill Sample Client Data</span>
+                <Sparkles className="w-3 h-3 text-sienna-brown dark:text-blush-peach" />
+                <span>Autofill Sample Data</span>
               </button>
             </div>
 
-            <div className={`grid grid-cols-1 sm:grid-cols-4 gap-4 p-4 rounded-xl border ${
-              isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'
-            }`}>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 p-4 rounded-[20px] bg-mist-gray/40 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800">
               <div>
-                <label className="text-[11px] font-semibold text-slate-500">Client Name</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Client</label>
                 <select
                   disabled={!!selectedTaskId}
                   value={clientId}
@@ -260,9 +245,7 @@ export const DocumentGenerator: React.FC = () => {
                     const matching = matters.filter(m => m.clientId === cId && m.status === 'active');
                     setMatterId(matching[0]?.id || '');
                   }}
-                  className={`w-full text-xs p-2.5 rounded-xl border focus:outline-none mt-1 font-semibold ${
-                    isDark ? 'bg-slate-900 text-slate-100 border-slate-800' : 'bg-white text-slate-900 border-slate-200'
-                  } ${selectedTaskId ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  className={`w-full input-composer text-xs py-2 ${selectedTaskId ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
                   {clients.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
@@ -271,14 +254,12 @@ export const DocumentGenerator: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-slate-500">Related Matter</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Matter</label>
                 <select
                   disabled={!!selectedTaskId}
                   value={matterId}
                   onChange={(e) => setMatterId(e.target.value)}
-                  className={`w-full text-xs p-2.5 rounded-xl border focus:outline-none mt-1 font-semibold ${
-                    isDark ? 'bg-slate-900 text-slate-100 border-slate-800' : 'bg-white text-slate-900 border-slate-200'
-                  } ${selectedTaskId ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  className={`w-full input-composer text-xs py-2 ${selectedTaskId ? 'opacity-70 cursor-not-allowed' : ''}`}
                 >
                   {matters.filter(m => m.clientId === clientId && m.status === 'active').map(m => (
                     <option key={m.id} value={m.id}>{m.title} ({m.matterCode})</option>
@@ -287,45 +268,39 @@ export const DocumentGenerator: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-slate-500">Priority Level</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Priority</label>
                 <select
                   value={priority}
                   onChange={(e) => setPriority(e.target.value as TaskPriority)}
-                  className={`w-full text-xs p-2.5 rounded-xl border focus:outline-none mt-1 capitalize ${
-                    isDark ? 'bg-slate-900 text-slate-100 border-slate-800' : 'bg-white text-slate-900 border-slate-200'
-                  }`}
+                  className="w-full input-composer text-xs py-2 capitalize"
                 >
-                  <option value="low">Low Priority</option>
-                  <option value="medium">Medium Priority</option>
-                  <option value="high">High Priority</option>
-                  <option value="urgent">Urgent Priority</option>
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
                 </select>
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold text-slate-500">Due Date</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Due Date</label>
                 <input
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  className={`w-full text-xs p-2.5 rounded-xl border focus:outline-none mt-1 font-mono ${
-                    isDark ? 'bg-slate-900 text-slate-100 border-slate-800' : 'bg-white text-slate-900 border-slate-200'
-                  }`}
+                  className="w-full input-composer text-xs py-2 font-mono"
                 />
               </div>
             </div>
 
             <div className="space-y-4">
-              <h3 className={`text-xs font-bold uppercase tracking-wider ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Template Variables Form</h3>
+              <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Variable Input Form</h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {selectedTemplate.extractedVariables.map((v) => (
                   <div key={v.id} className={v.type === 'multiline' || v.type === 'address' ? 'sm:col-span-2' : ''}>
-                    <label className={`text-xs font-semibold flex items-center justify-between mb-1 ${
-                      isDark ? 'text-slate-300' : 'text-slate-700'
-                    }`}>
+                    <label className="text-xs font-semibold flex items-center justify-between mb-1 text-slate-650 dark:text-slate-350">
                       <span>{v.label}</span>
-                      <span className="text-[10px] font-mono text-blue-900 dark:text-blue-400 font-bold">&#123;&#123;{v.key}&#125;&#125;</span>
+                      <span className="text-[10px] font-mono text-slate-400 font-light">&#123;&#123;{v.key}&#125;&#125;</span>
                     </label>
 
                     {v.type === 'multiline' ? (
@@ -333,17 +308,13 @@ export const DocumentGenerator: React.FC = () => {
                         rows={3}
                         value={formValues[v.key] || ''}
                         onChange={(e) => handleInputChange(v.key, e.target.value)}
-                        className={`w-full text-xs p-3 rounded-xl border focus:outline-none ${
-                          isDark ? 'bg-slate-950 text-slate-100 border-slate-800' : 'bg-slate-50 text-slate-900 border-slate-200'
-                        }`}
+                        className="w-full input-composer text-xs h-16 resize-none"
                       />
                     ) : v.type === 'select' ? (
                       <select
                         value={formValues[v.key] || ''}
                         onChange={(e) => handleInputChange(v.key, e.target.value)}
-                        className={`w-full text-xs p-2.5 rounded-xl border focus:outline-none ${
-                          isDark ? 'bg-slate-950 text-slate-100 border-slate-800' : 'bg-slate-50 text-slate-900 border-slate-200'
-                        }`}
+                        className="w-full input-composer text-xs py-2"
                       >
                         {v.options?.map(opt => (
                           <option key={opt} value={opt}>{opt}</option>
@@ -355,9 +326,7 @@ export const DocumentGenerator: React.FC = () => {
                         value={formValues[v.key] || ''}
                         onChange={(e) => handleInputChange(v.key, e.target.value)}
                         placeholder={v.label}
-                        className={`w-full text-xs p-2.5 rounded-xl border focus:outline-none ${
-                          isDark ? 'bg-slate-950 text-slate-100 border-slate-800' : 'bg-slate-50 text-slate-900 border-slate-200'
-                        }`}
+                        className="w-full input-composer text-xs"
                       />
                     )}
                   </div>
@@ -365,52 +334,45 @@ export const DocumentGenerator: React.FC = () => {
               </div>
             </div>
 
-            <div className={`flex justify-between pt-4 border-t ${
-              isDark ? 'border-slate-800' : 'border-slate-100'
-            }`}>
+            <div className="flex justify-between pt-4 border-t border-slate-100 dark:border-slate-800">
               <button
                 onClick={() => setStep(1)}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold ${
-                  isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'
-                }`}
+                className="btn-ghost text-xs rounded-full cursor-pointer"
               >
-                ← Change Template
+                Change Template
               </button>
 
               <button
                 onClick={() => setStep(3)}
-                className="px-5 py-2.5 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-xl text-xs shadow-lg shadow-blue-900/20 transition-all flex items-center space-x-2"
+                className="btn-filled text-xs rounded-full flex items-center space-x-1.5 cursor-pointer"
               >
-                <span>Preview Compiled Draft</span>
-                <ArrowRight className="w-4 h-4" />
+                <span>Preview Draft</span>
+                <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
 
-          <div className={`rounded-2xl border p-6 shadow-xl space-y-4 ${
-            isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-          }`}>
-            <h3 className={`text-sm font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>Document Summary</h3>
+          {/* Right Summary column */}
+          <div className="card-neutral h-fit space-y-4">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider block">Document Config</h3>
 
-            <div className={`space-y-3 text-xs p-4 rounded-xl border ${
-              isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'
-            }`}>
-              <div className={`flex justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
-                <span className="text-slate-500">Template:</span>
-                <span className="font-bold text-blue-900 dark:text-blue-400">{selectedTemplate.name}</span>
+            <div className="space-y-3.5 text-xs">
+              <div className="flex justify-between border-b border-slate-150 dark:border-slate-800 pb-2">
+                <span className="text-slate-400 font-light">Template:</span>
+                <span className="font-semibold text-ink-black dark:text-white">{selectedTemplate.name}</span>
               </div>
-              <div className={`flex justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
-                <span className="text-slate-500">Target Client:</span>
-                <span className={`font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{clients.find(c => c.id === clientId)?.name || 'Not set'}</span>
+              <div className="flex justify-between border-b border-slate-150 dark:border-slate-800 pb-2">
+                <span className="text-slate-400 font-light">Target Client:</span>
+                <span className="font-semibold text-ink-black dark:text-white">{clients.find(c => c.id === clientId)?.name || 'Not set'}</span>
               </div>
-              <div className={`flex justify-between border-b pb-2 ${isDark ? 'border-slate-800' : 'border-slate-200'}`}>
-                <span className="text-slate-500">Priority:</span>
-                <span className="font-bold text-blue-900 dark:text-blue-400 capitalize">{priority}</span>
+              <div className="flex justify-between border-b border-slate-150 dark:border-slate-800 pb-2">
+                <span className="text-slate-400 font-light">Case Urgency:</span>
+                <span className="font-semibold text-ink-black dark:text-white capitalize">{priority}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Variables Filled:</span>
-                <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                  {Object.keys(formValues).length} of {selectedTemplate.extractedVariables.length}
+                <span className="text-slate-400 font-light">Variables:</span>
+                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                  {Object.keys(formValues).length} of {selectedTemplate.extractedVariables.length} set
                 </span>
               </div>
             </div>
@@ -419,38 +381,34 @@ export const DocumentGenerator: React.FC = () => {
       )}
 
       {step === 3 && selectedTemplate && (
-        <div className={`rounded-2xl border p-6 shadow-xl space-y-6 ${
-          isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-        }`}>
-          <div className="flex items-center justify-between">
+        <div className="floating-artifact p-6 space-y-6">
+          <div className="flex items-end justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
             <div>
-              <h2 className={`text-base font-bold flex items-center space-x-2 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-                <Sparkles className="w-4 h-4 text-blue-900 dark:text-blue-400" />
-                <span>Step 3: Confirm & Generate Legal Document</span>
+              <h2 className="text-base font-semibold text-ink-black dark:text-paper-white flex items-center space-x-2">
+                <Sparkles className="w-4 h-4 text-slate-400" />
+                <span>Confirm & Generate Draft</span>
               </h2>
-              <p className="text-xs text-slate-500 mt-0.5">Live compiled preview based on your variable inputs</p>
+              <p className="text-[11px] text-slate-400 mt-0.5 font-light">Compiled preview content below</p>
             </div>
 
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2">
               <button
                 onClick={() => setStep(2)}
-                className={`px-4 py-2 rounded-xl text-xs font-semibold ${
-                  isDark ? 'bg-slate-800 text-slate-300' : 'bg-slate-100 text-slate-700'
-                }`}
+                className="btn-ghost text-[11px] rounded-full cursor-pointer"
               >
-                Back to Edit Fields
+                Back to Fields
               </button>
               <button
                 onClick={handleGenerate}
-                className="px-6 py-2.5 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-xl text-xs shadow-lg shadow-blue-900/20 transition-all flex items-center space-x-2"
+                className="btn-filled text-[11px] rounded-full flex items-center space-x-1.5 cursor-pointer"
               >
-                <Edit3 className="w-4 h-4 stroke-[2.5]" />
-                <span>Generate & Open in Rich Editor</span>
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Generate Draft</span>
               </button>
             </div>
           </div>
 
-          <div className="legal-document-paper p-8 rounded-xl max-w-3xl mx-auto shadow-2xl space-y-4">
+          <div className="legal-document-paper max-w-3xl mx-auto shadow-2xl space-y-4">
             <div
               dangerouslySetInnerHTML={{
                 __html: Object.entries(formValues).reduce((acc, [k, v]) => {

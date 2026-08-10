@@ -19,152 +19,133 @@ export const SettingsView: React.FC = () => {
   };
 
   return (
-    <div className="p-8 space-y-8 max-w-6xl mx-auto animate-in fade-in duration-200">
-      <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl border shadow-lg transition-colors ${
-        isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-      }`}>
-        <div>
+    <div className="p-6 space-y-6 w-full animate-page-fade">
+      {/* Editorial Header */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[#E2E7ED] dark:border-slate-800 pb-5">
+        <div className="space-y-1">
           <div className="flex items-center space-x-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-900/10 text-blue-900 dark:text-blue-400 border border-blue-800/30 uppercase tracking-wider flex items-center space-x-1">
-              <Settings className="w-3.5 h-3.5" />
-              <span>Workspace Administration</span>
-            </span>
+            <span className="text-[10px] uppercase tracking-widest text-slate-455 font-bold">Admin Portal</span>
+            <span className="text-[10px] text-slate-350 dark:text-slate-550">• Firm Scope Controls</span>
           </div>
-          <h1 className={`text-2xl font-extrabold mt-2 tracking-tight ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-            Organization Settings & Team Roles
+          <h1 className="text-4xl serif-display font-light italic text-ink-black dark:text-paper-white mt-1">
+            Settings, <span className="font-normal font-sohne not-italic text-slate-400">Firm Profile & Team Invite</span>
           </h1>
-          <p className="text-xs text-slate-500 mt-1 max-w-xl">
-            Manage law firm organization profile, subscription tier, and role-based security permissions.
+          <p className="text-xs text-slate-450 dark:text-slate-500 font-light max-w-xl">
+            Manage law firm organization profile parameters, subscription settings, and lawyer account invites.
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-2 space-y-6">
-          <div className={`rounded-2xl border p-6 shadow-xl space-y-4 ${
-            isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-          }`}>
-            <h3 className={`text-base font-bold flex items-center space-x-2 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-              <Building className="w-4 h-4 text-blue-900 dark:text-blue-400" />
-              <span>Law Firm Workspace</span>
+        {/* Main section */}
+        <div className="lg:col-span-2 space-y-8">
+          {/* Workspace info */}
+          <div className="floating-artifact space-y-6">
+            <h3 className="text-lg serif-heading font-normal text-ink-black dark:text-paper-white flex items-center space-x-2">
+              <Building className="w-4 h-4 text-slate-450" />
+              <span>Law Firm Workspace Info</span>
             </h3>
 
-            <div className={`grid grid-cols-2 gap-4 p-4 rounded-xl border text-xs ${
-              isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'
-            }`}>
-              <div>
-                <span className="text-slate-500">Organization Name:</span>
-                <p className={`font-bold mt-0.5 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{organization.name}</p>
+            <div className="grid grid-cols-2 gap-4 p-5 rounded-[20px] bg-mist-gray/40 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 text-xs">
+              <div className="space-y-1">
+                <span className="text-slate-400 font-light">Firm Name:</span>
+                <p className="font-semibold text-ink-black dark:text-white mt-0.5">{organization.name}</p>
               </div>
-              <div>
-                <span className="text-slate-500">Subscription Tier:</span>
-                <p className="font-bold text-blue-900 dark:text-blue-400 mt-0.5">{organization.plan} Plan</p>
+              <div className="space-y-1">
+                <span className="text-slate-400 font-light">Service Tier:</span>
+                <p className="font-semibold text-sienna-brown dark:text-blush-peach mt-0.5">{organization.plan} Edition</p>
               </div>
-              <div>
-                <span className="text-slate-500">Active Lawyers:</span>
-                <p className={`font-bold mt-0.5 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{organization.totalMembers} Members</p>
+              <div className="space-y-1">
+                <span className="text-slate-400 font-light">Seat Allocations:</span>
+                <p className="font-semibold text-ink-black dark:text-white mt-0.5">{organization.totalMembers} Members</p>
               </div>
-              <div>
-                <span className="text-slate-500">Workspace Status:</span>
-                <p className="font-bold text-emerald-600 dark:text-emerald-400 mt-0.5">Isolated Security Sandbox</p>
+              <div className="space-y-1">
+                <span className="text-slate-400 font-light">Sandbox Status:</span>
+                <p className="font-semibold text-emerald-600 dark:text-emerald-450 mt-0.5">Active Isolation Sandbox</p>
               </div>
             </div>
           </div>
 
-          <div className={`rounded-2xl border p-6 shadow-xl space-y-4 ${
-            isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-          }`}>
-            <h3 className={`text-base font-bold flex items-center space-x-2 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-              <Users className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+          {/* Invitation Form */}
+          <div className="floating-artifact space-y-6">
+            <h3 className="text-lg serif-heading font-normal text-ink-black dark:text-paper-white flex items-center space-x-2">
+              <Users className="w-4 h-4 text-slate-450" />
               <span>Invite Lawyer to Workspace</span>
             </h3>
 
             <form onSubmit={handleInvite} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Lawyer Full Name</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Lawyer Name</label>
                   <input
                     type="text"
                     required
                     value={inviteName}
                     onChange={(e) => setInviteName(e.target.value)}
-                    placeholder="e.g. Adv. Vikramaditya Seth"
-                    className={`w-full text-xs p-2.5 rounded-xl border focus:outline-none mt-1 ${
-                      isDark ? 'bg-slate-950 text-slate-200 border-slate-800' : 'bg-slate-50 text-slate-800 border-slate-200'
-                    }`}
+                    placeholder="e.g. Vikramaditya Seth"
+                    className="w-full input-composer text-xs"
                   />
                 </div>
                 <div>
-                  <label className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Email Address</label>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Email Address</label>
                   <input
                     type="email"
                     required
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
                     placeholder="vikram@apexlegal.in"
-                    className={`w-full text-xs p-2.5 rounded-xl border focus:outline-none mt-1 ${
-                      isDark ? 'bg-slate-950 text-slate-200 border-slate-800' : 'bg-slate-50 text-slate-800 border-slate-200'
-                    }`}
+                    className="w-full input-composer text-xs"
                   />
                 </div>
               </div>
 
               <div>
-                <label className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Assigned Role</label>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Assigned Role</label>
                 <select
                   value={inviteRole}
                   onChange={(e) => setInviteRole(e.target.value as any)}
-                  className={`w-full text-xs p-2.5 rounded-xl border focus:outline-none mt-1 capitalize ${
-                    isDark ? 'bg-slate-950 text-slate-200 border-slate-800' : 'bg-slate-50 text-slate-800 border-slate-200'
-                  }`}
+                  className="w-full input-composer text-xs py-2"
                 >
-                  <option value="employee">Associate Lawyer (Generator & Editor Access)</option>
-                  <option value="boss">Boss / Senior Partner (Full Firm Review & Analytics)</option>
+                  <option value="employee">Associate Lawyer (Draft & Edit Access)</option>
+                  <option value="boss">Boss / Senior Partner (Full Command Review Access)</option>
                 </select>
               </div>
 
               <button
                 type="submit"
-                className="px-5 py-2.5 bg-blue-900 hover:bg-blue-800 text-white font-bold rounded-xl text-xs shadow-md shadow-blue-900/20 transition-all flex items-center space-x-2"
+                className="w-full py-3 bg-ink-black hover:opacity-90 dark:bg-paper-white text-paper-white dark:text-ink-black font-semibold text-xs rounded-full shadow-sm cursor-pointer"
               >
-                <Plus className="w-4 h-4 stroke-[2.5]" />
-                <span>Send Firm Workspace Invitation</span>
+                Send Invitation
               </button>
             </form>
           </div>
         </div>
 
-        <div className={`rounded-2xl border p-6 shadow-xl space-y-4 ${
-          isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-        }`}>
-          <h3 className={`text-base font-bold flex items-center space-x-2 ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-            <Shield className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-            <span>Role Permissions Matrix</span>
+        {/* Permissions Matrix */}
+        <div className="card-neutral h-fit space-y-6">
+          <h3 className="text-base font-semibold text-ink-black dark:text-paper-white flex items-center space-x-2">
+            <Shield className="w-4 h-4 text-slate-405" />
+            <span>Firm Role Matrix</span>
           </h3>
 
           <div className="space-y-4 text-xs">
-            <div className={`p-3.5 rounded-xl border space-y-1 ${
-              isDark ? 'bg-slate-950/70 border-blue-800/30' : 'bg-blue-50/60 border-blue-200'
-            }`}>
-              <span className="font-bold text-blue-900 dark:text-blue-400">Boss / Senior Partner</span>
-              <ul className="text-[11px] text-slate-500 list-disc pl-4 space-y-0.5">
-                <li>Upload & edit master AI templates</li>
-                <li>View all lawyer documents & work tasks</li>
-                <li>Review, comment, approve, or reject drafts</li>
-                <li>View firm productivity analytics & logs</li>
-                <li>Restore historic document versions</li>
+            <div className="space-y-2">
+              <span className="font-bold text-sienna-brown dark:text-blush-peach uppercase text-[10px] tracking-wider">Senior Partner</span>
+              <ul className="text-[11px] text-slate-450 dark:text-slate-500 list-disc pl-4 space-y-1 font-light leading-relaxed">
+                <li>Manage master legal templates</li>
+                <li>Assign and review workbench tasks</li>
+                <li>Approve & seal drafts</li>
+                <li>Access performance logs & analytics</li>
               </ul>
             </div>
 
-            <div className={`p-3.5 rounded-xl border space-y-1 ${
-              isDark ? 'bg-slate-950/70 border-indigo-500/30' : 'bg-indigo-50/60 border-indigo-200'
-            }`}>
-              <span className="font-bold text-indigo-700 dark:text-indigo-400">Associate Lawyer</span>
-              <ul className="text-[11px] text-slate-500 list-disc pl-4 space-y-0.5">
-                <li>Generate legal documents from templates</li>
-                <li>Edit assigned drafts in Rich Editor</li>
-                <li>Save versions and auto-save drafts</li>
-                <li>Submit completed drafts for review</li>
+            <div className="border-t border-slate-200 dark:border-slate-800 pt-4 space-y-2">
+              <span className="font-bold text-slate-650 dark:text-slate-350 uppercase text-[10px] tracking-wider">Associate Lawyer</span>
+              <ul className="text-[11px] text-slate-455 dark:text-slate-500 list-disc pl-4 space-y-1 font-light leading-relaxed">
+                <li>Draft new agreements</li>
+                <li>Edit documents in workspace editor</li>
+                <li>Manage save history checkpoints</li>
+                <li>Submit drafts for review</li>
               </ul>
             </div>
           </div>

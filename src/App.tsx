@@ -67,7 +67,7 @@ const MainContent: React.FC = () => {
 
   return (
     <div className={`flex-1 overflow-y-auto transition-colors ${
-      isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
+      isDark ? 'bg-[#0a0b0d] text-slate-100' : 'bg-[#F4F6F8] text-ink-black'
     }`}>
       {renderView()}
     </div>

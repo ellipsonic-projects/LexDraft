@@ -38,47 +38,52 @@ export const Header: React.FC = () => {
   const isDark = theme === 'dark';
 
   return (
-    <header className={`h-16 border-b px-6 flex items-center justify-between sticky top-0 z-30 shadow-xs transition-colors ${
-      isDark ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
+    <header className={`h-16 border-b px-6 flex items-center justify-between sticky top-0 z-30 transition-all ${
+      isDark 
+        ? 'bg-slate-900 border-slate-800 text-slate-100' 
+        : 'bg-white border-[#E2E7ED] text-ink-black shadow-[0_1px_3px_0_rgba(15,23,42,0.01)]'
     }`}>
       {/* Left: Brand & Workspace */}
       <div className="flex items-center space-x-4">
-        <div className="flex items-center space-x-2.5 cursor-pointer" onClick={() => setActiveTab(currentUser.role === 'boss' ? 'boss_dashboard' : 'employee_dashboard')}>
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-900 via-blue-800 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-900/20 ring-1 ring-blue-500/30">
-            <Scale className="w-5 h-5 text-white stroke-[2.5]" />
+        <div 
+          className="flex items-center space-x-3 cursor-pointer" 
+          onClick={() => setActiveTab(currentUser.role === 'boss' ? 'boss_dashboard' : 'employee_dashboard')}
+        >
+          <div className="w-8 h-8 rounded-lg bg-ink-black dark:bg-paper-white flex items-center justify-center transition-transform hover:scale-105">
+            <Scale className="w-4 h-4 text-paper-white dark:text-ink-black stroke-[2]" />
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <span className={`font-extrabold text-lg tracking-tight font-sans ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-                Lex<span className="text-blue-800 dark:text-blue-400">Draft</span>
+              <span className="font-sohne font-bold text-base tracking-tight">
+                Lex<span className="serif-display font-light italic text-sienna-brown dark:text-blush-peach">Draft</span>
               </span>
-              <span className="px-1.5 py-0.5 text-[10px] font-bold bg-blue-900/10 text-blue-800 dark:text-blue-400 border border-blue-800/20 rounded uppercase">
-                v1.0 MVP
+              <span className="px-1.5 py-0.5 text-[9px] font-medium bg-mist-gray dark:bg-slate-800 text-slate-500 rounded-full uppercase tracking-wider">
+                SaaS
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 font-medium">{organization.name}</p>
+            <p className="text-[10px] text-slate-400 font-medium tracking-wide uppercase">{organization.name}</p>
           </div>
         </div>
       </div>
 
       {/* Center: Command Palette Trigger & Search */}
-      <div className="flex-1 max-w-md mx-8 hidden md:block">
+      <div className="flex-1 max-w-sm mx-8 hidden md:block">
         <button
           onClick={() => setIsCommandPaletteOpen(true)}
           className={`w-full h-9 border rounded-xl px-3.5 flex items-center justify-between text-xs transition-all duration-150 group ${
             isDark
-              ? 'bg-slate-800/80 hover:bg-slate-800 border-slate-700 text-slate-400'
-              : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-500'
+              ? 'bg-slate-900 hover:bg-slate-800/80 border-slate-800 text-slate-400'
+              : 'bg-mist-gray/40 hover:bg-mist-gray/80 border-slate-200/60 text-slate-500'
           }`}
         >
           <div className="flex items-center space-x-2">
-            <Search className="w-4 h-4 text-slate-400 group-hover:text-blue-700 transition-colors" />
-            <span>Search legal templates, documents, clients...</span>
+            <Search className="w-3.5 h-3.5 text-slate-400 group-hover:text-ink-black dark:group-hover:text-white transition-colors" />
+            <span className="font-sohne font-light">Search templates, vault, logs...</span>
           </div>
-          <div className={`flex items-center space-x-1 border rounded px-1.5 py-0.5 text-[11px] font-mono ${
-            isDark ? 'bg-slate-900 border-slate-700 text-slate-400' : 'bg-white border-slate-200 text-slate-500'
+          <div className={`flex items-center space-x-1 border rounded px-1.5 py-0.5 text-[10px] font-mono ${
+            isDark ? 'bg-slate-950 border-slate-800 text-slate-400' : 'bg-white border-slate-200/80 text-slate-400'
           }`}>
-            <Command className="w-3 h-3" />
+            <Command className="w-2.5 h-2.5" />
             <span>K</span>
           </div>
         </button>
@@ -87,29 +92,29 @@ export const Header: React.FC = () => {
       {/* Right Actions: Role Switcher, Theme Toggle & User Profile */}
       <div className="flex items-center space-x-3">
         {/* Quick Role Switcher Pills */}
-        <div className={`hidden lg:flex items-center p-1 rounded-xl border shadow-xs ${
-          isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-100 border-slate-200'
+        <div className={`hidden lg:flex items-center p-0.5 rounded-full border ${
+          isDark ? 'bg-slate-900 border-slate-800' : 'bg-mist-gray/60 border-slate-200/60'
         }`}>
           <button
             onClick={() => quickLogin('boss')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+            className={`px-3 py-1 rounded-full text-[11px] font-medium flex items-center space-x-1 transition-all ${
               currentUser.role === 'boss'
-                ? 'bg-blue-900 text-white font-bold shadow-xs'
-                : 'text-slate-500 hover:text-slate-900'
+                ? 'bg-ink-black text-paper-white dark:bg-paper-white dark:text-ink-black shadow-sm'
+                : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <ShieldCheck className="w-3.5 h-3.5" />
+            <ShieldCheck className="w-3 h-3" />
             <span>Partner</span>
           </button>
           <button
             onClick={() => quickLogin('employee')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+            className={`px-3 py-1 rounded-full text-[11px] font-medium flex items-center space-x-1 transition-all ${
               currentUser.role === 'employee'
-                ? 'bg-indigo-600 text-white font-bold shadow-xs'
-                : 'text-slate-500 hover:text-slate-900'
+                ? 'bg-ink-black text-paper-white dark:bg-paper-white dark:text-ink-black shadow-sm'
+                : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <Briefcase className="w-3.5 h-3.5" />
+            <Briefcase className="w-3 h-3" />
             <span>Lawyer</span>
           </button>
         </div>
@@ -117,25 +122,25 @@ export const Header: React.FC = () => {
         {/* Theme Switcher Button */}
         <button
           onClick={toggleTheme}
-          className={`p-2 rounded-xl border transition-colors ${
-            isDark ? 'bg-slate-800 border-slate-700 text-blue-400 hover:bg-slate-700' : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
+          className={`p-2 rounded-full border transition-colors ${
+            isDark ? 'bg-slate-900 border-slate-800 text-blush-peach hover:bg-slate-800' : 'bg-mist-gray/40 border-slate-200 text-slate-700 hover:bg-mist-gray/80'
           }`}
           title={isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
         >
-          {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          {isDark ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
         </button>
 
         {/* Notifications Drawer Toggle */}
         <div className="relative">
           <button
             onClick={() => setShowNotifications(!showNotifications)}
-            className={`w-9 h-9 rounded-xl border flex items-center justify-center relative transition-colors ${
-              isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-700'
+            className={`w-9 h-9 rounded-full border flex items-center justify-center relative transition-colors ${
+              isDark ? 'bg-slate-900 border-slate-800 text-slate-350 hover:bg-slate-800' : 'bg-mist-gray/40 border-slate-200 text-slate-700 hover:bg-mist-gray/80'
             }`}
           >
-            <Bell className="w-4 h-4" />
+            <Bell className="w-3.5 h-3.5" />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-blue-700 text-white font-bold text-[10px] flex items-center justify-center ring-2 ring-white dark:ring-slate-900">
+              <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-sienna-brown text-white font-bold text-[8px] flex items-center justify-center ring-2 ring-white dark:ring-slate-950">
                 {unreadCount}
               </span>
             )}
@@ -143,15 +148,15 @@ export const Header: React.FC = () => {
 
           {/* Notifications Dropdown */}
           {showNotifications && (
-            <div className={`absolute right-0 mt-2 w-80 sm:w-96 border rounded-2xl shadow-2xl z-50 overflow-hidden divide-y ${
-              isDark ? 'bg-slate-900 border-slate-800 divide-slate-800' : 'bg-white border-slate-200 divide-slate-100'
+            <div className={`absolute right-0 mt-2 w-80 sm:w-96 border rounded-2xl shadow-xl z-50 overflow-hidden divide-y ${
+              isDark ? 'bg-slate-900 border-slate-800 divide-slate-800' : 'bg-white border-slate-150 divide-slate-100'
             }`}>
-              <div className={`p-3.5 flex items-center justify-between ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}>
+              <div className={`p-3.5 flex items-center justify-between ${isDark ? 'bg-slate-950' : 'bg-mist-gray/20'}`}>
                 <div className="flex items-center space-x-2">
-                  <Bell className="w-4 h-4 text-blue-700 dark:text-blue-400" />
-                  <span className={`font-bold text-sm ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>Notifications</span>
+                  <Bell className="w-3.5 h-3.5 text-slate-500" />
+                  <span className={`font-semibold text-xs ${isDark ? 'text-slate-100' : 'text-ink-black'}`}>Notifications</span>
                   {unreadCount > 0 && (
-                    <span className="px-1.5 py-0.5 text-xs bg-blue-900/10 text-blue-800 dark:text-blue-400 font-bold rounded-full">
+                    <span className="px-1.5 py-0.5 text-[9px] bg-blush-peach text-sienna-brown font-semibold rounded-full">
                       {unreadCount} new
                     </span>
                   )}
@@ -159,7 +164,7 @@ export const Header: React.FC = () => {
                 {unreadCount > 0 && (
                   <button
                     onClick={clearAllNotifications}
-                    className="text-xs text-slate-500 hover:text-blue-700 transition-colors"
+                    className="text-[10px] text-slate-400 hover:text-ink-black dark:hover:text-white transition-colors"
                   >
                     Mark all read
                   </button>
@@ -168,7 +173,7 @@ export const Header: React.FC = () => {
 
               <div className="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800">
                 {notifications.length === 0 ? (
-                  <div className="p-6 text-center text-slate-400 text-xs">No notifications yet</div>
+                  <div className="p-6 text-center text-slate-400 text-xs font-light">No notifications yet</div>
                 ) : (
                   notifications.map((n) => (
                     <div
@@ -187,15 +192,15 @@ export const Header: React.FC = () => {
                         }
                         setShowNotifications(false);
                       }}
-                      className={`p-3.5 hover:bg-blue-50/50 dark:hover:bg-slate-800/50 cursor-pointer transition-colors ${
-                        !n.read ? 'bg-blue-50/80 dark:bg-blue-500/5' : ''
+                      className={`p-3.5 hover:bg-mist-gray/40 dark:hover:bg-slate-850/50 cursor-pointer transition-colors ${
+                        !n.read ? 'bg-mist-gray/10 dark:bg-slate-850/20' : ''
                       }`}
                     >
                       <div className="flex items-start justify-between mb-1">
-                        <span className={`text-xs font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{n.title}</span>
-                        <span className="text-[10px] text-slate-400">{n.timestamp}</span>
+                        <span className={`text-xs font-semibold ${isDark ? 'text-slate-200' : 'text-ink-black'}`}>{n.title}</span>
+                        <span className="text-[9px] text-slate-400">{n.timestamp}</span>
                       </div>
-                      <p className="text-xs text-slate-600 dark:text-slate-400 leading-snug">{n.message}</p>
+                      <p className="text-[11px] text-slate-500 leading-normal font-light">{n.message}</p>
                     </div>
                   ))
                 )}
@@ -208,30 +213,32 @@ export const Header: React.FC = () => {
         <div className="relative">
           <button
             onClick={() => setShowUserDropdown(!showUserDropdown)}
-            className={`flex items-center space-x-2.5 p-1 rounded-xl transition-colors ${
-              isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-100'
+            className={`flex items-center space-x-2 p-1 rounded-full transition-colors ${
+              isDark ? 'hover:bg-slate-900' : 'hover:bg-mist-gray/30'
             }`}
           >
             <img
               src={currentUser.avatar}
               alt={currentUser.name}
-              className="w-8 h-8 rounded-full border border-blue-700/40 object-cover"
+              className="w-7 h-7 rounded-full border border-slate-200 dark:border-slate-800 object-cover"
             />
             <div className="text-left hidden sm:block">
-              <p className={`text-xs font-bold leading-none ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{currentUser.name}</p>
-              <p className="text-[10px] text-blue-700 dark:text-blue-400 font-semibold capitalize mt-0.5">{currentUser.role === 'boss' ? 'Senior Partner' : 'Associate Lawyer'}</p>
+              <p className={`text-[11px] font-semibold leading-none ${isDark ? 'text-slate-200' : 'text-ink-black'}`}>{currentUser.name}</p>
+              <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">
+                {currentUser.role === 'boss' ? 'Partner' : 'Lawyer'}
+              </p>
             </div>
-            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            <ChevronDown className="w-3 h-3 text-slate-400" />
           </button>
 
           {/* User Switcher Dropdown */}
           {showUserDropdown && (
-            <div className={`absolute right-0 mt-2 w-64 border rounded-2xl shadow-2xl z-50 overflow-hidden divide-y ${
-              isDark ? 'bg-slate-900 border-slate-800 divide-slate-800' : 'bg-white border-slate-200 divide-slate-100'
+            <div className={`absolute right-0 mt-2 w-64 border rounded-2xl shadow-xl z-50 overflow-hidden divide-y ${
+              isDark ? 'bg-slate-900 border-slate-800 divide-slate-800' : 'bg-white border-slate-150 divide-slate-100'
             }`}>
-              <div className={`p-3 ${isDark ? 'bg-slate-950' : 'bg-slate-50'}`}>
-                <p className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Switch Account</p>
-                <p className="text-[11px] text-slate-500">Test partner vs lawyer features</p>
+              <div className={`p-3 ${isDark ? 'bg-slate-950' : 'bg-mist-gray/20'}`}>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Switch Account</p>
+                <p className="text-[10px] text-slate-500 font-light">Test partner vs lawyer features</p>
               </div>
 
               <div className="p-1.5 space-y-1">
@@ -244,19 +251,19 @@ export const Header: React.FC = () => {
                     }}
                     className={`w-full text-left p-2 rounded-xl flex items-center justify-between transition-colors ${
                       currentUser.id === u.id
-                        ? 'bg-blue-900/10 border border-blue-800/30'
+                        ? 'bg-mist-gray dark:bg-slate-950 border border-slate-200 dark:border-slate-800'
                         : isDark ? 'hover:bg-slate-800' : 'hover:bg-slate-50'
                     }`}
                   >
                     <div className="flex items-center space-x-2.5">
-                      <img src={u.avatar} alt={u.name} className="w-7 h-7 rounded-full object-cover" />
+                      <img src={u.avatar} alt={u.name} className="w-6 h-6 rounded-full object-cover" />
                       <div>
-                        <p className={`text-xs font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{u.name}</p>
-                        <p className="text-[10px] text-slate-500 capitalize">{u.role === 'boss' ? 'Senior Partner' : 'Associate Lawyer'}</p>
+                        <p className={`text-xs font-semibold ${isDark ? 'text-slate-200' : 'text-ink-black'}`}>{u.name}</p>
+                        <p className="text-[9px] text-slate-400 capitalize">{u.role === 'boss' ? 'Senior Partner' : 'Associate Lawyer'}</p>
                       </div>
                     </div>
                     {currentUser.id === u.id && (
-                      <CheckCircle className="w-4 h-4 text-blue-700 dark:text-blue-400" />
+                      <CheckCircle className="w-3.5 h-3.5 text-slate-650" />
                     )}
                   </button>
                 ))}
@@ -265,9 +272,9 @@ export const Header: React.FC = () => {
               <div className="p-2 bg-slate-50 dark:bg-slate-950">
                 <button
                   onClick={logout}
-                  className="w-full p-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30 rounded-xl text-xs font-bold flex items-center justify-center space-x-2 transition-colors"
+                  className="w-full p-2 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 transition-colors"
                 >
-                  <LogOut className="w-4 h-4" />
+                  <LogOut className="w-3.5 h-3.5" />
                   <span>Sign Out to Landing Page</span>
                 </button>
               </div>

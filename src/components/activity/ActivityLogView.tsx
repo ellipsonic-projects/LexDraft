@@ -18,61 +18,53 @@ export const ActivityLogView: React.FC = () => {
   );
 
   return (
-    <div className="p-8 space-y-8 max-w-6xl mx-auto animate-in fade-in duration-200">
-      <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl border shadow-lg transition-colors ${
-        isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-      }`}>
-        <div>
+    <div className="p-6 space-y-6 w-full animate-page-fade">
+      {/* Top Banner */}
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-[#E2E7ED] dark:border-slate-800 pb-5">
+        <div className="space-y-1">
           <div className="flex items-center space-x-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-900/10 text-blue-900 dark:text-blue-400 border border-blue-800/30 uppercase tracking-wider flex items-center space-x-1">
-              <History className="w-3.5 h-3.5" />
-              <span>Firm Audit & Security Trail</span>
-            </span>
+            <span className="text-[10px] uppercase tracking-widest text-slate-450 font-bold">Audit History</span>
+            <span className="text-[10px] text-slate-355 dark:text-slate-550">• Workspace Logs</span>
           </div>
-          <h1 className={`text-2xl font-extrabold mt-2 tracking-tight ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>
-            Activity Log & Document History
+          <h1 className="text-4xl serif-display font-light italic text-ink-black dark:text-paper-white mt-1">
+            Logs, <span className="font-normal font-sohne not-italic text-slate-400">Firm Activity Trails</span>
           </h1>
-          <p className="text-xs text-slate-500 mt-1 max-w-xl">
-            Granular event logs recording every document creation, variable edit, partner approval, and version restoration.
+          <p className="text-xs text-slate-450 dark:text-slate-500 font-light max-w-xl">
+            Granular event logs recording document creation, variable modifications, reviews, and version updates.
           </p>
         </div>
 
-        <div className="relative w-full sm:w-64">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+        <div className="relative w-full sm:w-64 shrink-0">
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3.5 top-3" />
           <input
             type="text"
-            placeholder="Filter audit logs..."
+            placeholder="Filter logs..."
             value={filterQuery}
             onChange={(e) => setFilterQuery(e.target.value)}
-            className={`w-full text-xs rounded-lg pl-9 pr-3 py-2 border focus:outline-none ${
-              isDark ? 'bg-slate-950 text-slate-200 border-slate-800 focus:border-blue-800/50' : 'bg-slate-50 text-slate-800 border-slate-200 focus:border-blue-800'
-            }`}
+            className="w-full input-composer text-xs pl-9 pr-3 py-2.5"
           />
         </div>
       </div>
 
-      <div className={`rounded-2xl border p-6 shadow-xl space-y-4 ${
-        isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-      }`}>
-        <div className="space-y-3">
+      {/* Logs Catalog */}
+      <div className="floating-artifact p-6 space-y-4">
+        <div className="divide-y divide-slate-100 dark:divide-slate-800">
           {filteredLogs.map((log) => (
-            <div key={log.id} className={`p-4 rounded-xl border flex items-start justify-between text-xs space-x-4 ${
-              isDark ? 'bg-slate-950/70 border-slate-800' : 'bg-slate-50 border-slate-200'
-            }`}>
+            <div key={log.id} className="py-4.5 first:pt-0 last:pb-0 flex flex-col sm:flex-row sm:items-start justify-between gap-4 text-xs">
               <div className="space-y-1">
-                <div className="flex items-center space-x-2">
-                  <span className={`font-bold ${isDark ? 'text-slate-100' : 'text-slate-900'}`}>{log.userName}</span>
-                  <span className="px-2 py-0.5 text-[9px] font-bold bg-blue-900/10 text-blue-900 dark:text-blue-400 border border-blue-800/20 rounded capitalize">
+                <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                  <span className="font-semibold text-ink-black dark:text-paper-white">{log.userName}</span>
+                  <span className="px-2 py-0.5 text-[9px] font-semibold bg-mist-gray dark:bg-slate-800 text-slate-550 rounded-full uppercase tracking-wider">
                     {log.userRole}
                   </span>
-                  <span className="text-slate-400">•</span>
-                  <span className="font-bold text-indigo-600 dark:text-indigo-400">{log.action}</span>
+                  <span className="text-slate-300">•</span>
+                  <span className="font-semibold text-sienna-brown dark:text-blush-peach">{log.action}</span>
                 </div>
-                <p className={`font-semibold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>{log.entityName}</p>
-                <p className="text-slate-500 text-[11px] leading-relaxed">{log.details}</p>
+                <p className="font-medium text-slate-700 dark:text-slate-300 italic">{log.entityName}</p>
+                <p className="text-slate-405 dark:text-slate-500 leading-relaxed font-light">{log.details}</p>
               </div>
 
-              <span className="text-[10px] font-mono text-slate-400 shrink-0">
+              <span className="text-[10px] font-mono text-slate-400 shrink-0 font-light pt-0.5">
                 {new Date(log.timestamp).toLocaleString()}
               </span>
             </div>

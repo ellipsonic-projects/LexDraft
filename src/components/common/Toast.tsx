@@ -8,22 +8,15 @@ export const Toast: React.FC = () => {
   if (!toast) return null;
 
   const icons = {
-    success: <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />,
-    info: <Info className="w-4 h-4 text-amber-400 shrink-0" />,
-    warning: <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />,
-    error: <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-  };
-
-  const borders = {
-    success: 'border-emerald-500/40 bg-slate-900/95 text-slate-100',
-    info: 'border-amber-500/40 bg-slate-900/95 text-slate-100',
-    warning: 'border-amber-500/40 bg-slate-900/95 text-slate-100',
-    error: 'border-rose-500/40 bg-slate-900/95 text-slate-100'
+    success: <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />,
+    info: <Info className="w-4 h-4 text-slate-500 shrink-0" />,
+    warning: <AlertTriangle className="w-4 h-4 text-sienna-brown dark:text-blush-peach shrink-0" />,
+    error: <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-5 duration-200">
-      <div className={`px-4 py-3 rounded-xl border shadow-2xl backdrop-blur-md flex items-center space-x-3 text-xs font-semibold max-w-md ${borders[toast.type]}`}>
+    <div className="fixed bottom-6 right-6 z-50 animate-page-fade">
+      <div className="px-4 py-3 rounded-full border border-slate-150 dark:border-slate-850 bg-white dark:bg-slate-900 text-ink-black dark:text-white shadow-xl flex items-center space-x-3 text-xs font-semibold max-w-md">
         {icons[toast.type]}
         <span>{toast.message}</span>
       </div>
