@@ -103,12 +103,12 @@ export const DocumentGenerator: React.FC = () => {
     }
   };
 
-  const handleGenerate = () => {
+  const handleGenerate = async () => {
     if (!selectedTemplate || !clientId || !matterId) {
       showToast('Please select a client and matter.', 'warning');
       return;
     }
-    const doc = generateDocument(
+    const doc = await generateDocument(
       selectedTemplate.id,
       clientId,
       matterId,

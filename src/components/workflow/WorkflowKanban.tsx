@@ -26,6 +26,7 @@ export const WorkflowKanban: React.FC = () => {
   const isBoss = currentUser.role === 'boss';
   const isDark = theme === 'dark';
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [taskTitle, setTaskTitle] = useState('');
 
   const [templateId, setTemplateId] = useState(templates[0]?.id || '');
   const [clientId, setClientId] = useState('');
@@ -49,21 +50,27 @@ export const WorkflowKanban: React.FC = () => {
       showToast('Task assignment is restricted to Senior Partners', 'warning');
       return;
     }
+    if (!taskTitle.trim()) {
+      showToast('Please enter a task title.', 'warning');
+      return;
+    }
     if (!templateId || !clientId || !matterId || !assigneeId) {
       showToast('Please select a template, client, matter, and assignee.', 'warning');
       return;
     }
     assignTask({
+      title: taskTitle.trim(),
       templateId,
       clientId,
       matterId,
       assigneeId,
       priority,
-      dueDate,
+      dueDate: new Date(dueDate).toISOString(),
       notes,
       documentId: null
     });
     setShowAssignModal(false);
+    setTaskTitle('');
     setNotes('');
   };
 
@@ -209,6 +216,19 @@ export const WorkflowKanban: React.FC = () => {
             </div>
 
             <div className="space-y-4">
+              <div>
+                <label className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Task Title</label>
+                <input
+                  type="text"
+                  value={taskTitle}
+                  onChange={(e) => setTaskTitle(e.target.value)}
+                  placeholder="e.g., Draft Mutual NDA Agreement"
+                  className={`w-full text-xs p-2.5 rounded-xl border focus:outline-none mt-1 ${
+                    isDark ? 'bg-slate-950 text-slate-200 border-slate-800' : 'bg-slate-50 text-slate-800 border-slate-200'
+                  }`}
+                />
+              </div>
+
               <div>
                 <label className={`text-xs font-semibold ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>Select Template</label>
                 <select

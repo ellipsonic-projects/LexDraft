@@ -92,13 +92,13 @@ export const TemplateStudio: React.FC = () => {
     }
   };
 
-  const handleSaveTemplate = () => {
+  const handleSaveTemplate = async () => {
     if (!isBoss) {
       showToast('Only Partners can save master templates', 'warning');
       return;
     }
     if (!templateName || !contentTemplate) return;
-    const newTpl = createTemplate({
+    const newTpl = await createTemplate({
       name: templateName,
       category,
       description: description || 'AI Assisted Reusable Legal Template',

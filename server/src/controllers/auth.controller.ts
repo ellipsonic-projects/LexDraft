@@ -3,7 +3,8 @@ import {
   loginUser,
   refreshUserSession,
   logoutUser,
-  getCurrentUser
+  getCurrentUser,
+  listOrganizationUsers
 } from '../services/auth.service';
 import { env } from '../config/env';
 
@@ -122,6 +123,28 @@ export const me = async (
     res.status(200).json({
       status: 'success',
       data: { user }
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /api/auth/users
+ * Returns list of all users/lawyers in the same organization.
+ */
+export const getUsers = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const orgId = req.user!.organizationId;
+    const users = await listOrganizationUsers(orgId);
+
+    res.status(200).json({
+      status: 'success',
+      data: { users }
     });
   } catch (err) {
     next(err);

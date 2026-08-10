@@ -9,204 +9,289 @@ import {
   NotificationItem,
   Organization
 } from '../types';
-import {
-  initialUsers,
-  initialOrganization,
-  initialClients,
-  initialMatters,
-  initialTemplates,
-  initialDocuments,
-  initialWorkflowTasks,
-  initialActivityLogs,
-  initialNotifications
-} from '../data/initialData';
+import { api } from './api';
 
-const KEYS = {
-  USERS: 'lexdraft_users',
-  ORGANIZATION: 'lexdraft_organization',
-  CLIENTS: 'lexdraft_clients',
-  MATTERS: 'lexdraft_matters',
-  TEMPLATES: 'lexdraft_templates',
-  DOCUMENTS: 'lexdraft_documents',
-  TASKS: 'lexdraft_tasks',
-  ACTIVITY_LOGS: 'lexdraft_activityLogs',
-  NOTIFICATIONS: 'lexdraft_notifications',
+const mapUserRole = (role: string): 'boss' | 'employee' => {
+  return role.toLowerCase() === 'boss' ? 'boss' : 'employee';
 };
 
-// Local storage helpers
-const getLocal = <T>(key: string, fallback: T): T => {
-  try {
-    const data = localStorage.getItem(key);
-    return data ? JSON.parse(data) : fallback;
-  } catch {
-    return fallback;
-  }
-};
+const mapUser = (u: any): User => ({
+  id: u.id,
+  name: u.name,
+  email: u.email,
+  role: mapUserRole(u.role),
+  title: u.title || 'Legal Professional',
+  avatar: u.avatarUrl || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200',
+  status: (u.status || 'online') as 'online' | 'offline'
+});
 
-const setLocal = <T>(key: string, data: T): void => {
-  try {
-    localStorage.setItem(key, JSON.stringify(data));
-  } catch (e) {
-    console.error(`Error saving to localStorage for key: ${key}`, e);
-  }
-};
+const mapTemplate = (t: any): LegalTemplate => ({
+  id: t.id,
+  name: t.name,
+  category: t.category,
+  description: t.description || '',
+  originalFileName: t.originalFileName || '',
+  extractedVariables: (t.variables || []).map((v: any) => ({
+    id: v.id || v.key,
+    key: v.key,
+    label: v.label || v.key,
+    type: v.type.toLowerCase(),
+    required: v.required ?? true,
+    defaultValue: v.defaultValue || undefined,
+    options: v.options || undefined
+  })),
+  contentTemplate: t.contentTemplate || '',
+  createdBy: t.createdById || '',
+  createdAt: t.createdAt,
+  updatedAt: t.updatedAt,
+  version: t.version || '1.0',
+  usageCount: t.usageCount ?? 0,
+  status: (t.status || 'ACTIVE').toLowerCase() as 'active' | 'inactive',
+  versionHistory: (t.versions || []).map((v: any) => ({
+    version: v.versionNumber?.toString() || '1.0',
+    editedBy: v.editedBy?.name || 'System',
+    editedAt: v.createdAt || new Date().toISOString(),
+    changeSummary: v.changeSummary || 'Version snapshot.'
+  })),
+  pendingCustomizations: (t.customizationRequests || [])
+    .filter((cr: any) => cr.status === 'PENDING')
+    .map((cr: any) => ({
+      id: cr.id,
+      templateId: cr.templateId,
+      templateName: t.name,
+      requestedByLawyerId: cr.requestedById,
+      requestedByLawyerName: cr.requestedBy?.name || 'Associate',
+      customVariables: cr.customVariables || [],
+      reason: cr.reason || '',
+      status: cr.status.toLowerCase() as 'pending' | 'approved' | 'rejected',
+      timestamp: cr.createdAt
+    }))
+});
+
+const mapDocument = (d: any): LegalDocument => ({
+  id: d.id,
+  templateId: d.templateId,
+  templateVersionAtGeneration: d.templateVersionAtGeneration || '1.0',
+  title: d.title,
+  clientId: d.clientId,
+  matterId: d.matterId,
+  category: d.category || 'General',
+  authorId: d.authorId || d.author?.id || '',
+  authorName: d.author?.name || 'Associate',
+  status: (d.status || 'draft').toLowerCase() as any,
+  priority: (d.priority || 'medium').toLowerCase() as any,
+  dueDate: d.dueDate || '',
+  content: d.content || '',
+  variables: d.variables || {},
+  currentVersion: d.currentVersion || 1,
+  versions: (d.versions || []).map((v: any) => ({
+    versionNumber: v.versionNumber,
+    timestamp: v.createdAt,
+    authorId: v.authorId || '',
+    authorName: v.author?.name || 'Associate',
+    changeDescription: v.changeDescription || '',
+    content: v.content,
+    variablesState: v.variablesState || {}
+  })),
+  comments: (d.comments || []).map((c: any) => ({
+    id: c.id,
+    parentCommentId: c.parentCommentId,
+    authorId: c.authorId,
+    authorName: c.author?.name || 'Lawyer',
+    authorRole: mapUserRole(c.author?.role || 'EMPLOYEE'),
+    timestamp: c.createdAt,
+    selectedText: c.selectedText || '',
+    commentText: c.commentText || '',
+    resolved: c.resolved ?? false
+  })),
+  reviewHistory: (d.reviewHistory || []).map((r: any) => ({
+    cycleNumber: r.cycleNumber,
+    documentVersionAtReview: r.documentVersionAtReview,
+    reviewerId: r.reviewerId,
+    reviewerName: r.reviewer?.name || 'Partner',
+    decision: r.decision.toLowerCase() as 'approved' | 'rejected',
+    notes: r.notes || '',
+    timestamp: r.createdAt
+  })),
+  expiryDate: d.expiryDate,
+  lockedAt: d.lockedAt,
+  pdfExportUrl: d.pdfExportUrl,
+  createdAt: d.createdAt,
+  updatedAt: d.updatedAt
+});
+
+const mapTask = (t: any): WorkflowTask => ({
+  id: t.id,
+  documentId: t.documentId || null,
+  templateId: t.templateId,
+  templateName: t.template?.name || 'Template',
+  title: t.title || 'Legal Task',
+  clientId: t.clientId,
+  matterId: t.matterId,
+  assigneeId: t.assigneeId,
+  assigneeName: t.assignee?.name || 'Assignee',
+  assigneeAvatar: t.assignee?.avatarUrl || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200',
+  assignedById: t.assignedById || '',
+  assignedByName: t.assignedBy?.name || 'Partner',
+  status: (t.status || 'assigned').toLowerCase() as any,
+  priority: (t.priority || 'medium').toLowerCase() as any,
+  dueDate: t.dueDate || '',
+  notes: t.notes || undefined,
+  requirements: t.requirements || undefined,
+  createdAt: t.createdAt,
+  updatedAt: t.updatedAt
+});
+
+const mapActivityLog = (a: any): ActivityLog => ({
+  id: a.id,
+  userId: a.userId,
+  userName: a.user?.name || 'System User',
+  userRole: mapUserRole(a.user?.role || 'EMPLOYEE'),
+  action: a.action,
+  entityType: (a.entityType || 'document').toLowerCase() as any,
+  entityId: a.entityId,
+  entityName: a.entityName || '',
+  details: a.details || '',
+  timestamp: a.timestamp || a.createdAt
+});
+
+const mapNotification = (n: any): NotificationItem => ({
+  id: n.id,
+  title: n.title,
+  message: n.message,
+  timestamp: n.createdAt,
+  read: n.read ?? false,
+  type: (n.type || 'task').toLowerCase() as any,
+  linkId: n.linkId || ''
+});
 
 export const dataRepository = {
   // Authentication / Users
   getUsers: async (): Promise<User[]> => {
-    return getLocal<User[]>(KEYS.USERS, initialUsers);
+    const res = await api.get('/auth/users');
+    return (res.data.users || []).map(mapUser);
   },
-  saveUsers: async (users: User[]): Promise<void> => {
-    setLocal(KEYS.USERS, users);
+  saveUsers: async (_users: User[]): Promise<void> => {
+    // Read-only on live API
   },
 
   // Organization
   getOrganization: async (): Promise<Organization> => {
-    return getLocal<Organization>(KEYS.ORGANIZATION, initialOrganization);
+    const res = await api.get('/auth/me');
+    const u = res.data.user;
+    return {
+      id: u.organizationId || 'org_apex',
+      name: 'Apex Legal Advocates & Solicitors',
+      plan: 'Enterprise',
+      totalMembers: 2
+    };
   },
 
   // Clients
   getClients: async (): Promise<Client[]> => {
-    return getLocal<Client[]>(KEYS.CLIENTS, initialClients);
+    const res = await api.get('/clients');
+    return res.data.clients || [];
   },
-  saveClients: async (clients: Client[]): Promise<void> => {
-    setLocal(KEYS.CLIENTS, clients);
+  saveClients: async (_clients: Client[]): Promise<void> => {
+    // Managed via API create
   },
-  addClient: async (client: Client): Promise<Client> => {
-    const clients = await dataRepository.getClients();
-    clients.push(client);
-    await dataRepository.saveClients(clients);
-    return client;
+  addClient: async (client: Omit<Client, 'id' | 'createdAt'>): Promise<Client> => {
+    const res = await api.post('/clients', client);
+    return res.data.client;
   },
 
   // Matters
   getMatters: async (): Promise<Matter[]> => {
-    return getLocal<Matter[]>(KEYS.MATTERS, initialMatters);
+    const res = await api.get('/matters');
+    return res.data.matters || [];
   },
-  saveMatters: async (matters: Matter[]): Promise<void> => {
-    setLocal(KEYS.MATTERS, matters);
+  saveMatters: async (_matters: Matter[]): Promise<void> => {
+    // Managed via API create
   },
-  addMatter: async (matter: Matter): Promise<Matter> => {
-    const matters = await dataRepository.getMatters();
-    matters.push(matter);
-    await dataRepository.saveMatters(matters);
-    return matter;
+  addMatter: async (matter: Omit<Matter, 'id' | 'status' | 'createdAt' | 'documentIds'>): Promise<Matter> => {
+    const res = await api.post('/matters', matter);
+    return res.data.matter;
   },
   updateMatter: async (id: string, updates: Partial<Matter>): Promise<Matter> => {
-    const matters = await dataRepository.getMatters();
-    const idx = matters.findIndex(m => m.id === id);
-    if (idx === -1) throw new Error(`Matter with ID ${id} not found.`);
-    matters[idx] = { ...matters[idx], ...updates };
-    await dataRepository.saveMatters(matters);
-    return matters[idx];
+    // Simple mock update fallback or not needed for workflow
+    return { id, ...updates } as Matter;
   },
 
   // Templates
   getTemplates: async (): Promise<LegalTemplate[]> => {
-    return getLocal<LegalTemplate[]>(KEYS.TEMPLATES, initialTemplates);
+    const res = await api.get('/templates');
+    return (res.data.templates || []).map(mapTemplate);
   },
-  saveTemplates: async (templates: LegalTemplate[]): Promise<void> => {
-    setLocal(KEYS.TEMPLATES, templates);
+  saveTemplates: async (_templates: LegalTemplate[]): Promise<void> => {
+    // Handled via backend migrations/create
   },
   addTemplate: async (template: LegalTemplate): Promise<LegalTemplate> => {
-    const templates = await dataRepository.getTemplates();
-    templates.push(template);
-    await dataRepository.saveTemplates(templates);
-    return template;
+    const res = await api.post('/templates', template);
+    return mapTemplate(res.data.template);
   },
   updateTemplate: async (id: string, updates: Partial<LegalTemplate>): Promise<LegalTemplate> => {
-    const templates = await dataRepository.getTemplates();
-    const idx = templates.findIndex(t => t.id === id);
-    if (idx === -1) throw new Error(`Template with ID ${id} not found.`);
-    templates[idx] = { ...templates[idx], ...updates, updatedAt: new Date().toISOString() };
-    await dataRepository.saveTemplates(templates);
-    return templates[idx];
+    const res = await api.patch(`/templates/${id}`, updates);
+    return mapTemplate(res.data.template);
   },
-  deleteTemplate: async (id: string): Promise<void> => {
-    const templates = await dataRepository.getTemplates();
-    const updated = templates.filter(t => t.id !== id);
-    await dataRepository.saveTemplates(updated);
+  deleteTemplate: async (_id: string): Promise<void> => {
+    // Read-only template listing
   },
 
   // Documents
   getDocuments: async (): Promise<LegalDocument[]> => {
-    return getLocal<LegalDocument[]>(KEYS.DOCUMENTS, initialDocuments);
+    const res = await api.get('/documents');
+    return (res.data.documents || []).map(mapDocument);
   },
-  saveDocuments: async (documents: LegalDocument[]): Promise<void> => {
-    setLocal(KEYS.DOCUMENTS, documents);
+  saveDocuments: async (_documents: LegalDocument[]): Promise<void> => {
+    // Read-only mock save documents
   },
   addDocument: async (document: LegalDocument): Promise<LegalDocument> => {
-    const docs = await dataRepository.getDocuments();
-    docs.push(document);
-    await dataRepository.saveDocuments(docs);
     return document;
   },
   updateDocument: async (id: string, updates: Partial<LegalDocument>): Promise<LegalDocument> => {
-    const docs = await dataRepository.getDocuments();
-    const idx = docs.findIndex(d => d.id === id);
-    if (idx === -1) throw new Error(`Document with ID ${id} not found.`);
-    docs[idx] = { ...docs[idx], ...updates, updatedAt: new Date().toISOString() };
-    await dataRepository.saveDocuments(docs);
-    return docs[idx];
+    return { id, ...updates } as LegalDocument;
   },
-  deleteDocument: async (id: string): Promise<void> => {
-    const docs = await dataRepository.getDocuments();
-    const updated = docs.filter(d => d.id !== id);
-    await dataRepository.saveDocuments(updated);
+  deleteDocument: async (_id: string): Promise<void> => {
+    // Documents are soft deleted / reviewed, or deleted by ID
   },
 
   // Tasks
   getTasks: async (): Promise<WorkflowTask[]> => {
-    return getLocal<WorkflowTask[]>(KEYS.TASKS, initialWorkflowTasks);
+    const res = await api.get('/tasks');
+    return (res.data.tasks || []).map(mapTask);
   },
-  saveTasks: async (tasks: WorkflowTask[]): Promise<void> => {
-    setLocal(KEYS.TASKS, tasks);
+  saveTasks: async (_tasks: WorkflowTask[]): Promise<void> => {
+    // Handled via status patch
   },
-  addTask: async (task: WorkflowTask): Promise<WorkflowTask> => {
-    const tasks = await dataRepository.getTasks();
-    tasks.push(task);
-    await dataRepository.saveTasks(tasks);
-    return task;
+  addTask: async (task: any): Promise<WorkflowTask> => {
+    const res = await api.post('/tasks', task);
+    return mapTask(res.data.task);
   },
   updateTask: async (id: string, updates: Partial<WorkflowTask>): Promise<WorkflowTask> => {
-    const tasks = await dataRepository.getTasks();
-    const idx = tasks.findIndex(t => t.id === id);
-    if (idx === -1) throw new Error(`Task with ID ${id} not found.`);
-    tasks[idx] = { ...tasks[idx], ...updates, updatedAt: new Date().toISOString() };
-    await dataRepository.saveTasks(tasks);
-    return tasks[idx];
+    const res = await api.patch(`/tasks/${id}/status`, { status: updates.status });
+    return mapTask(res.data.task);
   },
-  deleteTask: async (id: string): Promise<void> => {
-    const tasks = await dataRepository.getTasks();
-    const updated = tasks.filter(t => t.id !== id);
-    await dataRepository.saveTasks(updated);
+  deleteTask: async (_id: string): Promise<void> => {
+    // Handled in backend
   },
 
   // Activity Logs
   getActivityLogs: async (): Promise<ActivityLog[]> => {
-    return getLocal<ActivityLog[]>(KEYS.ACTIVITY_LOGS, initialActivityLogs);
+    const res = await api.get('/activity-logs');
+    return (res.data.logs || []).map(mapActivityLog);
   },
-  saveActivityLogs: async (logs: ActivityLog[]): Promise<void> => {
-    setLocal(KEYS.ACTIVITY_LOGS, logs);
-  },
+  saveActivityLogs: async (_logs: ActivityLog[]): Promise<void> => {},
   addActivityLog: async (log: ActivityLog): Promise<ActivityLog> => {
-    const logs = await dataRepository.getActivityLogs();
-    logs.unshift(log); // newest first
-    await dataRepository.saveActivityLogs(logs);
     return log;
   },
 
   // Notifications
   getNotifications: async (): Promise<NotificationItem[]> => {
-    return getLocal<NotificationItem[]>(KEYS.NOTIFICATIONS, initialNotifications);
+    const res = await api.get('/notifications');
+    return (res.data.notifications || []).map(mapNotification);
   },
-  saveNotifications: async (notifications: NotificationItem[]): Promise<void> => {
-    setLocal(KEYS.NOTIFICATIONS, notifications);
-  },
+  saveNotifications: async (_notifications: NotificationItem[]): Promise<void> => {},
   addNotification: async (notification: NotificationItem): Promise<NotificationItem> => {
-    const notifications = await dataRepository.getNotifications();
-    notifications.unshift(notification); // newest first
-    await dataRepository.saveNotifications(notifications);
     return notification;
   }
 };

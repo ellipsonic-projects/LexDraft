@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { login, refresh, logout, me } from '../controllers/auth.controller';
+import { login, refresh, logout, me, getUsers } from '../controllers/auth.controller';
 import { authenticate } from '../middlewares/authenticate';
 import { validate } from '../middlewares/validate';
 import { authRateLimiter } from '../middlewares/rateLimiter';
@@ -30,5 +30,11 @@ router.post('/logout', logout);
  * Protected. Returns current user profile from the database.
  */
 router.get('/me', authenticate, me);
+
+/**
+ * GET /api/auth/users
+ * Protected. Returns list of all users/lawyers in the same organization.
+ */
+router.get('/users', authenticate, getUsers);
 
 export default router;

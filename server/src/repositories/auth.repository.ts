@@ -66,3 +66,12 @@ export const purgeExpiredTokens = async (): Promise<void> => {
     where: { expiresAt: { lt: new Date() } }
   });
 };
+
+/**
+ * Returns all users belonging to the specified organization.
+ */
+export const findUsersByOrganization = async (organizationId: string): Promise<User[]> => {
+  return prisma.user.findMany({
+    where: { organizationId }
+  });
+};

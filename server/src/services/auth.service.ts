@@ -5,7 +5,8 @@ import {
   findUserById,
   createRefreshToken,
   findRefreshToken,
-  deleteRefreshToken
+  deleteRefreshToken,
+  findUsersByOrganization
 } from '../repositories/auth.repository';
 import {
   signAccessToken,
@@ -140,4 +141,20 @@ export const getCurrentUser = async (userId: string): Promise<Record<string, unk
     status: user.status,
     organizationId: user.organizationId
   };
+};
+
+/**
+ * Lists all users belonging to the specified organization.
+ */
+export const listOrganizationUsers = async (organizationId: string): Promise<Record<string, unknown>[]> => {
+  const users = await findUsersByOrganization(organizationId);
+  return users.map(user => ({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    title: user.title,
+    avatarUrl: user.avatarUrl,
+    status: user.status
+  }));
 };
