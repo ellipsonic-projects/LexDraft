@@ -11,7 +11,10 @@ const envSchema = z.object({
   JWT_ACCESS_SECRET: z.string().min(8, "JWT_ACCESS_SECRET must be at least 8 characters long"),
   JWT_REFRESH_SECRET: z.string().min(8, "JWT_REFRESH_SECRET must be at least 8 characters long"),
   ALLOWED_ORIGIN: z.string().default('http://localhost:5173'),
-  NODE_ENV: z.enum(['development', 'production', 'test']).default('development')
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
+  TRUST_PROXY: z.string().optional().default('false'),
+  RATE_LIMIT_MAX: z.string().transform((val) => parseInt(val, 10)).default('500'),
+  RATE_LIMIT_WINDOW_MS: z.string().transform((val) => parseInt(val, 10)).default('900000') // 15 mins
 });
 
 const parseEnv = () => {

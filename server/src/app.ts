@@ -18,20 +18,38 @@ import analyticsRoutes from './routes/analytics.routes';
 
 const app = express();
 
+// Trust Proxy Configuration for production reverse proxies (Nginx, ALBs, Cloudflare, etc.)
+if (env.TRUST_PROXY === 'true') {
+  app.set('trust proxy', true);
+} else if (env.TRUST_PROXY && env.TRUST_PROXY !== 'false') {
+  const parsed = parseInt(env.TRUST_PROXY, 10);
+  app.set('trust proxy', isNaN(parsed) ? env.TRUST_PROXY : parsed);
+}
+
 // Security Middlewares
 app.use(helmet());
+
+// Configure robust production CORS matching comma-separated origins or * wildcard
+const allowedOrigins = env.ALLOWED_ORIGIN.split(',').map((o) => o.trim());
 app.use(
   cors({
-    origin: env.ALLOWED_ORIGIN,
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS']
   })
 );
 
-// Rate Limiter
+// Configurable Rate Limiter
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: env.RATE_LIMIT_WINDOW_MS,
+  max: env.RATE_LIMIT_MAX,
   standardHeaders: true,
   legacyHeaders: false,
   message: { status: 'error', message: 'Too many requests, please try again later.' }
