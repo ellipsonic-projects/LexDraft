@@ -97,7 +97,7 @@ async function main() {
     }
   });
 
-  const matterTechcorpNda = await prisma.matter.create({
+  void await prisma.matter.create({
     data: {
       id: 'matter_techcorp_nda',
       clientId: clientTechcorp.id,
@@ -106,6 +106,7 @@ async function main() {
       status: MatterStatus.active
     }
   });
+
 
   // 5. Create Templates
   const templateRental = await prisma.legalTemplate.create({
@@ -164,6 +165,22 @@ async function main() {
     }
   });
 
+  // House Rental Agreement Wizard template
+  const templateHouseRental = await prisma.legalTemplate.create({
+    data: {
+      id: 'tpl_house_rental',
+      name: 'Residential House Rental Agreement',
+      category: 'Real Estate',
+      description: 'A guided step-by-step wizard for creating legally structured Residential House Rental Agreements in India. Covers all standard clauses with full conditional question flow — term, rent, deposit, utilities, use of property, termination, governing law, and governing jurisdiction.',
+      originalFileName: 'House_Rental_Agreement_Wizard_v1.0',
+      contentTemplate: '{{__content__}}',
+      version: '1.0',
+      usageCount: 0,
+      status: 'active',
+      organizationId: org.id
+    }
+  });
+
   // 6. Create Template Variables
   await prisma.templateVariable.createMany({
     data: [
@@ -181,7 +198,33 @@ async function main() {
       { templateId: templateNda.id, key: 'Party_B_Name', label: 'Receiving Party Name', type: VariableType.text, required: true, defaultValue: 'TechCorp Solutions Inc' },
       { templateId: templateNda.id, key: 'Purpose', label: 'Evaluation Purpose', type: VariableType.multiline, required: true, defaultValue: 'Evaluating potential merger and technical API integration.' },
       { templateId: templateNda.id, key: 'Confidentiality_Years', label: 'Term Duration (Years)', type: VariableType.number, required: true, defaultValue: '3' },
-      { templateId: templateNda.id, key: 'Effective_Date', label: 'Effective Date', type: VariableType.date, required: true, defaultValue: '2026-08-04' }
+      { templateId: templateNda.id, key: 'Effective_Date', label: 'Effective Date', type: VariableType.date, required: true, defaultValue: '2026-08-04' },
+      // House Rental Wizard — core required variables
+      { templateId: templateHouseRental.id, key: 'governingLaw', label: 'State / Union Territory', type: VariableType.select, required: true, defaultValue: 'KA', options: ['AN','AP','AR','AS','BR','CH','CT','DN','DL','GA','GJ','HR','HP','JK','JH','KA','KL','LA','LD','MP','MH','MN','ML','MZ','NL','OD','PY','PB','RJ','SK','TN','TG','TR','UP','UK','WB'] },
+      { templateId: templateHouseRental.id, key: 'leaseTermType', label: 'Lease Term Type', type: VariableType.select, required: true, defaultValue: 'fixedTerm', options: ['fixedTerm', 'automaticRenewal'] },
+      { templateId: templateHouseRental.id, key: 'leaseStartDate', label: 'Rental Start Date', type: VariableType.date, required: true, defaultValue: '2026-09-01' },
+      { templateId: templateHouseRental.id, key: 'fixedEndDateEnd', label: 'Rental End Date', type: VariableType.date, required: false, defaultValue: '2027-07-31' },
+      { templateId: templateHouseRental.id, key: 'possessionDate', label: 'Possession Date', type: VariableType.date, required: true, defaultValue: '2026-09-01' },
+      { templateId: templateHouseRental.id, key: 'renewalTermType', label: 'Renewal Term', type: VariableType.select, required: false, defaultValue: '11months', options: ['11months','1month','3months','6months','1year','other'] },
+      { templateId: templateHouseRental.id, key: 'propertyAddress', label: 'Rental Property Address', type: VariableType.address, required: true, defaultValue: '' },
+      { templateId: templateHouseRental.id, key: 'furnished', label: 'Furnishing Level', type: VariableType.select, required: true, defaultValue: 'unfurnished', options: ['fully','semi','unfurnished'] },
+      { templateId: templateHouseRental.id, key: 'landlordName', label: 'Landlord Full Name', type: VariableType.text, required: true, defaultValue: '' },
+      { templateId: templateHouseRental.id, key: 'landlordType', label: 'Landlord Type', type: VariableType.select, required: true, defaultValue: 'individual', options: ['individual','company'] },
+      { templateId: templateHouseRental.id, key: 'landlordAddress', label: 'Landlord Address', type: VariableType.address, required: false, defaultValue: '' },
+      { templateId: templateHouseRental.id, key: 'tenantName', label: 'Tenant Full Name', type: VariableType.text, required: true, defaultValue: '' },
+      { templateId: templateHouseRental.id, key: 'tenantCurrentAddress', label: 'Tenant Current Address', type: VariableType.address, required: false, defaultValue: '' },
+      { templateId: templateHouseRental.id, key: 'rent', label: 'Monthly Rent (₹)', type: VariableType.currency, required: true, defaultValue: '0' },
+      { templateId: templateHouseRental.id, key: 'rentPaymentPeriod', label: 'Rent Payment Frequency', type: VariableType.select, required: true, defaultValue: 'monthly', options: ['monthly','weekly','daily'] },
+      { templateId: templateHouseRental.id, key: 'securityDeposit', label: 'Security Deposit Required?', type: VariableType.select, required: false, defaultValue: 'no', options: ['yes','no'] },
+      { templateId: templateHouseRental.id, key: 'securityDepositAmount', label: 'Security Deposit Amount (₹)', type: VariableType.currency, required: false, defaultValue: '0' },
+      { templateId: templateHouseRental.id, key: 'pets', label: 'Pets Policy', type: VariableType.select, required: false, defaultValue: 'withconsent', options: ['withconsent','yes','no'] },
+      { templateId: templateHouseRental.id, key: 'smoking', label: 'Smoking Allowed?', type: VariableType.select, required: false, defaultValue: 'no', options: ['yes','no'] },
+      { templateId: templateHouseRental.id, key: 'subletting', label: 'Subletting Allowed?', type: VariableType.select, required: false, defaultValue: 'no', options: ['yes','no'] },
+      { templateId: templateHouseRental.id, key: 'terminationNotice', label: 'Termination Notice Required?', type: VariableType.select, required: false, defaultValue: 'dns', options: ['yes','no','dns'] },
+      { templateId: templateHouseRental.id, key: 'guarantorRequired', label: 'Guarantor Required?', type: VariableType.select, required: false, defaultValue: 'no', options: ['yes','no'] },
+      { templateId: templateHouseRental.id, key: 'inspectionReport', label: 'Inspection Report?', type: VariableType.select, required: false, defaultValue: 'dns', options: ['yes','no','dns'] },
+      { templateId: templateHouseRental.id, key: 'signingCity', label: 'Signing City', type: VariableType.text, required: false, defaultValue: 'Bengaluru' },
+      { templateId: templateHouseRental.id, key: 'longformDate', label: 'Signing Date', type: VariableType.date, required: false, defaultValue: '2026-09-01' },
     ]
   });
 
@@ -193,9 +236,12 @@ async function main() {
       { templateId: templateRental.id, versionText: 'v1.2 version text placeholder', changeSummary: 'Merged security deposit variables and added lease term field.', editedById: partner.id },
       // NDA
       { templateId: templateNda.id, versionText: 'v1.0 NDA version text', changeSummary: 'Initial standard NDA draft.', editedById: partner.id },
-      { templateId: templateNda.id, versionText: 'v2.0 NDA version text', changeSummary: 'Upgraded mutual diligence clauses to modern corporate compliance norms.', editedById: partner.id }
+      { templateId: templateNda.id, versionText: 'v2.0 NDA version text', changeSummary: 'Upgraded mutual diligence clauses to modern corporate compliance norms.', editedById: partner.id },
+      // House Rental Wizard — v1.0 initial snapshot
+      { templateId: templateHouseRental.id, versionText: '<!-- WIZARD_GENERATED: v1.0 — Residential House Rental Agreement. Data-driven wizard with 6 tabs, 24 conditional branches, live preview compiler. -->', changeSummary: 'Initial House Rental Agreement Wizard v1.0. Full question flow, 12-section document structure, conditional clause engine.', editedById: partner.id },
     ]
   });
+
 
   // 8. Create Template Customization Request
   await prisma.customizationRequest.create({

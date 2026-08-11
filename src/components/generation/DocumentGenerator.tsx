@@ -176,6 +176,31 @@ export const DocumentGenerator: React.FC = () => {
         <div className="space-y-6">
           <h2 className="text-base font-semibold text-ink-black dark:text-white">Choose Reusable Legal Template</h2>
 
+          {/* ── House Rental Agreement Wizard Card (Featured) ── */}
+          <div
+            onClick={() => setActiveTab('house_rental_wizard')}
+            className={`flex items-center gap-6 p-6 rounded-2xl border-2 border-blue-500/30 cursor-pointer transition-all hover:border-blue-500 hover:shadow-lg hover:shadow-blue-500/10 ${
+              isDark ? 'bg-blue-500/5' : 'bg-gradient-to-r from-blue-50 to-indigo-50'
+            }`}
+          >
+            <div className="text-4xl flex-shrink-0">🏠</div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[9px] tracking-wider text-blue-600 uppercase font-bold">Real Estate · Guided Wizard</span>
+                <span className="px-2 py-0.5 bg-blue-600 text-white text-[10px] font-bold rounded-full">NEW</span>
+              </div>
+              <h3 className="text-sm font-bold text-ink-black dark:text-paper-white">Residential House Rental Agreement</h3>
+              <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                LawDepot-style step-by-step wizard for House Rental Agreements in India. Fully guided — covers term, rent, deposit, utilities, use of property, termination, and governing law with live preview.
+              </p>
+            </div>
+            <div className="flex-shrink-0">
+              <div className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-all shadow-md shadow-blue-500/30">
+                <Wand2 size={13} /> Start Wizard
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {templates.map((tpl) => (
               <div
@@ -211,6 +236,7 @@ export const DocumentGenerator: React.FC = () => {
           </div>
         </div>
       )}
+
 
       {step === 2 && selectedTemplate && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

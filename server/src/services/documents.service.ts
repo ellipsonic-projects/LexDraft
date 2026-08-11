@@ -135,10 +135,12 @@ export const generateDocument = async (
   }
 
   // 6. Compile template HTML with supplied variables
-  let compiledHtml = template.contentTemplate;
-  for (const [k, v] of Object.entries(data.variables)) {
-    const regex = new RegExp(`{{\\s*${k}\\s*}}`, 'g');
-    compiledHtml = compiledHtml.replace(regex, `<strong>${v || `[${k}]`}</strong>`);
+  let compiledHtml = data.variables.__content__ || template.contentTemplate;
+  if (!data.variables.__content__) {
+    for (const [k, v] of Object.entries(data.variables)) {
+      const regex = new RegExp(`{{\\s*${k}\\s*}}`, 'g');
+      compiledHtml = compiledHtml.replace(regex, `<strong>${v || `[${k}]`}</strong>`);
+    }
   }
 
   // 7. Determine document title

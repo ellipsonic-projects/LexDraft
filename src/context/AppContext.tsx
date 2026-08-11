@@ -26,6 +26,7 @@ export type NavTab =
   | 'employee_dashboard'
   | 'template_studio'
   | 'document_generator'
+  | 'house_rental_wizard'
   | 'documents'
   | 'document_editor'
   | 'workflow'

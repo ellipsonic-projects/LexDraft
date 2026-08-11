@@ -15,6 +15,7 @@ import { WorkflowKanban } from './components/workflow/WorkflowKanban';
 import { ActivityLogView } from './components/activity/ActivityLogView';
 import { AnalyticsView } from './components/analytics/AnalyticsView';
 import { SettingsView } from './components/settings/SettingsView';
+import { HouseRentalWizard } from './components/agreements/HouseRentalWizard';
 
 const MainContent: React.FC = () => {
   const { activeTab, theme, currentUser } = useApp();
@@ -32,6 +33,8 @@ const MainContent: React.FC = () => {
         return <TemplateStudio />;
       case 'document_generator':
         return <DocumentGenerator />;
+      case 'house_rental_wizard':
+        return <HouseRentalWizard />;
       case 'documents':
         return <DocumentsList />;
       case 'document_editor':
