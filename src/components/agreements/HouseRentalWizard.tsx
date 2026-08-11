@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -195,9 +195,14 @@ const QuestionRenderer: React.FC<{
   question: WizardQuestion;
   state: HouseWizardState;
   onUpdate: (updates: Partial<HouseWizardState>) => void;
-}> = ({ question, state, onUpdate }) => {
+  onFocusField?: (fieldKey: string) => void;
+}> = ({ question, state, onUpdate, onFocusField }) => {
   const key = question.id as keyof HouseWizardState;
   const value = state[key];
+
+  const handleFocus = () => {
+    if (onFocusField) onFocusField(key);
+  };
 
   switch (question.type) {
     case 'readonly': {
@@ -214,9 +219,11 @@ const QuestionRenderer: React.FC<{
         return (
           <select
             value={state.governingLaw}
+            onFocus={handleFocus}
             onChange={e => {
               const selected = INDIAN_STATES.find(s => s.value === e.target.value);
               onUpdate({ governingLaw: e.target.value, governingLawLabel: selected?.label || '' });
+              handleFocus();
             }}
             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
           >
@@ -236,7 +243,11 @@ const QuestionRenderer: React.FC<{
                 name={question.id}
                 value={opt.value}
                 checked={String(value) === opt.value}
-                onChange={() => onUpdate({ [key]: opt.value } as Partial<HouseWizardState>)}
+                onFocus={handleFocus}
+                onChange={() => {
+                  onUpdate({ [key]: opt.value } as Partial<HouseWizardState>);
+                  handleFocus();
+                }}
                 className="w-4 h-4 accent-blue-600"
               />
               <span className="text-sm text-slate-700 group-hover:text-slate-900">{opt.label}</span>
@@ -248,27 +259,41 @@ const QuestionRenderer: React.FC<{
 
     case 'yesno':
       return (
-        <YesNoToggle
-          value={value as YesNo}
-          onChange={v => onUpdate({ [key]: v } as Partial<HouseWizardState>)}
-        />
+        <div onFocus={handleFocus} onClick={handleFocus}>
+          <YesNoToggle
+            value={value as YesNo}
+            onChange={v => {
+              onUpdate({ [key]: v } as Partial<HouseWizardState>);
+              handleFocus();
+            }}
+          />
+        </div>
       );
 
     case 'yesnodns':
       return (
-        <YesNoDnsToggle
-          value={value as YesNoDns}
-          onChange={v => onUpdate({ [key]: v } as Partial<HouseWizardState>)}
-        />
+        <div onFocus={handleFocus} onClick={handleFocus}>
+          <YesNoDnsToggle
+            value={value as YesNoDns}
+            onChange={v => {
+              onUpdate({ [key]: v } as Partial<HouseWizardState>);
+              handleFocus();
+            }}
+          />
+        </div>
       );
 
     case 'checkbox':
       return (
-        <label className="flex items-center gap-3 cursor-pointer">
+        <label className="flex items-center gap-3 cursor-pointer" onFocus={handleFocus}>
           <input
             type="checkbox"
             checked={Boolean(value)}
-            onChange={e => onUpdate({ [key]: e.target.checked } as Partial<HouseWizardState>)}
+            onFocus={handleFocus}
+            onChange={e => {
+              onUpdate({ [key]: e.target.checked } as Partial<HouseWizardState>);
+              handleFocus();
+            }}
             className="w-4 h-4 accent-blue-600"
           />
           <span className="text-sm text-slate-700">{question.label}</span>
@@ -280,7 +305,11 @@ const QuestionRenderer: React.FC<{
         <input
           type="text"
           value={String(value ?? '')}
-          onChange={e => onUpdate({ [key]: e.target.value } as Partial<HouseWizardState>)}
+          onFocus={handleFocus}
+          onChange={e => {
+            onUpdate({ [key]: e.target.value } as Partial<HouseWizardState>);
+            handleFocus();
+          }}
           placeholder={question.placeholder}
           className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
@@ -291,7 +320,11 @@ const QuestionRenderer: React.FC<{
         <input
           type="number"
           value={Number(value ?? 0)}
-          onChange={e => onUpdate({ [key]: Number(e.target.value) } as Partial<HouseWizardState>)}
+          onFocus={handleFocus}
+          onChange={e => {
+            onUpdate({ [key]: Number(e.target.value) } as Partial<HouseWizardState>);
+            handleFocus();
+          }}
           placeholder={question.placeholder || '0'}
           min={0}
           className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -303,7 +336,11 @@ const QuestionRenderer: React.FC<{
         <input
           type="date"
           value={String(value ?? '')}
-          onChange={e => onUpdate({ [key]: e.target.value } as Partial<HouseWizardState>)}
+          onFocus={handleFocus}
+          onChange={e => {
+            onUpdate({ [key]: e.target.value } as Partial<HouseWizardState>);
+            handleFocus();
+          }}
           className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       );
@@ -312,7 +349,11 @@ const QuestionRenderer: React.FC<{
       return (
         <textarea
           value={String(value ?? '')}
-          onChange={e => onUpdate({ [key]: e.target.value } as Partial<HouseWizardState>)}
+          onFocus={handleFocus}
+          onChange={e => {
+            onUpdate({ [key]: e.target.value } as Partial<HouseWizardState>);
+            handleFocus();
+          }}
           placeholder={question.placeholder}
           rows={3}
           className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
@@ -328,18 +369,22 @@ const QuestionRenderer: React.FC<{
         additionalClausesList: '+ Add another clause',
       };
       return (
-        <RepeaterField
-          values={arrVal}
-          label={question.label}
-          addLabel={addLabels[arrKey] || '+ Add another'}
-          placeholder={question.placeholder || ''}
-          onChange={vals => onUpdate({ [arrKey]: vals } as Partial<HouseWizardState>)}
-        />
+        <div onFocus={handleFocus}>
+          <RepeaterField
+            values={arrVal}
+            label={question.label}
+            addLabel={addLabels[arrKey] || '+ Add another'}
+            placeholder={question.placeholder || ''}
+            onChange={vals => {
+              onUpdate({ [arrKey]: vals } as Partial<HouseWizardState>);
+              handleFocus();
+            }}
+          />
+        </div>
       );
     }
 
     case 'utility_grid':
-      // Rendered at group level, not per-question
       return null;
 
     default:
@@ -373,6 +418,8 @@ export const HouseRentalWizard: React.FC = () => {
   const [selectedMatterId, setSelectedMatterId] = useState('');
   const [showSubmitModal, setShowSubmitModal] = useState(false);
 
+  const previewIframeRef = useRef<HTMLIFrameElement>(null);
+
   const tabs = HOUSE_WIZARD_TABS;
   const currentTab = tabs[currentTabIndex];
   const progress = ((currentTabIndex + 1) / tabs.length) * 100;
@@ -382,6 +429,85 @@ export const HouseRentalWizard: React.FC = () => {
 
   const updateState = useCallback((updates: Partial<HouseWizardState>) => {
     setState(prev => ({ ...prev, ...updates }));
+  }, []);
+
+  // Map field key to agreement section for auto-scroll
+  const scrollToFieldInPreview = useCallback((fieldKey: string) => {
+    if (!previewIframeRef.current?.contentWindow) return;
+
+    const fieldMap: Record<string, { targetId?: string; targetText?: string }> = {
+      // General / Dates
+      governingLaw: { targetId: 'sec-governing-law', targetText: 'Governing Law' },
+      leaseTermType: { targetId: 'sec-term', targetText: 'Term' },
+      leaseStartDate: { targetId: 'sec-term', targetText: 'commences' },
+      fixedEndDateEnd: { targetId: 'sec-term', targetText: 'ends' },
+      possessionDate: { targetId: 'sec-term', targetText: 'commences' },
+      renewalTermType: { targetId: 'sec-term', targetText: 'renewing automatically' },
+      renewalTermOther: { targetId: 'sec-term', targetText: 'renewing automatically' },
+
+      // Property
+      propertyAddress: { targetId: 'sec-leased-property', targetText: 'municipally described as' },
+      furnished: { targetId: 'sec-leased-property', targetText: 'furnishings' },
+      furnishedList: { targetId: 'sec-leased-property', targetText: 'furnishings' },
+      showFurnishedList: { targetId: 'sec-leased-property', targetText: 'furnishings' },
+      pets: { targetId: 'sec-leased-property', targetText: 'pets' },
+      smoking: { targetId: 'sec-leased-property', targetText: 'smoke' },
+      otherOccupants: { targetId: 'sec-leased-property', targetText: 'occupy' },
+      otherOccupantsList: { targetId: 'sec-leased-property', targetText: 'occupy' },
+
+      // Parties
+      landlords: { targetId: 'preamble-between', targetText: 'Landlord' },
+      tenants: { targetId: 'preamble-between', targetText: 'Tenant' },
+      landlordAddress: { targetId: 'sec-address-for-notice', targetText: 'Landlord' },
+      landlordPhone: { targetId: 'sec-address-for-notice', targetText: 'Phone' },
+      landlordEmail: { targetId: 'sec-address-for-notice', targetText: 'Email' },
+      tenantPhone: { targetId: 'sec-address-for-notice', targetText: 'Tenant' },
+      tenantEmail: { targetId: 'sec-address-for-notice', targetText: 'Email' },
+      propertyManager: { targetId: 'sec-property-manager', targetText: 'Property Manager' },
+      propertyManagerName: { targetId: 'sec-property-manager', targetText: 'Property Manager' },
+      guarantorRequired: { targetId: 'sec-guarantor', targetText: 'Guarantor' },
+      guarantorName: { targetId: 'sec-guarantor', targetText: 'Guarantor' },
+
+      // Terms
+      rent: { targetId: 'sec-rent', targetText: 'Rent' },
+      rentPaymentPeriod: { targetId: 'sec-rent', targetText: 'per month' },
+      rentPayDay: { targetId: 'sec-rent', targetText: 'on or before' },
+      rentPaidByCheque: { targetId: 'sec-rent', targetText: 'Rent' },
+      rentPaidByCash: { targetId: 'sec-rent', targetText: 'Rent' },
+      rentPaidByBank: { targetId: 'sec-rent', targetText: 'bank transfer' },
+      bankAccountName: { targetId: 'sec-rent', targetText: 'Account Name' },
+      bankAccountNumber: { targetId: 'sec-rent', targetText: 'Account Number' },
+      securityDeposit: { targetId: 'sec-rental-deposit', targetText: 'Security Deposit' },
+      securityDepositAmount: { targetId: 'sec-rental-deposit', targetText: 'Security Deposit' },
+      specifyDepositDeadline: { targetId: 'sec-rental-deposit', targetText: 'within the lesser' },
+      specifySecurityDepositDeadline: { targetId: 'sec-rental-deposit', targetText: 'within the lesser' },
+      subletting: { targetId: 'sec-assignment-and-subletting', targetText: 'Assignment and Subletting' },
+      terminationNotice: { targetId: 'sec-term', targetText: 'terminate this Lease' },
+      noticeToEnter: { targetId: 'sec-term', targetText: 'written notice prior to entering' },
+
+      // Final details
+      landlordImprovements: { targetId: 'sec-landlord-improvements', targetText: 'Landlord Improvements' },
+      listLandlordImprovements: { targetId: 'sec-landlord-improvements', targetText: 'Landlord Improvements' },
+      tenantAddressNotices: { targetId: 'sec-address-for-notice', targetText: 'Address for Notice' },
+      tenantNoticeAddress: { targetId: 'sec-address-for-notice', targetText: 'Address for Notice' },
+      inspectionReport: { targetId: 'sec-inspection-report', targetText: 'inspection report' },
+      additionalClauses: { targetId: 'sec-additional-provisions', targetText: 'Additional Provisions' },
+      additionalClausesList: { targetId: 'sec-additional-provisions', targetText: 'Additional Provisions' },
+
+      // Signing
+      signingDateType: { targetText: 'IN WITNESS WHEREOF' },
+      longformDate: { targetText: 'IN WITNESS WHEREOF' },
+      signingCity: { targetText: 'IN WITNESS WHEREOF' },
+    };
+
+    const target = fieldMap[fieldKey];
+    if (target) {
+      previewIframeRef.current.contentWindow.postMessage({
+        type: 'lexdraft-scroll-to',
+        targetId: target.targetId,
+        targetText: target.targetText,
+      }, '*');
+    }
   }, []);
 
   const goNext = () => {
@@ -429,7 +555,6 @@ export const HouseRentalWizard: React.FC = () => {
       setShowSubmitModal(false);
     }
   };
-
 
   const isLastTab = currentTabIndex === tabs.length - 1;
   const availableMatters = matters.filter(m => m.clientId === selectedClientId && m.status === 'active');
@@ -499,10 +624,10 @@ export const HouseRentalWizard: React.FC = () => {
       </div>
 
       {/* ── Main Content Area ── */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden w-full">
 
         {/* Questions Panel */}
-        <div className={`flex-1 overflow-y-auto ${showPreview ? 'max-w-2xl' : 'max-w-3xl mx-auto w-full'}`}>
+        <div className={`overflow-y-auto ${showPreview ? 'w-[480px] lg:w-[540px] xl:w-[580px] flex-shrink-0' : 'max-w-3xl mx-auto w-full'}`}>
           <div className="px-8 py-8">
 
             {/* Tab heading */}
@@ -554,8 +679,6 @@ export const HouseRentalWizard: React.FC = () => {
                   {!hasUtilityGrid && group.questions.map(question => {
                     // Evaluate visibility
                     if (question.showIf && !question.showIf(state)) return null;
-                    // Skip checkbox questions — rendered inline, not as separate rows
-                    // (they have their own label in the renderer)
                     const isInline = question.type === 'checkbox';
 
                     return (
@@ -570,6 +693,7 @@ export const HouseRentalWizard: React.FC = () => {
                           question={question}
                           state={state}
                           onUpdate={updateState}
+                          onFocusField={scrollToFieldInPreview}
                         />
                         {question.helpText && (
                           <p className="text-xs text-slate-400 mt-1">{question.helpText}</p>
@@ -670,20 +794,31 @@ export const HouseRentalWizard: React.FC = () => {
           </div>
         </div>
 
-        {/* Live Preview Panel */}
+        {/* Live Preview Panel — Expands cleanly to fill remaining screen width */}
         {showPreview && (
-          <div className={`w-[480px] flex-shrink-0 border-l ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'} flex flex-col`}>
-            <div className={`px-4 py-3 border-b ${isDark ? 'border-slate-700' : 'border-slate-200'} flex items-center justify-between`}>
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Live Agreement Preview</span>
+          <div className={`flex-1 min-w-[500px] border-l ${isDark ? 'border-slate-700 bg-slate-900' : 'border-slate-200 bg-slate-100'} flex flex-col overflow-hidden`}>
+            <div className={`px-4 py-3 border-b ${isDark ? 'border-slate-700 bg-slate-800' : 'border-slate-200 bg-white'} flex items-center justify-between flex-shrink-0`}>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">Live Agreement Preview</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 font-medium">Auto-scroll Sync</span>
+              </div>
               <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-                <span className="text-xs text-slate-400">Real-time</span>
+                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">Real-time</span>
               </div>
             </div>
-            <div
-              className="flex-1 overflow-y-auto p-4 text-xs leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: compiledHtml }}
-            />
+            <div className="flex-1 overflow-hidden bg-[#c8c8c8] dark:bg-[#121316] p-0 flex justify-center">
+              <iframe
+                ref={previewIframeRef}
+                srcDoc={compiledHtml}
+                title="Live Agreement Preview"
+                className="w-full h-full border-0 bg-transparent"
+                style={{
+                  display: 'block',
+                  border: 'none',
+                }}
+              />
+            </div>
           </div>
         )}
       </div>

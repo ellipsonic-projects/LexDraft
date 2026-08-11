@@ -144,7 +144,12 @@ export const LegalDocumentEditor: React.FC = () => {
   };
 
   const handlePrint = () => {
-    window.print();
+    if (isHouseWizardDoc && iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.focus();
+      iframeRef.current.contentWindow.print();
+    } else {
+      window.print();
+    }
   };
 
   const handleRunAiAnalysis = () => {

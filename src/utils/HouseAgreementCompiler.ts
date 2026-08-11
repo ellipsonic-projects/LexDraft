@@ -86,21 +86,22 @@ function makeLetterCounter() {
   return () => `${alpha[n++]}.`;
 }
 
-// ─── HTML block builders ──────────────────────────────────────────────────────
-
-/** Numbered main clause paragraph */
-function clause(num: string, text: string): string {
-  return `<div class="clause"><span class="cnum">${num}</span><span class="cbody">${text}</span></div>`;
+/** Numbered main clause paragraph with optional data-id */
+function clause(num: string, text: string, id?: string): string {
+  const idAttr = id ? ` id="clause-${id}" data-section="${id}"` : '';
+  return `<div class="clause"${idAttr}><span class="cnum">${num}</span><span class="cbody">${text}</span></div>`;
 }
 
 /** Lettered subclause (indented, 13pt) */
-function sub(letter: string, text: string): string {
-  return `<div class="subclause"><span class="scnum">${letter}</span><span class="scbody">${text}</span></div>`;
+function sub(letter: string, text: string, id?: string): string {
+  const idAttr = id ? ` id="subclause-${id}" data-section="${id}"` : '';
+  return `<div class="subclause"${idAttr}><span class="scnum">${letter}</span><span class="scbody">${text}</span></div>`;
 }
 
-/** Bold section heading (underlined, 14pt) */
-function heading(title: string): string {
-  return `<p class="section-heading">${title}</p>`;
+/** Bold section heading (underlined, 14pt) with anchor ID */
+function heading(title: string, id?: string): string {
+  const sectionId = id || title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  return `<p class="section-heading" id="sec-${sectionId}" data-section="${sectionId}">${title}</p>`;
 }
 
 /** Inline continuation text (no number) */
@@ -960,8 +961,7 @@ body { background: transparent; margin: 0; padding: 0; }
 ${body}
 </div>
 <script>
-/* Auto-resize: notify parent editor of full document height so the
-   iframe grows to fit all pages with no internal scrollbar.          */
+/* Auto-resize: notify parent editor of full document height */
 (function () {
   function report() {
     var h = Math.max(
@@ -974,6 +974,45 @@ ${body}
   if (typeof ResizeObserver !== 'undefined') {
     new ResizeObserver(function () { setTimeout(report, 80); }).observe(document.body);
   }
+
+  /* Listen for scroll-to commands from the wizard */
+  window.addEventListener('message', function(event) {
+    if (!event.data) return;
+    if (event.data.type === 'lexdraft-scroll-to') {
+      var targetId = event.data.targetId;
+      var targetText = event.data.targetText;
+      var el = null;
+
+      if (targetId) {
+        el = document.getElementById(targetId) ||
+             document.querySelector('[data-section="' + targetId + '"]') ||
+             document.getElementById('sec-' + targetId) ||
+             document.getElementById('clause-' + targetId);
+      }
+
+      if (!el && targetText) {
+        // Search headings and clauses for matching text
+        var elements = document.querySelectorAll('.section-heading, .clause, .preamble-this, .party-name');
+        for (var i = 0; i < elements.length; i++) {
+          if (elements[i].textContent && elements[i].textContent.toLowerCase().indexOf(targetText.toLowerCase()) !== -1) {
+            el = elements[i];
+            break;
+          }
+        }
+      }
+
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        // Flash subtle highlight
+        el.style.transition = 'background-color 0.4s ease';
+        var oldBg = el.style.backgroundColor;
+        el.style.backgroundColor = 'rgba(59, 130, 246, 0.15)';
+        setTimeout(function() {
+          el.style.backgroundColor = oldBg || '';
+        }, 1200);
+      }
+    }
+  });
 })();
 </script>
 </body>
