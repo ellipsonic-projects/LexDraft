@@ -47,24 +47,23 @@ const mapTemplate = (t: any): LegalTemplate => ({
   version: t.version || '1.0',
   usageCount: t.usageCount ?? 0,
   status: (t.status || 'ACTIVE').toLowerCase() as 'active' | 'inactive',
-  versionHistory: (t.versions || []).map((v: any) => ({
-    version: v.versionNumber?.toString() || '1.0',
-    editedBy: v.editedBy?.name || 'System',
-    editedAt: v.createdAt || new Date().toISOString(),
-    changeSummary: v.changeSummary || 'Version snapshot.'
+  versionHistory: (t.versions || []).map((v: any, idx: number) => ({
+    version: v.versionNumber ? `v${v.versionNumber}` : `v${t.version || '1.0'}`,
+    editedBy: v.editedBy?.name || 'Senior Partner',
+    editedAt: v.editedAt || v.createdAt || new Date().toISOString(),
+    changeSummary: v.changeSummary || 'Master template snapshot'
   })),
   pendingCustomizations: (t.customizationRequests || [])
-    .filter((cr: any) => cr.status === 'PENDING')
     .map((cr: any) => ({
       id: cr.id,
       templateId: cr.templateId,
       templateName: t.name,
       requestedByLawyerId: cr.requestedById,
-      requestedByLawyerName: cr.requestedBy?.name || 'Associate',
+      requestedByLawyerName: cr.requestedBy?.name || 'Associate Lawyer',
       customVariables: cr.customVariables || [],
       reason: cr.reason || '',
-      status: cr.status.toLowerCase() as 'pending' | 'approved' | 'rejected',
-      timestamp: cr.createdAt
+      status: (cr.status || 'pending').toLowerCase() as 'pending' | 'approved' | 'rejected',
+      timestamp: cr.timestamp || cr.createdAt
     }))
 });
 

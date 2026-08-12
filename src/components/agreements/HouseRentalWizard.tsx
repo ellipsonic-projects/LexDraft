@@ -35,6 +35,8 @@ import {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
 const YesNoToggle: React.FC<{
   value: YesNo;
   onChange: (v: YesNo) => void;
@@ -45,10 +47,10 @@ const YesNoToggle: React.FC<{
         key={opt}
         type="button"
         onClick={() => onChange(opt)}
-        className={`px-5 py-2 rounded-lg text-sm font-semibold border-2 transition-all ${
+        className={`px-5 py-2 rounded-lg text-sm font-semibold border-2 transition-all cursor-pointer ${
           value === opt
-            ? 'bg-blue-600 text-white border-blue-600 shadow'
-            : 'bg-white text-slate-700 border-slate-200 hover:border-blue-400'
+            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+            : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500'
         }`}
       >
         {opt === 'yes' ? 'Yes' : 'No'}
@@ -71,10 +73,10 @@ const YesNoDnsToggle: React.FC<{
         key={opt.v}
         type="button"
         onClick={() => onChange(opt.v)}
-        className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-all ${
+        className={`px-4 py-2 rounded-lg text-sm font-semibold border-2 transition-all cursor-pointer ${
           value === opt.v
-            ? 'bg-blue-600 text-white border-blue-600 shadow'
-            : 'bg-white text-slate-700 border-slate-200 hover:border-blue-400'
+            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+            : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-500'
         }`}
       >
         {opt.l}
@@ -99,22 +101,22 @@ const UtilityGrid: React.FC<{
   ];
 
   return (
-    <div className="border border-slate-200 rounded-xl overflow-hidden">
+    <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
       <table className="w-full">
         <thead>
-          <tr className="bg-slate-50 border-b border-slate-200">
-            <th className="text-left py-3 px-4 text-xs font-bold text-slate-600 uppercase tracking-wide">Utility</th>
-            <th className="text-center py-3 px-4 text-xs font-bold text-slate-600 uppercase tracking-wide">Landlord</th>
-            <th className="text-center py-3 px-4 text-xs font-bold text-slate-600 uppercase tracking-wide">Tenant</th>
-            <th className="text-center py-3 px-4 text-xs font-bold text-slate-600 uppercase tracking-wide">Do Not Specify</th>
+          <tr className="bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800">
+            <th className="text-left py-3 px-4 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Utility</th>
+            <th className="text-center py-3 px-4 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Landlord</th>
+            <th className="text-center py-3 px-4 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Tenant</th>
+            <th className="text-center py-3 px-4 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wide">Do Not Specify</th>
           </tr>
         </thead>
         <tbody>
           {utilities.map((u, i) => {
             const currentVal = state[u.key] as UtilityResponsibility;
             return (
-              <tr key={u.key} className={`border-b border-slate-100 ${i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}>
-                <td className="py-3 px-4 text-sm font-medium text-slate-700">{u.label}</td>
+              <tr key={u.key} className={`border-b border-slate-100 dark:border-slate-800/80 ${i % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/50 dark:bg-slate-900/50'}`}>
+                <td className="py-3 px-4 text-sm font-medium text-slate-700 dark:text-slate-200">{u.label}</td>
                 {(['landlord', 'tenant', 'dns'] as UtilityResponsibility[]).map(opt => (
                   <td key={opt} className="py-3 px-4 text-center">
                     <input
@@ -132,14 +134,14 @@ const UtilityGrid: React.FC<{
         </tbody>
       </table>
       {state.utilOther !== 'dns' && (
-        <div className="p-4 bg-blue-50/50 border-t border-slate-200">
-          <label className="block text-sm font-medium text-slate-700 mb-1">Describe other utilities</label>
+        <div className="p-4 bg-blue-50/50 dark:bg-blue-950/20 border-t border-slate-200 dark:border-slate-800">
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1">Describe other utilities</label>
           <input
             type="text"
             value={state.listUtilOther}
             onChange={e => onUpdate({ listUtilOther: e.target.value })}
             placeholder="e.g. Generator, Cable TV, Internet"
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
       )}
@@ -166,13 +168,13 @@ const RepeaterField: React.FC<{
             onChange(next);
           }}
           placeholder={placeholder}
-          className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 px-3 py-2 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
         {values.length > 1 && (
           <button
             type="button"
             onClick={() => onChange(values.filter((_, j) => j !== i))}
-            className="p-2 text-slate-400 hover:text-rose-500 transition-colors"
+            className="p-2 text-slate-400 hover:text-rose-500 transition-colors cursor-pointer"
           >
             <X size={16} />
           </button>
@@ -182,7 +184,7 @@ const RepeaterField: React.FC<{
     <button
       type="button"
       onClick={() => onChange([...values, ''])}
-      className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium mt-1"
+      className="flex items-center gap-1.5 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium mt-1 cursor-pointer"
     >
       <Plus size={14} /> {addLabel}
     </button>
@@ -208,8 +210,8 @@ const QuestionRenderer: React.FC<{
     case 'readonly': {
       const stateInfo = INDIAN_STATES.find(s => s.value === state.governingLaw);
       return (
-        <div className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 min-h-[38px]">
-          {stateInfo ? `${stateInfo.courts} (${stateInfo.label})` : <span className="text-slate-400 italic">Auto-populated from state selection</span>}
+        <div className="px-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg text-sm text-slate-600 dark:text-slate-300 min-h-[38px]">
+          {stateInfo ? `${stateInfo.courts} (${stateInfo.label})` : <span className="text-slate-400 dark:text-slate-500 italic">Auto-populated from state selection</span>}
         </div>
       );
     }
@@ -225,7 +227,7 @@ const QuestionRenderer: React.FC<{
               onUpdate({ governingLaw: e.target.value, governingLawLabel: selected?.label || '' });
               handleFocus();
             }}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+            className="w-full px-3 py-2 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">Select state or union territory...</option>
             {INDIAN_STATES.map(s => (
@@ -250,7 +252,7 @@ const QuestionRenderer: React.FC<{
                 }}
                 className="w-4 h-4 accent-blue-600"
               />
-              <span className="text-sm text-slate-700 group-hover:text-slate-900">{opt.label}</span>
+              <span className="text-sm text-slate-700 dark:text-slate-300 group-hover:text-slate-900 dark:group-hover:text-white">{opt.label}</span>
             </label>
           ))}
         </div>
@@ -296,7 +298,7 @@ const QuestionRenderer: React.FC<{
             }}
             className="w-4 h-4 accent-blue-600"
           />
-          <span className="text-sm text-slate-700">{question.label}</span>
+          <span className="text-sm text-slate-700 dark:text-slate-300">{question.label}</span>
         </label>
       );
 
@@ -311,7 +313,7 @@ const QuestionRenderer: React.FC<{
             handleFocus();
           }}
           placeholder={question.placeholder}
-          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       );
 
@@ -327,7 +329,7 @@ const QuestionRenderer: React.FC<{
           }}
           placeholder={question.placeholder || '0'}
           min={0}
-          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       );
 
@@ -341,7 +343,7 @@ const QuestionRenderer: React.FC<{
             onUpdate({ [key]: e.target.value } as Partial<HouseWizardState>);
             handleFocus();
           }}
-          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full px-3 py-2 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       );
 
@@ -356,7 +358,7 @@ const QuestionRenderer: React.FC<{
           }}
           placeholder={question.placeholder}
           rows={3}
-          className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+          className="w-full px-3 py-2 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
         />
       );
 
@@ -664,10 +666,10 @@ export const HouseRentalWizard: React.FC = () => {
 
             {/* Tab heading */}
             <div className="mb-6">
-              <h2 className="text-xl font-bold text-slate-800">
+              <h2 className="text-xl font-bold text-slate-800 dark:text-white">
                 {currentTab.label}
               </h2>
-              <p className="text-sm text-slate-500 mt-0.5">
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
                 Step {currentTabIndex + 1} of {tabs.length}
               </p>
             </div>
@@ -681,13 +683,13 @@ export const HouseRentalWizard: React.FC = () => {
                 <div key={group.id} className="mb-8">
                   {/* Group header */}
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-base font-bold text-slate-700 border-b border-slate-200 pb-2 flex-1">
+                    <h3 className="text-base font-bold text-slate-700 dark:text-slate-200 border-b border-slate-200 dark:border-slate-800 pb-2 flex-1">
                       {group.title}
                     </h3>
                     {group.faqKey && (
                       <button
                         onClick={() => setActiveFaqKey(activeFaqKey === group.faqKey ? null : group.faqKey!)}
-                        className="ml-3 text-blue-500 hover:text-blue-700 flex items-center gap-1 text-xs font-medium"
+                        className="ml-3 text-blue-500 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 flex items-center gap-1 text-xs font-medium cursor-pointer"
                       >
                         <HelpCircle size={14} />
                         FAQ
@@ -697,7 +699,7 @@ export const HouseRentalWizard: React.FC = () => {
 
                   {/* FAQ panel */}
                   {activeFaqKey === group.faqKey && group.faqKey && FAQ_CONTENT[group.faqKey] && (
-                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-900 leading-relaxed"
+                    <div className="mb-4 p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/60 rounded-xl text-sm text-blue-900 dark:text-blue-200 leading-relaxed"
                       dangerouslySetInnerHTML={{ __html: FAQ_CONTENT[group.faqKey] }}
                     />
                   )}
@@ -716,7 +718,7 @@ export const HouseRentalWizard: React.FC = () => {
                     return (
                       <div key={question.id} className="mb-5">
                         {!isInline && (
-                          <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                          <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                             {question.label}
                             {question.required && <span className="text-rose-500 ml-1">*</span>}
                           </label>
@@ -728,7 +730,7 @@ export const HouseRentalWizard: React.FC = () => {
                           onFocusField={scrollToFieldInPreview}
                         />
                         {question.helpText && (
-                          <p className="text-xs text-slate-400 mt-1">{question.helpText}</p>
+                          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{question.helpText}</p>
                         )}
                       </div>
                     );
@@ -739,22 +741,22 @@ export const HouseRentalWizard: React.FC = () => {
 
             {/* ── Final Tab: Client/Matter selector + action buttons ── */}
             {isLastTab && (
-              <div className="mt-8 p-6 border-2 border-blue-200 bg-blue-50 rounded-2xl">
-                <h3 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
-                  <FileText size={16} className="text-blue-600" />
+              <div className="mt-8 p-6 border-2 border-blue-200 dark:border-blue-900/50 bg-blue-50/70 dark:bg-slate-900/80 rounded-2xl">
+                <h3 className="text-base font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
+                  <FileText size={16} className="text-blue-600 dark:text-blue-400" />
                   Save to Document Vault
                 </h3>
 
                 {/* Client selector */}
                 <div className="mb-4">
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Client</label>
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Client</label>
                   <select
                     value={selectedClientId}
                     onChange={e => {
                       setSelectedClientId(e.target.value);
                       setSelectedMatterId('');
                     }}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
                   >
                     <option value="">Select client...</option>
                     {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -763,11 +765,11 @@ export const HouseRentalWizard: React.FC = () => {
 
                 {/* Matter selector */}
                 <div className="mb-4">
-                  <label className="block text-sm font-semibold text-slate-700 mb-1">Matter</label>
+                  <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-1">Matter</label>
                   <select
                     value={selectedMatterId || availableMatters[0]?.id || ''}
                     onChange={e => setSelectedMatterId(e.target.value)}
-                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-800 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100"
                   >
                     <option value="">Select matter...</option>
                     {availableMatters.map(m => <option key={m.id} value={m.id}>{m.title} ({m.matterCode})</option>)}
@@ -778,7 +780,7 @@ export const HouseRentalWizard: React.FC = () => {
                   <button
                     onClick={() => handleSaveToVault(false)}
                     disabled={isSubmitting}
-                    className="flex items-center gap-2 px-5 py-2.5 bg-slate-700 text-white rounded-xl text-sm font-semibold hover:bg-slate-800 transition-all disabled:opacity-60"
+                    className="flex items-center gap-2 px-5 py-2.5 bg-slate-700 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white rounded-xl text-sm font-semibold transition-all disabled:opacity-60 cursor-pointer"
                   >
                     <Save size={14} />
                     Save Draft to Vault

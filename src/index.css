@@ -136,6 +136,16 @@ body {
   transform: translateY(0px);
 }
 
+.dark .btn-filled {
+  background-color: #FAFAFB;
+  color: #101216;
+}
+
+.dark .btn-filled:hover {
+  background-color: #FFFFFF;
+  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.12);
+}
+
 /* Pill Button - Ghost */
 .btn-ghost {
   background-color: transparent;
@@ -155,6 +165,17 @@ body {
 
 .btn-ghost:hover {
   background-color: #17191C;
+  color: #FFFFFF;
+}
+
+.dark .btn-ghost {
+  color: #FAFAFB;
+  border-color: #2D3342;
+}
+
+.dark .btn-ghost:hover {
+  background-color: #1E2330;
+  border-color: #434C60;
   color: #FFFFFF;
 }
 
@@ -197,6 +218,17 @@ body {
   box-shadow: 0 8px 30px rgba(15, 23, 42, 0.09);
 }
 
+.dark .card-neutral {
+  background-color: #13161F;
+  border-color: #212635;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
+}
+
+.dark .card-neutral:hover {
+  border-color: #2D3448;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+}
+
 .card-accent {
   background-color: #F3D6C4;
   color: #5d2a1a;
@@ -225,6 +257,17 @@ body {
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.12);
 }
 
+.dark .floating-artifact {
+  background-color: #13161F;
+  border-color: #212635;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+
+.dark .floating-artifact:hover {
+  border-color: #2D3448;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+
 /* Input / Composer Styling */
 .input-composer {
   background-color: #FFFFFF;
@@ -238,8 +281,8 @@ body {
 }
 
 .dark .input-composer {
-  background-color: #0e0f12;
-  border-color: #1e2127;
+  background-color: #0d0f14;
+  border-color: #212635;
   color: #e3e4e6;
 }
 
@@ -249,8 +292,8 @@ body {
 }
 
 .dark .input-composer:focus {
-  border-color: #ffffff;
-  box-shadow: 0 0 0 1px #ffffff;
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 1px #60a5fa;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
