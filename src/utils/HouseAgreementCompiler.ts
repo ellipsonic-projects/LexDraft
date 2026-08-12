@@ -738,7 +738,7 @@ export function compileHouseAgreement(state: HouseWizardState): string {
 //   Spacing: 1.5 line-height
 //   Headings: 14pt Bold Underline; Title: 18pt Bold Centered
 
-function wrapDocument(body: string): string {
+export function wrapDocument(body: string): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -962,69 +962,50 @@ body { background: transparent; margin: 0; padding: 0; }
   display: none; /* hidden on screen — shown only in @media print via counter */
 }
 
-/* Issue 5 + 8: Print / PDF — 1-inch margins + page footer counter ─────── */
+/* ─── Print / PDF — match screen preview exactly ────────────────────────────
+   Strategy: Strip only the visual decorations (grey bg, drop-shadow).
+   Do NOT override font-size, line-height, padding or layout — they are already
+   correct on screen and must print the same way.  The @page rule makes the
+   browser/Chromium use A4 with zero additional browser margins so the .page
+   padding values are the only margins in the PDF.                            */
 @media print {
   html {
-    background: #ffffff;
-    padding: 0;
-    margin: 0;
+    background: #ffffff !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
   body {
-    background: #ffffff;
-    margin: 0;
-    padding: 0;
-    counter-reset: page-counter;
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
-  /* Issue 8: Uniform 1 inch (25.4mm) margins — modern legal contract style */
+  /* Keep .page sizing exactly as on screen — only remove shadow + auto-margin */
   .page {
-    max-width: 100%;
-    width: 100%;
-    min-height: auto;
-    margin: 0;
-    padding: 20mm 25mm 28mm 25mm;  /* extra bottom for footer */
-    box-shadow: none;
-    font-size: 12pt;
-    line-height: 1.5;
-    position: relative;
+    max-width: 100% !important;
+    width: 100% !important;
+    min-height: auto !important;
+    margin: 0 !important;
+    padding: 48px 54px !important;   /* same as screen: ~12.7mm top/bottom, ~14.3mm sides */
+    box-shadow: none !important;
+    background: #ffffff !important;
   }
-  /* Issue 6: Ensure correct font size cascade on print */
-  .cnum, .cbody, .preamble-this, .consideration, .continuation {
-    font-size: 12pt;
-    line-height: 1.5;
+  /* Remove grey canvas background so the page bleeds white to edge */
+  html, body, .page {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
-  .scnum, .scbody {
-    font-size: 11.5pt;
-    line-height: 1.45;
-  }
-  .exec-heading {
-    font-size: 12pt;
-    line-height: 1.5;
-  }
-  .sig-name {
-    font-size: 12pt;
-  }
-  .sig-role {
-    font-size: 11pt;
-  }
-  /* Issue 5: Page X of Y via CSS counter */
+  /* Page X of Y via @page counter (supported in Chrome/Edge print-to-PDF) */
   @page {
     size: A4 portrait;
-    margin: 20mm 25mm 28mm 25mm;
+    margin: 0;    /* zero — .page padding controls all white space */
     @bottom-right {
       content: 'Page ' counter(page) ' of ' counter(pages);
       font-family: 'Times New Roman', Times, serif;
-      font-size: 10pt;
-      color: #333;
+      font-size: 9pt;
+      color: #444;
+      margin-right: 54px;
+      margin-bottom: 14px;
     }
-  }
-  /* Fallback page-footer for browsers that don't support @page margin boxes */
-  .page-footer {
-    display: block;
-    position: running(footer);
-    text-align: right;
-    font-size: 10pt;
-    font-family: 'Times New Roman', Times, serif;
-    color: #555;
   }
 }
 </style>

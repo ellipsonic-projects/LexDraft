@@ -82,7 +82,7 @@ const AppShellContent: React.FC = () => {
   const isDark = theme === 'dark';
 
   return (
-    <div className={`min-h-screen flex flex-col selection:bg-blue-900/30 selection:text-blue-900 transition-colors ${
+    <div className={`h-screen flex flex-col selection:bg-blue-900/30 selection:text-blue-900 transition-colors ${
       isDark ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'
     }`}>
       {!isAuthenticated ? (
