@@ -22,6 +22,7 @@
 
 import { HouseWizardState } from '../types/houseWizardTypes';
 import { INDIAN_STATES } from '../config/agreements/houseRentalConfig';
+import { KARNATAKA_STAMP_PAPER_DATA_URI } from '../assets/karnatakaStampPaper';
 
 // ─── Utility helpers ──────────────────────────────────────────────────────────
 
@@ -133,8 +134,20 @@ export function compileHouseAgreement(state: HouseWizardState): string {
   // ── STAMP PAPER SPACE (conditional)
   // ══════════════════════════════════════════════════════════════════════════
   if (state.stampPaperSpace === 'yes') {
-    html.push(`<div class="stamp-space">
-      <p class="stamp-text">THIS AGREEMENT IS TO BE EXECUTED ON NON-JUDICIAL STAMP PAPER OF APPROPRIATE VALUE AS PRESCRIBED UNDER THE INDIAN STAMP ACT, 1899 AND THE STAMP DUTY ACT OF THE STATE OF ${stateName.toUpperCase()}.</p>
+    html.push(`<div class="stamp-space stamp-paper-container">
+      <div class="stamp-paper-wrapper">
+        <img 
+          src="${KARNATAKA_STAMP_PAPER_DATA_URI}" 
+          alt="Government of Karnataka - Registration and Stamps Department Non-Judicial Stamp Paper" 
+          class="stamp-paper-img"
+          width="763"
+          height="321"
+        />
+        <div class="stamp-paper-caption">
+          <span class="stamp-badge">KARNATAKA NON-JUDICIAL STAMP PAPER &bull; FIRST PAGE EXECUTION SPACE</span>
+          <span class="stamp-note">Visual placeholder for physical stamp duty execution under the Karnataka Stamp Act, 1957. Content naturally flows below.</span>
+        </div>
+      </div>
     </div>`);
   }
 
@@ -781,17 +794,53 @@ body { background: transparent; margin: 0; padding: 0; }
 
 /* ═══ Stamp space ══════════════════════════════════════════════════════════ */
 .stamp-space {
-  border: 1.5px dashed #555;
-  padding: 14pt 18pt;
-  margin-bottom: 20pt;
+  margin-top: 0;
+  margin-bottom: 24pt;
   text-align: center;
-  background-color: #fafafa;
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
-.stamp-text {
-  font-size: 10.5pt;
+.stamp-paper-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  margin: 0 auto;
+}
+.stamp-paper-img {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  aspect-ratio: 763 / 321;
+  object-fit: contain;
+  margin: 0 auto;
+  border-radius: 4px;
+  border: 1px solid #c8d0d8;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.stamp-paper-caption {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2pt;
+  margin-top: 6pt;
+  font-family: 'Times New Roman', Times, serif;
+}
+.stamp-badge {
+  font-size: 8.5pt;
+  font-weight: bold;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #333333;
+}
+.stamp-note {
+  font-size: 8pt;
   font-style: italic;
-  line-height: 1.35;
-  color: #222;
+  color: #666666;
+  text-align: center;
 }
 
 /* ═══ Title ════════════════════════════════════════════════════════════════ */

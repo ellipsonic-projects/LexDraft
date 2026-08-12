@@ -15,6 +15,7 @@ import {
   DocumentClause,
   HouseWizardState,
 } from '../../types/houseWizardTypes';
+import { KARNATAKA_STAMP_PAPER_DATA_URI } from '../../assets/karnatakaStampPaper';
 
 // ─── Indian States & UTs ──────────────────────────────────────────────────────
 export const INDIAN_STATES: { value: string; label: string; courts: string }[] = [
@@ -721,6 +722,7 @@ export const HOUSE_WIZARD_TABS: WizardTab[] = [
             id: 'stampPaperSpace',
             label: 'Is there stamp paper space needed for execution?',
             type: 'yesno',
+            helpText: 'When Yes, reserves authentic Karnataka Non-Judicial Stamp Paper format at top of Page 1 with exact government aspect ratio.',
           },
         ],
       },
@@ -808,9 +810,21 @@ export const HOUSE_DOCUMENT_CLAUSES: DocumentClause[] = [
     id: 'stamp_paper_space',
     showIf: (s) => s.stampPaperSpace === 'yes',
     compile: () => `
-      <div style="border: 2px solid #000; padding: 40px; text-align: center; margin-bottom: 40px; min-height: 200px;">
-        <p style="font-size: 14px; color: #666;">[STAMP PAPER SPACE]</p>
-        <p style="font-size: 12px; color: #999;">Affix stamp paper of appropriate value as required under the Indian Stamp Act, 1899 and applicable state stamp duty laws.</p>
+      <div class="stamp-space stamp-paper-container" style="margin-top:0; margin-bottom:24pt; text-align:center;">
+        <div class="stamp-paper-wrapper" style="display:flex; flex-direction:column; align-items:center; justify-content:center; width:100%; margin:0 auto;">
+          <img 
+            src="${KARNATAKA_STAMP_PAPER_DATA_URI}" 
+            alt="Government of Karnataka - Registration and Stamps Department Non-Judicial Stamp Paper" 
+            class="stamp-paper-img"
+            width="763"
+            height="321"
+            style="display:block; width:100%; max-width:100%; height:auto; aspect-ratio:763/321; object-fit:contain; margin:0 auto; border-radius:4px; border:1px solid #c8d0d8; box-shadow:0 2px 8px rgba(0,0,0,0.08);"
+          />
+          <div class="stamp-paper-caption" style="display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2pt; margin-top:6pt; font-family:'Times New Roman',Times,serif;">
+            <span class="stamp-badge" style="font-size:8.5pt; font-weight:bold; letter-spacing:0.08em; text-transform:uppercase; color:#333333;">KARNATAKA NON-JUDICIAL STAMP PAPER &bull; FIRST PAGE EXECUTION SPACE</span>
+            <span class="stamp-note" style="font-size:8pt; font-style:italic; color:#666666; text-align:center;">Visual placeholder for physical stamp duty execution under the Karnataka Stamp Act, 1957. Content naturally flows below.</span>
+          </div>
+        </div>
       </div>`,
   },
 

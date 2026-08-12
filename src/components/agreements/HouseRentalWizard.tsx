@@ -519,6 +519,7 @@ export const HouseRentalWizard: React.FC = () => {
       tenantAddressNotices: { targetId: 'sec-address-for-notice', targetText: 'Address for Notice' },
       tenantNoticeAddress: { targetId: 'sec-address-for-notice', targetText: 'Address for Notice' },
       inspectionReport: { targetId: 'sec-inspection-report', targetText: 'inspection report' },
+      stampPaperSpace: { targetText: 'KARNATAKA NON-JUDICIAL STAMP PAPER' },
       additionalClauses: { targetId: 'sec-additional-provisions', targetText: 'Additional Provisions' },
       additionalClausesList: { targetId: 'sec-additional-provisions', targetText: 'Additional Provisions' },
 
