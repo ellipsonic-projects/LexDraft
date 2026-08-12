@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -399,6 +399,9 @@ export const HouseRentalWizard: React.FC = () => {
     generateDocument,
     clients,
     matters,
+    tasks,
+    selectedTaskId,
+    setSelectedTaskId,
     setActiveTab,
     setSelectedDocumentId,
     theme,
@@ -418,7 +421,29 @@ export const HouseRentalWizard: React.FC = () => {
   const [selectedMatterId, setSelectedMatterId] = useState('');
   const [showSubmitModal, setShowSubmitModal] = useState(false);
 
+  useEffect(() => {
+    if (selectedTaskId) {
+      const activeTask = tasks.find(t => t.id === selectedTaskId);
+      if (activeTask) {
+        if (activeTask.clientId) {
+          setSelectedClientId(activeTask.clientId);
+        }
+        if (activeTask.matterId) {
+          setSelectedMatterId(activeTask.matterId);
+        }
+        const client = clients.find(c => c.id === activeTask.clientId);
+        if (client) {
+          setState(prev => ({
+            ...prev,
+            tenants: [client.name]
+          }));
+        }
+      }
+    }
+  }, [selectedTaskId, tasks, clients]);
+
   const previewIframeRef = useRef<HTMLIFrameElement>(null);
+  const lastFocusedFieldRef = useRef<string | null>(null);
 
   const tabs = HOUSE_WIZARD_TABS;
   const currentTab = tabs[currentTabIndex];
@@ -432,7 +457,8 @@ export const HouseRentalWizard: React.FC = () => {
   }, []);
 
   // Map field key to agreement section for auto-scroll
-  const scrollToFieldInPreview = useCallback((fieldKey: string) => {
+  const scrollToFieldInPreview = useCallback((fieldKey: string, smooth = true, flash = true) => {
+    lastFocusedFieldRef.current = fieldKey;
     if (!previewIframeRef.current?.contentWindow) return;
 
     const fieldMap: Record<string, { targetId?: string; targetText?: string }> = {
@@ -506,6 +532,8 @@ export const HouseRentalWizard: React.FC = () => {
         type: 'lexdraft-scroll-to',
         targetId: target.targetId,
         targetText: target.targetText,
+        smooth,
+        flash,
       }, '*');
     }
   }, []);
@@ -535,16 +563,20 @@ export const HouseRentalWizard: React.FC = () => {
       // Pass the compiled agreement HTML so the server's {{__content__}} placeholder is filled.
       variables['__content__'] = compiledHtml;
 
+      const activeTask = selectedTaskId ? tasks.find(t => t.id === selectedTaskId) : null;
+
       const doc = await generateDocument(
         'tpl_house_rental',
         selectedClientId,
         mId,
         variables,
-        'high',
-        new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+        activeTask?.priority || 'high',
+        activeTask?.dueDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        selectedTaskId || undefined
       );
       if (doc) {
         setSelectedDocumentId(doc.id);
+        setSelectedTaskId(null);
         setActiveTab('document_editor');
         showToast(submit ? 'Agreement saved and submitted for Partner review!' : 'Agreement saved to Document Vault!', 'success');
       }
@@ -812,6 +844,11 @@ export const HouseRentalWizard: React.FC = () => {
                 ref={previewIframeRef}
                 srcDoc={compiledHtml}
                 title="Live Agreement Preview"
+                onLoad={() => {
+                  if (lastFocusedFieldRef.current) {
+                    scrollToFieldInPreview(lastFocusedFieldRef.current, false, false);
+                  }
+                }}
                 className="w-full h-full border-0 bg-transparent"
                 style={{
                   display: 'block',

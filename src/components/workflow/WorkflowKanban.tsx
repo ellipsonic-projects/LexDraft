@@ -23,7 +23,9 @@ export const WorkflowKanban: React.FC = () => {
     theme,
     showToast,
     clients,
-    matters
+    matters,
+    createClient,
+    createMatter
   } = useApp();
 
   const isBoss = currentUser.role === 'boss';
@@ -39,6 +41,14 @@ export const WorkflowKanban: React.FC = () => {
   const [dueDate, setDueDate] = useState(new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
 
+  // Quick Client Creation Modal State
+  const [showNewClientForm, setShowNewClientForm] = useState(false);
+  const [newClientName, setNewClientName] = useState('');
+  const [newClientEmail, setNewClientEmail] = useState('');
+  const [newClientPhone, setNewClientPhone] = useState('');
+  const [newMatterTitle, setNewMatterTitle] = useState('');
+  const [isCreatingClient, setIsCreatingClient] = useState(false);
+
   const columns: { id: TaskStatus; label: string; color: string }[] = [
     { id: 'assigned', label: 'Assigned', color: isDark ? 'bg-slate-900 border-slate-800' : 'bg-[#EEF1F4] border-[#E2E7ED]' },
     { id: 'in_progress', label: 'In Progress', color: isDark ? 'bg-slate-900 border-slate-800' : 'bg-[#EEF1F4] border-[#E2E7ED]' },
@@ -47,6 +57,40 @@ export const WorkflowKanban: React.FC = () => {
     { id: 'approved', label: 'Approved', color: isDark ? 'bg-slate-900 border-slate-800' : 'bg-[#EEF1F4] border-[#E2E7ED]' },
     { id: 'completed', label: 'Completed', color: isDark ? 'bg-slate-900 border-slate-800' : 'bg-[#EEF1F4] border-[#E2E7ED]' }
   ];
+
+  const handleQuickCreateClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newClientName.trim()) {
+      showToast('Client name is required', 'warning');
+      return;
+    }
+    setIsCreatingClient(true);
+    try {
+      const email = newClientEmail.trim() || `${newClientName.toLowerCase().replace(/[^a-z0-9]/g, '')}@client.com`;
+      const phone = newClientPhone.trim() || '+91 9800000000';
+      const created = await createClient(newClientName.trim(), email, phone);
+      if (created) {
+        const mTitle = newMatterTitle.trim() || `${newClientName.trim()} - General Legal Retainer`;
+        const mCode = `MAT-${Date.now().toString().slice(-4)}`;
+        const createdMatter = await createMatter(created.id, mTitle, mCode);
+
+        setClientId(created.id);
+        if (createdMatter) {
+          setMatterId(createdMatter.id);
+        }
+        setShowNewClientForm(false);
+        setNewClientName('');
+        setNewClientEmail('');
+        setNewClientPhone('');
+        setNewMatterTitle('');
+        showToast(`Client "${created.name}" created and selected!`, 'success');
+      }
+    } catch (err: any) {
+      showToast(err.message || 'Failed to create client', 'error');
+    } finally {
+      setIsCreatingClient(false);
+    }
+  };
 
   const handleCreateTask = () => {
     if (!isBoss) {
@@ -244,37 +288,109 @@ export const WorkflowKanban: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Select Client</label>
-                <select
-                  value={clientId}
-                  onChange={(e) => {
-                    const cId = e.target.value;
-                    setClientId(cId);
-                    const matching = matters.filter(m => m.clientId === cId && m.status === 'active');
-                    setMatterId(matching[0]?.id || '');
-                  }}
-                  className="w-full input-composer text-xs py-2"
-                >
-                  <option value="">-- Choose Client --</option>
-                  {clients.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
-                  ))}
-                </select>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Select Client</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewClientForm(!showNewClientForm)}
+                    className="text-[11px] text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 font-medium cursor-pointer"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>{showNewClientForm ? 'Select Existing' : 'Add New Client'}</span>
+                  </button>
+                </div>
+
+                {showNewClientForm ? (
+                  <div className="p-3.5 rounded-xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/50 dark:bg-blue-950/20 space-y-2.5 animate-fadeIn">
+                    <div className="text-[11px] font-semibold text-blue-900 dark:text-blue-300">
+                      Quick Add Client & Retainer Matter
+                    </div>
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="Client Full Name / Entity *"
+                        value={newClientName}
+                        onChange={(e) => setNewClientName(e.target.value)}
+                        className="w-full input-composer text-xs py-1.5"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="email"
+                        placeholder="Contact Email (Optional)"
+                        value={newClientEmail}
+                        onChange={(e) => setNewClientEmail(e.target.value)}
+                        className="w-full input-composer text-xs py-1.5"
+                      />
+                      <input
+                        type="tel"
+                        placeholder="Contact Phone (Optional)"
+                        value={newClientPhone}
+                        onChange={(e) => setNewClientPhone(e.target.value)}
+                        className="w-full input-composer text-xs py-1.5"
+                      />
+                    </div>
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="Initial Matter Title (e.g. Corporate Lease Diligence)"
+                        value={newMatterTitle}
+                        onChange={(e) => setNewMatterTitle(e.target.value)}
+                        className="w-full input-composer text-xs py-1.5"
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => setShowNewClientForm(false)}
+                        className="px-3 py-1 rounded-full text-xs font-medium text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleQuickCreateClient}
+                        disabled={isCreatingClient}
+                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-xs font-semibold shadow-xs cursor-pointer disabled:opacity-50"
+                      >
+                        {isCreatingClient ? 'Creating...' : 'Save & Select Client'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <select
+                    value={clientId}
+                    onChange={(e) => {
+                      const cId = e.target.value;
+                      setClientId(cId);
+                      const matching = matters.filter(m => m.clientId === cId && m.status === 'active');
+                      setMatterId(matching[0]?.id || '');
+                    }}
+                    className="w-full input-composer text-xs py-2"
+                  >
+                    <option value="">-- Choose Client --</option>
+                    {clients.map(c => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                )}
               </div>
 
-              <div>
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Select Matter</label>
-                <select
-                  value={matterId}
-                  onChange={(e) => setMatterId(e.target.value)}
-                  className="w-full input-composer text-xs py-2"
-                >
-                  <option value="">-- Choose Matter --</option>
-                  {matters.filter(m => m.clientId === clientId && m.status === 'active').map(m => (
-                    <option key={m.id} value={m.id}>{m.title} ({m.matterCode})</option>
-                  ))}
-                </select>
-              </div>
+              {!showNewClientForm && (
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Select Matter</label>
+                  <select
+                    value={matterId}
+                    onChange={(e) => setMatterId(e.target.value)}
+                    className="w-full input-composer text-xs py-2"
+                  >
+                    <option value="">-- Choose Matter --</option>
+                    {matters.filter(m => m.clientId === clientId && m.status === 'active').map(m => (
+                      <option key={m.id} value={m.id}>{m.title} ({m.matterCode})</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-4">
                 <div>

@@ -762,149 +762,167 @@ html {
 body { background: transparent; margin: 0; padding: 0; }
 
 /* White A4 page
-   max-width 794px = 210mm at 96 dpi — never wider than one A4 sheet.
-   width 100% — shrinks with narrow viewports, no horizontal scroll.
-   padding 72px top/bottom (approx 19mm), 95px left/right (approx 25mm)
-   — text column is approx 604px / 160mm, much wider than the 130mm
-     produced by the 40mm court margins on a 210mm fixed page.
-   The full 40mm L/R court margins are restored in @media print.        */
+   max-width 816px (210mm standard A4 proportional width).
+   width 100%.
+   Balanced professional legal document margins: 20mm (~48px) top/bottom, 22mm (~54px) left/right. */
 .page {
-  max-width: 794px;
+  max-width: 816px;
   width: 100%;
-  min-height: 1123px;
+  min-height: 1056px;
   margin: 0 auto;
-  padding: 72px 95px;
+  padding: 48px 54px;
   background: #ffffff;
   color: #000000;
   font-family: 'Times New Roman', Times, serif;
-  font-size: 14pt;
-  line-height: 1.5;
-  box-shadow: 0 2px 20px rgba(0,0,0,0.22), 0 1px 4px rgba(0,0,0,0.10);
+  font-size: 13.5pt;
+  line-height: 1.45;
+  box-shadow: 0 2px 18px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.08);
 }
 
 /* ═══ Stamp space ══════════════════════════════════════════════════════════ */
 .stamp-space {
-  border: 2px dashed #666;
-  padding: 16pt 20pt;
-  margin-bottom: 24pt;
+  border: 1.5px dashed #555;
+  padding: 14pt 18pt;
+  margin-bottom: 20pt;
   text-align: center;
+  background-color: #fafafa;
 }
 .stamp-text {
-  font-size: 11pt;
+  font-size: 10.5pt;
   font-style: italic;
-  line-height: 1.4;
-  color: #333;
+  line-height: 1.35;
+  color: #222;
 }
 
 /* ═══ Title ════════════════════════════════════════════════════════════════ */
 .doc-title {
-  font-size: 18pt;
+  font-size: 17pt;
   font-weight: bold;
   text-align: center;
   text-transform: uppercase;
-  letter-spacing: 1.5pt;
-  margin-bottom: 22pt;
-  margin-top: 8pt;
+  letter-spacing: normal;   /* Issue 1: no tracked/stretched characters */
+  margin-bottom: 20pt;
+  margin-top: 6pt;
 }
 
 /* ═══ Preamble ═════════════════════════════════════════════════════════════ */
 .preamble-this {
-  margin-bottom: 14pt;
+  margin-bottom: 12pt;
   text-align: justify;
+  text-justify: inter-word;
+  line-height: 1.45;
 }
 .preamble-between {
-  margin-bottom: 6pt;
+  margin-bottom: 5pt;
 }
 .party-name {
   font-weight: bold;
-  font-size: 14pt;
+  font-size: 13.5pt;
   text-align: center;
-  margin: 8pt 0 2pt 0;
+  margin: 6pt 0 2pt 0;
 }
 .party-role {
   text-align: center;
   margin-bottom: 2pt;
-  font-size: 14pt;
+  font-size: 13pt;
 }
 .party-sep {
   text-align: center;
   font-weight: bold;
-  letter-spacing: 4pt;
-  margin: 10pt 0;
-  font-size: 14pt;
+  letter-spacing: normal;   /* Issue 2: — AND — not spaced-out */
+  margin: 8pt 0;
+  font-size: 12pt;
 }
 .consideration {
-  margin: 18pt 0 14pt 0;
+  margin: 14pt 0 12pt 0;
   text-align: justify;
+  text-justify: inter-word;
+  line-height: 1.45;
 }
 
-/* Section headings — keep with first clause below */
+/* Issue 3: Section headings — always keep with next clause (orphan prevention) */
 .section-heading {
-  font-size: 14pt;
+  font-size: 13pt;
   font-weight: bold;
   text-decoration: underline;
-  margin-top: 16pt;
-  margin-bottom: 6pt;
-  page-break-after: avoid;
+  margin-top: 14pt;
+  margin-bottom: 5pt;
+  page-break-after: avoid;    /* legacy */
+  break-after: avoid-page;    /* modern */
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
 
-/* ═══ Numbered clauses ═════════════════════════════════════════════════════ */
+/* Issue 6+7: Body text 12pt, monetary/date bold via .val class */
+/* Issue 4: clauses pair with their heading via page-break-inside avoid on first clause */
 .clause {
   display: flex;
   align-items: flex-start;
-  margin-bottom: 8pt;
+  margin-bottom: 5pt;
 }
 .cnum {
-  flex: 0 0 26pt;
-  font-size: 14pt;
+  flex: 0 0 24pt;
+  font-size: 12pt;
   line-height: 1.5;
-  padding-right: 6pt;
+  padding-right: 4pt;
   font-weight: normal;
 }
 .cbody {
   flex: 1;
-  font-size: 14pt;
+  font-size: 12pt;
   line-height: 1.5;
   text-align: justify;
+  text-justify: inter-word;
+}
+/* Bold only monetary amounts & dates for consistency (Issue 7) */
+.val {
+  font-weight: bold;
 }
 
 /* ═══ Lettered subclauses ══════════════════════════════════════════════════ */
 .subclause {
   display: flex;
   align-items: flex-start;
-  margin-left: 36pt;
-  margin-bottom: 5pt;
+  margin-left: 24pt;
+  margin-bottom: 3pt;
 }
 .scnum {
-  flex: 0 0 22pt;
-  font-size: 13pt;
-  line-height: 1.4;
-  padding-right: 5pt;
+  flex: 0 0 18pt;
+  font-size: 11.5pt;
+  line-height: 1.5;
+  padding-right: 4pt;
 }
 .scbody {
   flex: 1;
-  font-size: 13pt;
-  line-height: 1.4;
+  font-size: 11.5pt;
+  line-height: 1.5;
   text-align: justify;
+  text-justify: inter-word;
 }
 
 /* ═══ Continuation text ════════════════════════════════════════════════════ */
 .continuation {
-  font-size: 14pt;
-  margin-left: 26pt;
-  margin-bottom: 6pt;
+  font-size: 12pt;
+  margin-left: 24pt;
+  margin-bottom: 5pt;
+  text-align: justify;
+  text-justify: inter-word;
 }
 
-/* ═══ Execution block ══════════════════════════════════════════════════════ */
+/* ═══ Execution block — Issue 4: no stray line before IN WITNESS WHEREOF ═══ */
 .execution {
   margin-top: 28pt;
   padding-top: 14pt;
-  border-top: 1.5px solid #000;
+  border-top: 2px solid #000;  /* This border IS the only separator — no extra line */
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
 .exec-heading {
-  margin-bottom: 28pt;
+  margin-bottom: 20pt;
   text-align: justify;
-  font-size: 14pt;
+  text-justify: inter-word;
+  font-size: 12pt;
+  line-height: 1.5;
 }
 .sig-row {
   display: flex;
@@ -916,43 +934,98 @@ body { background: transparent; margin: 0; padding: 0; }
 }
 .sig-line {
   border-top: 1px solid #000;
-  margin-top: 36pt;
-  margin-bottom: 6pt;
+  margin-top: 30pt;
+  margin-bottom: 5pt;
 }
 .sig-name {
   font-weight: bold;
-  font-size: 14pt;
+  font-size: 12pt;
   margin-bottom: 2pt;
 }
 .sig-role {
-  font-size: 12pt;
+  font-size: 11pt;
   margin-bottom: 1pt;
 }
 .witness-block {
-  margin-top: 36pt;
+  margin-top: 26pt;
+  page-break-inside: avoid;
+  break-inside: avoid;
 }
 .witness-label {
-  font-size: 14pt;
+  font-size: 12pt;
   font-weight: bold;
-  margin-bottom: 8pt;
+  margin-bottom: 6pt;
 }
 
-/* Print / PDF — restore full Indian court margins */
+/* Issue 5: Page X of Y footer ─────────────────────────────────────────────── */
+.page-footer {
+  display: none; /* hidden on screen — shown only in @media print via counter */
+}
+
+/* Issue 5 + 8: Print / PDF — 1-inch margins + page footer counter ─────── */
 @media print {
   html {
     background: #ffffff;
     padding: 0;
+    margin: 0;
   }
-  body { background: #ffffff; }
+  body {
+    background: #ffffff;
+    margin: 0;
+    padding: 0;
+    counter-reset: page-counter;
+  }
+  /* Issue 8: Uniform 1 inch (25.4mm) margins — modern legal contract style */
   .page {
     max-width: 100%;
     width: 100%;
     min-height: auto;
     margin: 0;
-    padding: 20mm 40mm;   /* 2cm top/bottom, 4cm left/right — court standard */
+    padding: 20mm 25mm 28mm 25mm;  /* extra bottom for footer */
     box-shadow: none;
+    font-size: 12pt;
+    line-height: 1.5;
+    position: relative;
   }
-  @page { size: A4 portrait; margin: 0; }
+  /* Issue 6: Ensure correct font size cascade on print */
+  .cnum, .cbody, .preamble-this, .consideration, .continuation {
+    font-size: 12pt;
+    line-height: 1.5;
+  }
+  .scnum, .scbody {
+    font-size: 11.5pt;
+    line-height: 1.45;
+  }
+  .exec-heading {
+    font-size: 12pt;
+    line-height: 1.5;
+  }
+  .sig-name {
+    font-size: 12pt;
+  }
+  .sig-role {
+    font-size: 11pt;
+  }
+  /* Issue 5: Page X of Y via CSS counter */
+  @page {
+    size: A4 portrait;
+    margin: 20mm 25mm 28mm 25mm;
+    @bottom-right {
+      content: 'Page ' counter(page) ' of ' counter(pages);
+      font-family: 'Times New Roman', Times, serif;
+      font-size: 10pt;
+      color: #333;
+    }
+  }
+  /* Fallback page-footer for browsers that don't support @page margin boxes */
+  .page-footer {
+    display: block;
+    position: running(footer);
+    text-align: right;
+    font-size: 10pt;
+    font-family: 'Times New Roman', Times, serif;
+    color: #555;
+  }
 }
 </style>
 </head>
@@ -975,35 +1048,46 @@ ${body}
     new ResizeObserver(function () { setTimeout(report, 80); }).observe(document.body);
   }
 
-  /* Listen for scroll-to commands from the wizard */
-  window.addEventListener('message', function(event) {
-    if (!event.data) return;
-    if (event.data.type === 'lexdraft-scroll-to') {
-      var targetId = event.data.targetId;
-      var targetText = event.data.targetText;
-      var el = null;
+  /* Save scroll position on scroll */
+  var scrollDebounce;
+  window.addEventListener('scroll', function() {
+    clearTimeout(scrollDebounce);
+    scrollDebounce = setTimeout(function() {
+      try { sessionStorage.setItem('lexdraft_preview_scroll_y', String(window.scrollY)); } catch(e) {}
+    }, 40);
+  }, { passive: true });
 
-      if (targetId) {
-        el = document.getElementById(targetId) ||
-             document.querySelector('[data-section="' + targetId + '"]') ||
-             document.getElementById('sec-' + targetId) ||
-             document.getElementById('clause-' + targetId);
-      }
-
-      if (!el && targetText) {
-        // Search headings and clauses for matching text
-        var elements = document.querySelectorAll('.section-heading, .clause, .preamble-this, .party-name');
-        for (var i = 0; i < elements.length; i++) {
-          if (elements[i].textContent && elements[i].textContent.toLowerCase().indexOf(targetText.toLowerCase()) !== -1) {
-            el = elements[i];
-            break;
-          }
+  function scrollToTarget(targetId, targetText, smooth, flash) {
+    var el = null;
+    if (targetId) {
+      el = document.getElementById(targetId) ||
+           document.querySelector('[data-section="' + targetId + '"]') ||
+           document.getElementById('sec-' + targetId) ||
+           document.getElementById('clause-' + targetId);
+    }
+    if (!el && targetText) {
+      var elements = document.querySelectorAll('.section-heading, .clause, .preamble-this, .party-name');
+      for (var i = 0; i < elements.length; i++) {
+        if (elements[i].textContent && elements[i].textContent.toLowerCase().indexOf(targetText.toLowerCase()) !== -1) {
+          el = elements[i];
+          break;
         }
       }
-
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        // Flash subtle highlight
+    }
+    if (el) {
+      /* Use window.scrollTo instead of el.scrollIntoView — this keeps the scroll
+         contained inside the iframe and prevents the parent page (left editing panel)
+         from jumping to the top. scrollIntoView bubbles out of iframes in Chromium. */
+      var rect = el.getBoundingClientRect();
+      var currentScrollY = window.scrollY || window.pageYOffset || 0;
+      /* Center the element vertically in the viewport */
+      var targetY = currentScrollY + rect.top - (window.innerHeight / 2) + (rect.height / 2);
+      if (targetY < 0) targetY = 0;
+      window.scrollTo({
+        top: targetY,
+        behavior: smooth ? 'smooth' : 'instant'
+      });
+      if (flash !== false) {
         el.style.transition = 'background-color 0.4s ease';
         var oldBg = el.style.backgroundColor;
         el.style.backgroundColor = 'rgba(59, 130, 246, 0.15)';
@@ -1011,6 +1095,42 @@ ${body}
           el.style.backgroundColor = oldBg || '';
         }, 1200);
       }
+    }
+  }
+
+  /* Restore position or target on page load/reload */
+  function restorePosition() {
+    try {
+      var savedTarget = sessionStorage.getItem('lexdraft_active_target');
+      if (savedTarget) {
+        var parsed = JSON.parse(savedTarget);
+        if (parsed && (parsed.targetId || parsed.targetText)) {
+          scrollToTarget(parsed.targetId, parsed.targetText, false, false);
+          return;
+        }
+      }
+      var savedY = sessionStorage.getItem('lexdraft_preview_scroll_y');
+      if (savedY !== null && savedY !== undefined) {
+        window.scrollTo({ top: parseInt(savedY, 10), behavior: 'instant' });
+      }
+    } catch (e) {}
+  }
+
+  window.addEventListener('DOMContentLoaded', restorePosition);
+  window.addEventListener('load', function() { setTimeout(restorePosition, 40); });
+  setTimeout(restorePosition, 10);
+  setTimeout(restorePosition, 120);
+
+  /* Listen for scroll-to commands from the wizard */
+  window.addEventListener('message', function(event) {
+    if (!event.data) return;
+    if (event.data.type === 'lexdraft-scroll-to') {
+      var targetId = event.data.targetId;
+      var targetText = event.data.targetText;
+      try {
+        sessionStorage.setItem('lexdraft_active_target', JSON.stringify({ targetId: targetId, targetText: targetText }));
+      } catch (e) {}
+      scrollToTarget(targetId, targetText, event.data.smooth !== false, event.data.flash !== false);
     }
   });
 })();

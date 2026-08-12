@@ -8,6 +8,8 @@ import {
   Edit3
 } from 'lucide-react';
 import { TaskPriority } from '../../types';
+import { compileHouseAgreement } from '../../utils/HouseAgreementCompiler';
+import { DEFAULT_HOUSE_WIZARD_STATE } from '../../types/houseWizardTypes';
 
 export const DocumentGenerator: React.FC = () => {
   const {
@@ -108,11 +110,33 @@ export const DocumentGenerator: React.FC = () => {
       showToast('Please select a client and matter.', 'warning');
       return;
     }
+    const finalValues = { ...formValues };
+    if (selectedTemplate.id === 'tpl_house_rental' && !finalValues.__content__) {
+      const state = { ...DEFAULT_HOUSE_WIZARD_STATE };
+      const client = clients.find(c => c.id === clientId);
+      if (finalValues.Tenant_Name || finalValues.tenantName || client?.name) {
+        state.tenants = [finalValues.Tenant_Name || finalValues.tenantName || client?.name || 'Aarav Mehta'];
+      }
+      if (finalValues.Landlord_Name || finalValues.landlordName) {
+        state.landlords = [finalValues.Landlord_Name || finalValues.landlordName];
+      }
+      if (finalValues.Property_Address || finalValues.propertyAddress) {
+        state.propertyAddress = finalValues.Property_Address || finalValues.propertyAddress;
+      }
+      if (finalValues.Monthly_Rent || finalValues.monthlyRent || finalValues.rent) {
+        state.rent = Number(finalValues.Monthly_Rent || finalValues.monthlyRent || finalValues.rent) || 45000;
+      }
+      if (finalValues.Security_Deposit || finalValues.securityDeposit || finalValues.securityDepositAmount) {
+        state.securityDepositAmount = Number(finalValues.Security_Deposit || finalValues.securityDeposit || finalValues.securityDepositAmount) || 270000;
+      }
+      finalValues.__content__ = compileHouseAgreement(state);
+    }
+
     const doc = await generateDocument(
       selectedTemplate.id,
       clientId,
       matterId,
-      formValues,
+      finalValues,
       priority,
       dueDate,
       selectedTaskId || undefined

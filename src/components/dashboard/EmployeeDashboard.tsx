@@ -171,7 +171,11 @@ export const EmployeeDashboard: React.FC = () => {
                         } else {
                           setSelectedTaskId(t.id);
                           setSelectedTemplateId(t.templateId);
-                          setActiveTab('document_generator');
+                          if (t.templateId === 'tpl_house_rental') {
+                            setActiveTab('house_rental_wizard');
+                          } else {
+                            setActiveTab('document_generator');
+                          }
                         }
                       }}
                       className="px-3.5 py-1.5 bg-ink-black hover:opacity-90 dark:bg-paper-white text-paper-white dark:text-ink-black rounded-full text-[11px] font-medium transition-transform active:scale-95 flex items-center space-x-1"
