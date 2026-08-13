@@ -74,9 +74,11 @@ export const LegalDocumentEditor: React.FC = () => {
     tasks,
     markDocumentDelivered,
     renewDocument,
-    templates
+    templates,
+    sendAgreementToClient
   } = useApp();
 
+  const [isSendingClient, setIsSendingClient] = useState(false);
   const doc = documents.find(d => d.id === selectedDocumentId) || documents[0];
   const linkedTask = tasks.find(t => t.documentId === doc?.id);
   const isDelivered = linkedTask ? linkedTask.status === 'completed' : false;
@@ -450,15 +452,40 @@ export const LegalDocumentEditor: React.FC = () => {
               <span>Submit Review</span>
             </button>
           ) : (
-            doc.status === 'under_review' && (
-              <button
-                onClick={() => setShowReviewModal(true)}
-                className="btn-filled py-1.5 px-4 rounded-full text-[11px] flex items-center space-x-1.5 cursor-pointer bg-sienna-brown text-blush-peach dark:bg-blush-peach dark:text-sienna-brown border-0 hover:opacity-95"
-              >
-                <ShieldCheck className="w-3.5 h-3.5" />
-                <span>Sign-off Action</span>
-              </button>
-            )
+            <>
+              {/* Send to Client for Review button */}
+              {linkedTask && linkedTask.status !== 'completed' && !isApproved && (
+                <button
+                  onClick={async () => {
+                    if (linkedTask && doc) {
+                      setIsSendingClient(true);
+                      try {
+                        await sendAgreementToClient(linkedTask.id, doc.id);
+                      } catch {
+                        // Handled in context
+                      } finally {
+                        setIsSendingClient(false);
+                      }
+                    }
+                  }}
+                  disabled={isSendingClient}
+                  className="px-3.5 py-1.5 rounded-full text-[11px] font-semibold flex items-center space-x-1.5 cursor-pointer bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs disabled:opacity-50 transition-colors"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                  <span>{isSendingClient ? 'Sending...' : 'Send to Client for Review'}</span>
+                </button>
+              )}
+
+              {doc.status === 'under_review' && (
+                <button
+                  onClick={() => setShowReviewModal(true)}
+                  className="btn-filled py-1.5 px-4 rounded-full text-[11px] flex items-center space-x-1.5 cursor-pointer bg-sienna-brown text-blush-peach dark:bg-blush-peach dark:text-sienna-brown border-0 hover:opacity-95"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Sign-off Action</span>
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>

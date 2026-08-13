@@ -119,27 +119,39 @@ const mapDocument = (d: any): LegalDocument => ({
   updatedAt: d.updatedAt
 });
 
-const mapTask = (t: any): WorkflowTask => ({
-  id: t.id,
-  documentId: t.documentId || null,
-  templateId: t.templateId,
-  templateName: t.template?.name || 'Template',
-  title: t.title || 'Legal Task',
-  clientId: t.clientId,
-  matterId: t.matterId,
-  assigneeId: t.assigneeId,
-  assigneeName: t.assignee?.name || 'Assignee',
-  assigneeAvatar: t.assignee?.avatarUrl || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200',
-  assignedById: t.assignedById || '',
-  assignedByName: t.assignedBy?.name || 'Partner',
-  status: (t.status || 'assigned').toLowerCase() as any,
-  priority: (t.priority || 'medium').toLowerCase() as any,
-  dueDate: t.dueDate || '',
-  notes: t.notes || undefined,
-  requirements: t.requirements || undefined,
-  createdAt: t.createdAt,
-  updatedAt: t.updatedAt
-});
+const mapTask = (t: any): WorkflowTask => {
+  const latestApproval = t.clientApprovals && t.clientApprovals.length > 0 ? t.clientApprovals[0] : undefined;
+  return {
+    id: t.id,
+    documentId: t.documentId || null,
+    templateId: t.templateId,
+    templateName: t.template?.name || 'Template',
+    title: t.title || 'Legal Task',
+    clientId: t.clientId,
+    matterId: t.matterId,
+    assigneeId: t.assigneeId,
+    assigneeName: t.assignee?.name || 'Assignee',
+    assigneeAvatar: t.assignee?.avatarUrl || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200',
+    assignedById: t.assignedById || '',
+    assignedByName: t.assignedBy?.name || 'Partner',
+    status: (t.status || 'assigned').toLowerCase() as any,
+    priority: (t.priority || 'medium').toLowerCase() as any,
+    dueDate: t.dueDate || '',
+    notes: t.notes || undefined,
+    requirements: t.requirements || undefined,
+    latestClientApproval: latestApproval ? {
+      id: latestApproval.id,
+      status: latestApproval.status,
+      documentVersion: latestApproval.documentVersion,
+      approvedAt: latestApproval.approvedAt,
+      rejectedAt: latestApproval.rejectedAt,
+      recipientEmail: latestApproval.recipientEmail,
+      createdAt: latestApproval.createdAt
+    } : undefined,
+    createdAt: t.createdAt,
+    updatedAt: t.updatedAt
+  };
+};
 
 const mapActivityLog = (a: any): ActivityLog => ({
   id: a.id,
@@ -269,6 +281,10 @@ export const dataRepository = {
   updateTask: async (id: string, updates: Partial<WorkflowTask>): Promise<WorkflowTask> => {
     const res = await api.patch(`/tasks/${id}/status`, { status: updates.status });
     return mapTask(res.data.task);
+  },
+  sendAgreementToClient: async (taskId: string, documentId?: string): Promise<any> => {
+    const res = await api.post(`/tasks/${taskId}/send-to-client`, { documentId });
+    return res.data;
   },
   deleteTask: async (_id: string): Promise<void> => {
     // Handled in backend

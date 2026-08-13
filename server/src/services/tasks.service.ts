@@ -12,6 +12,10 @@ import {
 import {
   CreateTaskInput
 } from '../schemas/clients-matters-tasks.schemas';
+import {
+  sendTaskAssignedEmail,
+  sendTaskInProgressEmail
+} from './email.service';
 
 /**
  * Returns tasks visible to the requesting user.
@@ -56,6 +60,7 @@ export const getTask = async (
  *   - The client belongs to this organization.
  *   - The assignee must be an EMPLOYEE (BOSS cannot be assigned tasks — validated via DB query).
  * Initial status is always 'assigned'.
+ * Sends TASK_ASSIGNED transactional email to client (non-blocking).
  */
 export const createTask = async (
   data: CreateTaskInput,
@@ -92,7 +97,33 @@ export const createTask = async (
     throw new AppError('Matter not found for the specified client.', 404);
   }
 
-  return repoCreateTask(data, assignedById, organizationId);
+  const createdTask = await repoCreateTask(data, assignedById, organizationId);
+
+  // Dispatch Task Assigned Transactional Email (async, fail-safe)
+  const now = new Date();
+  const formattedAssignedDate = now.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
+  const formattedDueDate = new Date(data.dueDate).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
+
+  sendTaskAssignedEmail({
+    recipientEmail: client.contactEmail,
+    clientName: client.name,
+    matterTitle: matter.title || data.title,
+    lawyerName: assignee.name,
+    priority: data.priority,
+    dueDate: formattedDueDate,
+    assignedDate: formattedAssignedDate,
+    taskId: createdTask.id
+  }).catch((err) => console.error('Failed to dispatch task assignment email:', err));
+
+  return createdTask;
 };
 
 /**
@@ -102,6 +133,7 @@ export const createTask = async (
  *   3. EMPLOYEE can only update tasks assigned to them.
  *   4. EMPLOYEE cannot directly set status to 'approved' or 'completed'
  *      (those are system/boss-only transitions).
+ *   5. Sends TASK_IN_PROGRESS transactional email when transition is assigned -> in_progress.
  */
 export const updateTaskStatus = async (
   taskId: string,
@@ -138,5 +170,32 @@ export const updateTaskStatus = async (
     );
   }
 
-  return repoUpdateTaskStatus(taskId, requestedStatus);
+  const updatedTask = await repoUpdateTaskStatus(taskId, requestedStatus);
+
+  // If genuine transition from assigned -> in_progress, notify client
+  if (task.status === TaskStatus.assigned && requestedStatus === TaskStatus.in_progress) {
+    const formattedDueDate = new Date(task.dueDate).toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+
+    const clientEmail = (task as any).client?.contactEmail;
+    const clientName = (task as any).client?.name || 'Valued Client';
+    const lawyerName = (task as any).assignee?.name || 'Assigned Lawyer';
+    const matterTitle = (task as any).matter?.title || task.title;
+
+    if (clientEmail) {
+      sendTaskInProgressEmail({
+        recipientEmail: clientEmail,
+        clientName,
+        matterTitle,
+        lawyerName,
+        dueDate: formattedDueDate,
+        taskId: task.id
+      }).catch((err) => console.error('Failed to dispatch task in-progress email:', err));
+    }
+  }
+
+  return updatedTask;
 };

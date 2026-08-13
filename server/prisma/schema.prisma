@@ -72,6 +72,19 @@ enum EntityType {
   customization
 }
 
+enum ClientApprovalStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+enum EmailDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
 model Organization {
   id           String          @id @default(uuid())
   name         String
@@ -122,17 +135,18 @@ model RefreshToken {
 }
 
 model Client {
-  id             String          @id @default(uuid())
-  name           String
-  contactEmail   String
-  contactPhone   String
-  organizationId String
-  organization   Organization    @relation(fields: [organizationId], references: [id])
-  matters        Matter[]
-  documents      LegalDocument[]
-  tasks          WorkflowTask[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id              String                    @id @default(uuid())
+  name            String
+  contactEmail    String
+  contactPhone    String
+  organizationId  String
+  organization    Organization              @relation(fields: [organizationId], references: [id])
+  matters         Matter[]
+  documents       LegalDocument[]
+  tasks           WorkflowTask[]
+  clientApprovals ClientAgreementApproval[]
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
 }
 
 model Matter {
@@ -209,23 +223,23 @@ model CustomizationRequest {
 }
 
 model LegalDocument {
-  id                          String            @id @default(uuid())
+  id                          String                    @id @default(uuid())
   templateId                  String
-  template                    LegalTemplate     @relation(fields: [templateId], references: [id])
+  template                    LegalTemplate             @relation(fields: [templateId], references: [id])
   templateVersionAtGeneration String
   title                       String
   clientId                    String
-  client                      Client            @relation(fields: [clientId], references: [id])
+  client                      Client                    @relation(fields: [clientId], references: [id])
   matterId                    String
-  matter                      Matter            @relation(fields: [matterId], references: [id])
+  matter                      Matter                    @relation(fields: [matterId], references: [id])
   authorId                    String
-  author                      User              @relation("DocumentAuthor", fields: [authorId], references: [id])
-  status                      DocumentStatus    @default(draft)
-  priority                    TaskPriority      @default(medium)
+  author                      User                      @relation("DocumentAuthor", fields: [authorId], references: [id])
+  status                      DocumentStatus            @default(draft)
+  priority                    TaskPriority              @default(medium)
   dueDate                     DateTime
   content                     String
-  variables                   Json              // Record<string, string>
-  currentVersion              Int               @default(1)
+  variables                   Json                      // Record<string, string>
+  currentVersion              Int                       @default(1)
   versions                    DocumentVersion[]
   comments                    InlineComment[]
   reviewHistory               ReviewCycle[]
@@ -233,51 +247,89 @@ model LegalDocument {
   lockedAt                    DateTime?
   pdfExportUrl                String?
   renewedFromDocumentId       String?
-  renewedFromDocument         LegalDocument?    @relation("DocumentRenewal", fields: [renewedFromDocumentId], references: [id])
-  renewedDocuments            LegalDocument[]   @relation("DocumentRenewal")
+  renewedFromDocument         LegalDocument?            @relation("DocumentRenewal", fields: [renewedFromDocumentId], references: [id])
+  renewedDocuments            LegalDocument[]           @relation("DocumentRenewal")
   organizationId              String
-  organization                Organization      @relation(fields: [organizationId], references: [id])
+  organization                Organization              @relation(fields: [organizationId], references: [id])
   tasks                       WorkflowTask[]
-  createdAt                   DateTime          @default(now())
-  updatedAt                   DateTime          @updatedAt
+  clientApprovals             ClientAgreementApproval[]
+  createdAt                   DateTime                  @default(now())
+  updatedAt                   DateTime                  @updatedAt
 }
 
 model DocumentVersion {
-  id                String        @id @default(uuid())
+  id                String                    @id @default(uuid())
   documentId        String
-  document          LegalDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  document          LegalDocument             @relation(fields: [documentId], references: [id], onDelete: Cascade)
   versionNumber     Int
   content           String
-  variablesState    Json          // Record<string, string>
+  variablesState    Json                      // Record<string, string>
   changeDescription String
   authorId          String
-  createdAt         DateTime      @default(now())
+  clientApprovals   ClientAgreementApproval[]
+  createdAt         DateTime                  @default(now())
 }
 
 model WorkflowTask {
-  id             String         @id @default(uuid())
+  id              String                    @id @default(uuid())
+  documentId      String?
+  document        LegalDocument?            @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  templateId      String
+  template        LegalTemplate             @relation(fields: [templateId], references: [id])
+  title           String
+  clientId        String
+  client          Client                    @relation(fields: [clientId], references: [id])
+  matterId        String
+  matter          Matter                    @relation(fields: [matterId], references: [id])
+  assigneeId      String
+  assignee        User                      @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  assignedById    String
+  assignedBy      User                      @relation("TaskCreator", fields: [assignedById], references: [id])
+  status          TaskStatus                @default(assigned)
+  priority        TaskPriority              @default(medium)
+  dueDate         DateTime
+  notes           String?
+  requirements    String?
+  organizationId  String
+  organization    Organization              @relation(fields: [organizationId], references: [id])
+  clientApprovals ClientAgreementApproval[]
+  createdAt       DateTime                  @default(now())
+  updatedAt       DateTime                  @updatedAt
+}
+
+model ClientAgreementApproval {
+  id                 String               @id @default(uuid())
+  taskId             String
+  task               WorkflowTask         @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  clientId           String
+  client             Client               @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  documentId         String
+  document           LegalDocument        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentVersionId  String?
+  documentVersionRef DocumentVersion?     @relation(fields: [documentVersionId], references: [id], onDelete: SetNull)
+  documentVersion    Int                  @default(1)
+  recipientEmail     String
+  status             ClientApprovalStatus @default(PENDING)
+  tokenHash          String               @unique
+  expiresAt          DateTime
+  usedAt             DateTime?
+  approvedAt         DateTime?
+  rejectedAt         DateTime?
+  rejectionReason    String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+}
+
+model EmailLog {
+  id             String              @id @default(uuid())
+  recipientEmail String
+  emailType      String              // TASK_ASSIGNED | TASK_IN_PROGRESS | AGREEMENT_REVIEW | CLIENT_APPROVED | CLIENT_REJECTED
+  status         EmailDeliveryStatus @default(PENDING)
+  resendId       String?
+  errorMessage   String?
+  taskId         String?
   documentId     String?
-  document       LegalDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
-  templateId     String
-  template       LegalTemplate  @relation(fields: [templateId], references: [id])
-  title          String
-  clientId       String
-  client         Client         @relation(fields: [clientId], references: [id])
-  matterId       String
-  matter         Matter         @relation(fields: [matterId], references: [id])
-  assigneeId     String
-  assignee       User           @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  assignedById   String
-  assignedBy     User           @relation("TaskCreator", fields: [assignedById], references: [id])
-  status         TaskStatus     @default(assigned)
-  priority       TaskPriority   @default(medium)
-  dueDate        DateTime
-  notes          String?
-  requirements   String?
-  organizationId String
-  organization   Organization   @relation(fields: [organizationId], references: [id])
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  createdAt      DateTime            @default(now())
 }
 
 model InlineComment {

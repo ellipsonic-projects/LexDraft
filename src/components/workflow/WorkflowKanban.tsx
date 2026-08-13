@@ -8,7 +8,10 @@ import {
   Lock,
   Calendar,
   User,
-  Briefcase
+  Briefcase,
+  Send,
+  CheckCircle2,
+  Clock
 } from 'lucide-react';
 import { TaskStatus, TaskPriority } from '../../types';
 
@@ -20,6 +23,7 @@ export const WorkflowKanban: React.FC = () => {
     templates,
     assignTask,
     updateTaskStatus,
+    sendAgreementToClient,
     theme,
     showToast,
     clients,
@@ -32,6 +36,7 @@ export const WorkflowKanban: React.FC = () => {
   const isDark = theme === 'dark';
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [taskTitle, setTaskTitle] = useState('');
+  const [sendingTaskId, setSendingTaskId] = useState<string | null>(null);
 
   const [templateId, setTemplateId] = useState(templates[0]?.id || '');
   const [clientId, setClientId] = useState('');
@@ -89,6 +94,17 @@ export const WorkflowKanban: React.FC = () => {
       showToast(err.message || 'Failed to create client', 'error');
     } finally {
       setIsCreatingClient(false);
+    }
+  };
+
+  const handleSendToClient = async (taskId: string, docId?: string) => {
+    setSendingTaskId(taskId);
+    try {
+      await sendAgreementToClient(taskId, docId);
+    } catch {
+      // Toast already handled in context
+    } finally {
+      setSendingTaskId(null);
     }
   };
 
@@ -219,8 +235,41 @@ export const WorkflowKanban: React.FC = () => {
                         </p>
                       )}
 
+                      {/* Client Approval Status Box */}
+                      {t.latestClientApproval && (
+                        <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800/80 pt-2 text-[10px]">
+                          <span className="text-slate-400 font-medium flex items-center gap-1">
+                            <Clock className="w-2.5 h-2.5 text-slate-400" />
+                            <span>Client Approval:</span>
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] tracking-wide uppercase ${
+                            t.latestClientApproval.status === 'ACCEPTED'
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                              : t.latestClientApproval.status === 'REJECTED'
+                              ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                              : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                          }`}>
+                            {t.latestClientApproval.status}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Send to Client for Review Button (When Draft Ready) */}
+                      {t.status === 'draft_ready' && (
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                          <button
+                            onClick={() => handleSendToClient(t.id, t.documentId || undefined)}
+                            disabled={sendingTaskId === t.id}
+                            className="w-full py-1.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-md text-[11px] font-semibold flex items-center justify-center space-x-1.5 transition-colors cursor-pointer disabled:opacity-50 shadow-xs"
+                          >
+                            <Send className="w-3 h-3" />
+                            <span>{sendingTaskId === t.id ? 'Sending PDF...' : 'Send to Client for Review'}</span>
+                          </button>
+                        </div>
+                      )}
+
                       {/* Advance Button (Whisper-quiet look) */}
-                      {canAdvance && t.status !== 'completed' && (
+                      {canAdvance && t.status !== 'completed' && t.status !== 'draft_ready' && (
                         <div className="flex justify-end pt-1">
                           <button
                             onClick={() => {

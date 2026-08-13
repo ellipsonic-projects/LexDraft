@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { getTasks, getTaskById, postTask, patchTaskStatus } from '../controllers/tasks.controller';
+import { postSendToClient } from '../controllers/client-approval.controller';
 import { authenticate } from '../middlewares/authenticate';
 import { authorize } from '../middlewares/authorize';
 import { validate } from '../middlewares/validate';
@@ -42,4 +43,11 @@ router.post('/', authorize('BOSS'), validate(createTaskSchema), postTask);
  */
 router.patch('/:id/status', validate(updateTaskStatusSchema), patchTaskStatus);
 
+/**
+ * POST /api/tasks/:taskId/send-to-client
+ * Dispatches the legal agreement to the client with attached PDF and single-use review links.
+ */
+router.post('/:taskId/send-to-client', postSendToClient);
+
 export default router;
+

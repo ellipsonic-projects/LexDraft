@@ -145,6 +145,8 @@ export interface LegalDocument {
   updatedAt: string;
 }
 
+export type ClientApprovalStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED';
+
 export interface WorkflowTask {
   id: string;
   documentId: string | null;
@@ -163,6 +165,15 @@ export interface WorkflowTask {
   dueDate: string;
   notes?: string;
   requirements?: string;
+  latestClientApproval?: {
+    id: string;
+    status: ClientApprovalStatus;
+    documentVersion: number;
+    approvedAt?: string | null;
+    rejectedAt?: string | null;
+    recipientEmail: string;
+    createdAt: string;
+  };
   createdAt: string;
   updatedAt: string;
 }

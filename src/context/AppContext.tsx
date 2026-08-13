@@ -92,6 +92,7 @@ interface AppContextType {
 
   assignTask: (task: Omit<WorkflowTask, 'id' | 'createdAt' | 'updatedAt' | 'assignedById' | 'assignedByName' | 'status' | 'templateName' | 'assigneeName' | 'assigneeAvatar'>) => Promise<WorkflowTask | null>;
   updateTaskStatus: (taskId: string, status: TaskStatus) => Promise<void>;
+  sendAgreementToClient: (taskId: string, documentId?: string) => Promise<void>;
   markDocumentDelivered: (documentId: string) => Promise<void>;
 
   // Notifications
@@ -209,6 +210,24 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     };
 
     loadAllData();
+
+    // Periodic silent sync (every 8 seconds) to update Kanban in real time when client approves/rejects
+    const syncInterval = setInterval(async () => {
+      try {
+        const [fetchedTasks, fetchedLogs, fetchedNotifs] = await Promise.all([
+          dataRepository.getTasks(),
+          dataRepository.getActivityLogs(),
+          dataRepository.getNotifications()
+        ]);
+        setTasks(fetchedTasks);
+        setActivityLogs(fetchedLogs);
+        setNotifications(fetchedNotifs);
+      } catch {
+        // Silent background catch
+      }
+    }, 8000);
+
+    return () => clearInterval(syncInterval);
   }, [isAuthenticated, currentUser.role]);
 
   const toggleTheme = () => {
@@ -653,6 +672,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const sendAgreementToClient = async (taskId: string, documentId?: string) => {
+    try {
+      const res = await dataRepository.sendAgreementToClient(taskId, documentId);
+      showToast(res.message || 'Agreement dispatched to client with attached PDF.', 'success');
+
+      const [fetchedTasks, fetchedDocs, fetchedLogs, fetchedNotifs] = await Promise.all([
+        dataRepository.getTasks(),
+        dataRepository.getDocuments(),
+        dataRepository.getActivityLogs(),
+        dataRepository.getNotifications()
+      ]);
+
+      setTasks(fetchedTasks);
+      setDocuments(fetchedDocs);
+      setActivityLogs(fetchedLogs);
+      setNotifications(fetchedNotifs);
+    } catch (err: any) {
+      showToast(err.message || 'Failed to dispatch agreement to client.', 'error');
+      throw err;
+    }
+  };
+
   const markDocumentDelivered = async (documentId: string) => {
     try {
       await api.post(`/documents/${documentId}/deliver`, {});
@@ -761,6 +802,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       renewDocument,
       assignTask,
       updateTaskStatus,
+      sendAgreementToClient,
       markDocumentDelivered,
       markNotificationRead,
       clearAllNotifications,

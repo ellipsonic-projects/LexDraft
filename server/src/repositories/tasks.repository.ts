@@ -18,10 +18,23 @@ export const findAllTasks = async (
     include: {
       assignee: { select: { id: true, name: true, role: true, avatarUrl: true } },
       assignedBy: { select: { id: true, name: true } },
-      client: { select: { id: true, name: true } },
+      client: { select: { id: true, name: true, contactEmail: true, contactPhone: true } },
       matter: { select: { id: true, title: true, matterCode: true } },
       template: { select: { id: true, name: true, category: true } },
-      document: { select: { id: true, title: true, status: true } }
+      document: { select: { id: true, title: true, status: true, currentVersion: true } },
+      clientApprovals: {
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: {
+          id: true,
+          status: true,
+          documentVersion: true,
+          approvedAt: true,
+          rejectedAt: true,
+          recipientEmail: true,
+          createdAt: true
+        }
+      }
     },
     orderBy: { createdAt: 'desc' }
   });
@@ -39,10 +52,23 @@ export const findTaskById = async (
     include: {
       assignee: { select: { id: true, name: true, role: true } },
       assignedBy: { select: { id: true, name: true } },
-      client: { select: { id: true, name: true } },
+      client: { select: { id: true, name: true, contactEmail: true, contactPhone: true } },
       matter: { select: { id: true, title: true, matterCode: true } },
       template: { select: { id: true, name: true, category: true } },
-      document: { select: { id: true, title: true, status: true } }
+      document: { select: { id: true, title: true, status: true, currentVersion: true } },
+      clientApprovals: {
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+        select: {
+          id: true,
+          status: true,
+          documentVersion: true,
+          approvedAt: true,
+          rejectedAt: true,
+          recipientEmail: true,
+          createdAt: true
+        }
+      }
     }
   });
 };
