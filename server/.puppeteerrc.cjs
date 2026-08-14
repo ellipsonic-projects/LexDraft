@@ -2,11 +2,15 @@ const { join } = require('path');
 
 /**
  * Puppeteer Configuration File
- * Automatically selects the Render cache directory when running on Render,
- * and falls back to a local project cache directory for development.
+ * Detects if running on Render and automatically directs the browser cache
+ * to Render's persistent project cache directory, preventing environment mismatch.
  * 
  * @type {import("puppeteer").Configuration}
  */
+const cacheDir = process.env.RENDER === 'true'
+  ? '/opt/render/project/.cache/puppeteer'
+  : join(__dirname, '.cache', 'puppeteer');
+
 module.exports = {
-  cacheDirectory: process.env.PUPPETEER_CACHE_DIR || join(__dirname, '.cache', 'puppeteer'),
+  cacheDirectory: cacheDir,
 };
