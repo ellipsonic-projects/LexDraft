@@ -33,10 +33,11 @@ services:
         value: "7"
 
   # 2. React + Vite Frontend Static Site
-  - type: static
+  - type: web
     name: lexdraft-frontend
+    runtime: static
     buildCommand: npm install && npm run build
-    publishDir: dist
+    staticPublishPath: ./dist
     envVars:
       - key: VITE_API_URL
         sync: false # Point to your backend API URL (e.g., https://lexdraft-backend.onrender.com/api)
