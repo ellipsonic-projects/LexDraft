@@ -203,24 +203,18 @@ async function sendEmail(params: {
   }
 
   try {
-    // Apply sandbox override: redirect to verified email if set.
-    // If not explicitly set, but we are using the default onboarding@resend.dev sender,
-    // we automatically fallback to the verified mailbox (manishgowdat23@gmail.com)
-    // to prevent Resend API 403 validation errors.
-    const testOverrideEmail = RESEND_TEST_OVERRIDE_EMAIL || 
-      (RESEND_FROM_EMAIL === 'onboarding@resend.dev' ? 'manishgowdat23@gmail.com' : '');
-
-    const actualRecipient = testOverrideEmail
-      ? testOverrideEmail
+    // Apply sandbox override: redirect to verified email if explicitly set in env
+    const actualRecipient = RESEND_TEST_OVERRIDE_EMAIL
+      ? RESEND_TEST_OVERRIDE_EMAIL
       : params.to;
 
     // When overriding, prefix the subject so you can see who the email was "really" for
-    const actualSubject = testOverrideEmail && actualRecipient !== params.to
+    const actualSubject = RESEND_TEST_OVERRIDE_EMAIL && actualRecipient !== params.to
       ? `[→ ${recipientStr}] ${params.subject}`
       : params.subject;
 
-    if (testOverrideEmail) {
-      console.log(`[Email Override] Redirecting ${params.emailType} from "${recipientStr}" → "${testOverrideEmail}"`);
+    if (RESEND_TEST_OVERRIDE_EMAIL) {
+      console.log(`[Email Override] Redirecting ${params.emailType} from "${recipientStr}" → "${RESEND_TEST_OVERRIDE_EMAIL}"`);
     }
 
     const payload: any = {
