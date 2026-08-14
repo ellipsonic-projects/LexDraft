@@ -19,9 +19,10 @@ import clientApprovalRoutes from './routes/client-approval.routes';
 
 const app = express();
 
-// Trust Proxy Configuration for production reverse proxies (Nginx, ALBs, Cloudflare, etc.)
-if (env.TRUST_PROXY === 'true') {
-  app.set('trust proxy', true);
+// Trust Proxy Configuration for production reverse proxies (Render, Nginx, ALBs, Cloudflare, etc.)
+// Use numeric value (1) instead of boolean true to satisfy express-rate-limit security validation
+if (env.TRUST_PROXY === 'true' || env.TRUST_PROXY === '1') {
+  app.set('trust proxy', 1);
 } else if (env.TRUST_PROXY && env.TRUST_PROXY !== 'false') {
   const parsed = parseInt(env.TRUST_PROXY, 10);
   app.set('trust proxy', isNaN(parsed) ? env.TRUST_PROXY : parsed);
