@@ -4,7 +4,7 @@ services:
     name: lexdraft-backend
     runtime: node
     rootDir: server
-    buildCommand: PUPPETEER_CACHE_DIR=./puppeteer_cache npm install && PUPPETEER_CACHE_DIR=./puppeteer_cache npx puppeteer browsers install chrome && npx prisma generate && npm run build
+    buildCommand: PUPPETEER_CACHE_DIR=./node_modules/puppeteer_cache npm install && PUPPETEER_CACHE_DIR=./node_modules/puppeteer_cache npx puppeteer browsers install chrome && npx prisma generate && npm run build
     startCommand: npx prisma migrate deploy && npm start
     envVars:
       - key: NODE_ENV
