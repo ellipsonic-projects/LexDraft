@@ -9,7 +9,8 @@ import {
   postDeliverDocument,
   postRenewDocument,
   getExpiringDocuments,
-  postCheckExpiries
+  postCheckExpiries,
+  deleteDocumentController
 } from '../controllers/documents.controller';
 import {
   postSubmitReview,
@@ -76,6 +77,13 @@ router.get('/:id/pdf', getDocumentPdf);
  * Enforces strict IDOR (EMPLOYEE cannot view others' documents).
  */
 router.get('/:id', getDocumentById);
+
+/**
+ * DELETE /api/documents/:id
+ * Hard deletes a document and resets any linked tasks.
+ * Enforces: Only BOSS role.
+ */
+router.delete('/:id', authorize('BOSS'), deleteDocumentController);
 
 /**
  * POST /api/documents/:id/save-draft

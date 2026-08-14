@@ -12,6 +12,7 @@ import {
   deliverDocumentTx,
   renewDocumentTx,
   findExpiringDocuments,
+  deleteLegalDocumentTx,
   DocumentFilters
 } from '../repositories/documents.repository';
 import {
@@ -513,5 +514,34 @@ export const checkAndNotifyExpiries = async (organizationId: string) => {
     checkedCount: docs.length,
     notificationsCreated
   };
+};
+
+/**
+ * Deletes a document and resets any linked workflow tasks.
+ * Enforces:
+ *   - Must be BOSS role.
+ *   - Document must exist in organization.
+ */
+export const deleteDocument = async (
+  documentId: string,
+  userId: string,
+  role: string,
+  organizationId: string
+) => {
+  if (role !== 'BOSS') {
+    throw new AppError('Access denied. Only Senior Partners can delete documents.', 403);
+  }
+
+  const doc = await prisma.legalDocument.findFirst({
+    where: { id: documentId, organizationId }
+  });
+
+  if (!doc) {
+    throw new AppError('Document not found.', 404);
+  }
+
+  await deleteLegalDocumentTx(doc.id, organizationId, userId);
+  
+  return { success: true };
 };
 

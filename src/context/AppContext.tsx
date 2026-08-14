@@ -593,9 +593,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
 
     try {
-      // Endpoint to delete document if needed or fallback filter
+      await dataRepository.deleteDocument(id);
       setDocuments(prev => prev.filter(d => d.id !== id));
-      showToast('Document deleted.', 'info');
+      const fetchedTasks = await dataRepository.getTasks();
+      setTasks(fetchedTasks);
+      showToast('Document deleted successfully.', 'success');
     } catch (err: any) {
       showToast(err.message || 'Failed to delete document.', 'error');
     }

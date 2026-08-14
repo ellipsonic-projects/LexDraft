@@ -575,3 +575,63 @@ export const findExpiringDocuments = async (
   });
 };
 
+/**
+ * Atomically deletes a document and resets any linked workflow task 
+ * back to 'in_progress' if it is in 'draft_ready', 'under_review', or 'rejected'.
+ */
+export const deleteLegalDocumentTx = async (
+  documentId: string,
+  organizationId: string,
+  userId: string
+) => {
+  return prisma.$transaction(async (tx) => {
+    // 1. Verify document exists and belongs to the organization
+    const doc = await tx.legalDocument.findFirst({
+      where: { id: documentId, organizationId }
+    });
+
+    if (!doc) {
+      throw new Error('DOCUMENT_NOT_FOUND');
+    }
+
+    // 2. Find linked workflow tasks
+    const tasks = await tx.workflowTask.findMany({
+      where: { documentId: doc.id }
+    });
+
+    // 3. Reset valid tasks back to 'in_progress'
+    const resetStatuses = ['draft_ready', 'under_review', 'rejected'];
+    for (const task of tasks) {
+      if (resetStatuses.includes(task.status)) {
+        await tx.workflowTask.update({
+          where: { id: task.id },
+          data: {
+            status: 'in_progress',
+            documentId: null // Break the link explicitely (though onDelete: SetNull would do it, we want it explicit)
+          }
+        });
+      }
+    }
+
+    // 4. Delete the document (cascade deletes versions, comments, clientApprovals, etc.)
+    await tx.legalDocument.delete({
+      where: { id: doc.id }
+    });
+
+    // 5. Activity Log
+    await tx.activityLog.create({
+      data: {
+        userId: userId,
+        action: 'Deleted Legal Document',
+        entityType: EntityType.document,
+        entityId: doc.id,
+        entityName: doc.title,
+        details: 'Hard deleted document and reset linked tasks back to in progress.',
+        organizationId: organizationId
+      }
+    });
+
+    return true;
+  });
+};
+

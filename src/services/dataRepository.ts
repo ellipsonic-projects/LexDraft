@@ -262,8 +262,8 @@ export const dataRepository = {
   updateDocument: async (id: string, updates: Partial<LegalDocument>): Promise<LegalDocument> => {
     return { id, ...updates } as LegalDocument;
   },
-  deleteDocument: async (_id: string): Promise<void> => {
-    // Documents are soft deleted / reviewed, or deleted by ID
+  deleteDocument: async (id: string): Promise<void> => {
+    await api.delete(`/documents/${id}`);
   },
 
   // Tasks

@@ -254,3 +254,25 @@ export const postCheckExpiries = async (
   }
 };
 
+/**
+ * DELETE /api/documents/:id
+ * Hard deletes a document and resets any linked tasks.
+ */
+export const deleteDocumentController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const result = await (await import('../services/documents.service')).deleteDocument(
+      req.params.id,
+      req.user!.userId,
+      req.user!.role,
+      req.user!.organizationId
+    );
+
+    res.status(200).json({ status: 'success', data: result });
+  } catch (err) {
+    next(err);
+  }
+};
