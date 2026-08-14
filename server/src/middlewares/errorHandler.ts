@@ -67,10 +67,7 @@ export const errorHandler = (
 
   res.status(statusCode).json({
     status: 'error',
-    message,
-    // Only include stack trace in development for non-production debugging
-    ...(env.NODE_ENV === 'development' && err instanceof Error
-      ? { stack: err.stack }
-      : {})
+    message: err instanceof Error ? err.message : message,
+    stack: err instanceof Error ? err.stack : undefined
   });
 };
