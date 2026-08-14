@@ -13,7 +13,10 @@ const COOKIE_NAME = 'lexdraft_refresh_token';
 const COOKIE_OPTIONS = {
   httpOnly: true,
   secure: env.NODE_ENV === 'production',
-  sameSite: 'strict' as const,
+  // sameSite must be 'none' in production because frontend and backend are on different
+  // subdomains (lexdraft-frontend.onrender.com vs lexdraft-qgb1.onrender.com).
+  // 'strict' blocks cross-origin cookies entirely, causing all API calls to fail with 401.
+  sameSite: (env.NODE_ENV === 'production' ? 'none' : 'strict') as 'none' | 'strict',
   maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days in ms
 };
 
@@ -95,7 +98,7 @@ export const logout = async (
     res.clearCookie(COOKIE_NAME, {
       httpOnly: true,
       secure: env.NODE_ENV === 'production',
-      sameSite: 'strict'
+      sameSite: (env.NODE_ENV === 'production' ? 'none' : 'strict') as 'none' | 'strict'
     });
 
     res.status(200).json({
