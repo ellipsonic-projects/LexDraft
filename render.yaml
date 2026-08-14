@@ -1,0 +1,47 @@
+services:
+  # 1. Express Backend Web Service
+  - type: web
+    name: lexdraft-backend
+    runtime: node
+    rootDir: server
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: TRUST_PROXY
+        value: "true"
+      - key: DATABASE_URL
+        sync: false # Provide your live PostgreSQL database connection URL
+      - key: JWT_ACCESS_SECRET
+        generateValue: true # Generates a secure random 256-bit secret automatically
+      - key: JWT_REFRESH_SECRET
+        generateValue: true # Generates a secure random 256-bit secret automatically
+      - key: ALLOWED_ORIGIN
+        sync: false # Update to match your static site URL (e.g., https://lexdraft.onrender.com)
+      - key: RESEND_API_KEY
+        sync: false # Your Resend API Key
+      - key: RESEND_FROM_EMAIL
+        sync: false # e.g. notifications@yourdomain.com
+      - key: RESEND_FROM_NAME
+        value: "LexDraft Legal Workflow"
+      - key: APP_BASE_URL
+        sync: false # Point to this backend web service URL (e.g., https://lexdraft-backend.onrender.com)
+      - key: CLIENT_APPROVAL_TOKEN_EXPIRY_DAYS
+        value: "7"
+
+  # 2. React + Vite Frontend Static Site
+  - type: web
+    name: lexdraft-frontend
+    runtime: static
+    buildCommand: npm install && npm run build
+    publishDir: dist
+    envVars:
+      - key: VITE_API_URL
+        sync: false # Point to your backend API URL (e.g., https://lexdraft-backend.onrender.com/api)
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
