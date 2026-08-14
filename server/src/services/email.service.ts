@@ -1,9 +1,32 @@
 import { Resend } from 'resend';
+import nodemailer from 'nodemailer';
 import PDFDocument from 'pdfkit';
 import { prisma } from '../lib/prisma';
 import { EmailDeliveryStatus } from '@prisma/client';
 
-// ─── Environment Configuration ───────────────────────────────────────────────
+// ─── SMTP / Nodemailer Configuration ──────────────────────────────────────────
+const SMTP_HOST = process.env.SMTP_HOST || '';
+const SMTP_PORT = parseInt(process.env.SMTP_PORT || '587', 10);
+const SMTP_SECURE = process.env.SMTP_SECURE === 'true'; // true for port 465, false for 587
+const SMTP_USER = process.env.SMTP_USER || '';
+const SMTP_PASS = process.env.SMTP_PASS || '';
+const SMTP_FROM_EMAIL = process.env.SMTP_FROM_EMAIL || '';
+const SMTP_FROM_NAME = process.env.SMTP_FROM_NAME || 'LexDraft Legal Workflow';
+
+// Initialize SMTP Transporter
+const smtpTransporter = SMTP_HOST && SMTP_USER && SMTP_PASS
+  ? nodemailer.createTransport({
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_SECURE,
+      auth: {
+        user: SMTP_USER,
+        pass: SMTP_PASS
+      }
+    })
+  : null;
+
+// ─── Resend Configuration ───────────────────────────────────────────────────
 const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 const RESEND_FROM_NAME = process.env.RESEND_FROM_NAME || 'LexDraft Legal Workflow';
@@ -188,8 +211,51 @@ async function sendEmail(params: {
 }): Promise<{ success: boolean; resendId?: string; error?: string }> {
   const recipientStr = Array.isArray(params.to) ? params.to.join(', ') : params.to;
 
+  // 1. Check if SMTP is configured
+  if (smtpTransporter) {
+    try {
+      const mailOptions = {
+        from: `"${SMTP_FROM_NAME}" <${SMTP_FROM_EMAIL}>`,
+        to: params.to,
+        subject: params.subject,
+        text: params.text,
+        html: params.html,
+        attachments: params.attachments?.map(att => ({
+          filename: att.filename,
+          content: att.content
+        }))
+      };
+
+      const info = await smtpTransporter.sendMail(mailOptions);
+      console.log(`[SMTP Email Sent] Message ID: ${info.messageId} to ${recipientStr}`);
+
+      await logEmailDispatch({
+        recipientEmail: recipientStr,
+        emailType: params.emailType,
+        status: EmailDeliveryStatus.SENT,
+        resendId: info.messageId,
+        taskId: params.taskId,
+        documentId: params.documentId
+      });
+
+      return { success: true, resendId: info.messageId };
+    } catch (err: any) {
+      console.error(`SMTP Exception during email dispatch to ${recipientStr}:`, err);
+      await logEmailDispatch({
+        recipientEmail: recipientStr,
+        emailType: params.emailType,
+        status: EmailDeliveryStatus.FAILED,
+        errorMessage: err.message || 'SMTP delivery network error',
+        taskId: params.taskId,
+        documentId: params.documentId
+      });
+      return { success: false, error: err.message };
+    }
+  }
+
+  // 2. Otherwise try Resend
   if (!resendClient) {
-    const errorMsg = 'Resend client not configured (missing or placeholder RESEND_API_KEY).';
+    const errorMsg = 'No SMTP configuration nor Resend client configured.';
     console.warn(`[Email Service Simulation] Dispatched to ${recipientStr}: ${params.subject}`);
     await logEmailDispatch({
       recipientEmail: recipientStr,
