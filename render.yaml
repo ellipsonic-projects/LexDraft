@@ -13,6 +13,8 @@ services:
         value: 5000
       - key: TRUST_PROXY
         value: "true"
+      - key: PUPPETEER_CACHE_DIR
+        value: /opt/render/project/.cache/puppeteer
       - key: DATABASE_URL
         sync: false # Provide your live PostgreSQL database connection URL
       - key: JWT_ACCESS_SECRET

@@ -2,11 +2,11 @@ const { join } = require('path');
 
 /**
  * Puppeteer Configuration File
- * Ensures the Chromium binary is downloaded directly into the project directory
- * inside a non-hidden folder so it is preserved and copied to the Render web runner.
+ * Automatically selects the Render cache directory when running on Render,
+ * and falls back to a local project cache directory for development.
  * 
  * @type {import("puppeteer").Configuration}
  */
 module.exports = {
-  cacheDirectory: join(__dirname, 'puppeteer_cache'),
+  cacheDirectory: process.env.PUPPETEER_CACHE_DIR || join(__dirname, '.cache', 'puppeteer'),
 };
