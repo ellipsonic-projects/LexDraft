@@ -2,15 +2,11 @@ const { join } = require('path');
 
 /**
  * Puppeteer Configuration File
- * Detects if running on Render and automatically directs the browser cache
- * to Render's persistent project cache directory, preventing environment mismatch.
+ * Ensures the Chromium binary is downloaded directly into the project directory
+ * inside a non-hidden folder so it is preserved and copied to the Render web runner.
  * 
  * @type {import("puppeteer").Configuration}
  */
-const cacheDir = process.env.RENDER === 'true'
-  ? '/opt/render/project/.cache/puppeteer'
-  : join(__dirname, '.cache', 'puppeteer');
-
 module.exports = {
-  cacheDirectory: cacheDir,
+  cacheDirectory: join(__dirname, 'puppeteer_cache'),
 };
