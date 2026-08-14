@@ -1,4 +1,5 @@
-import puppeteer from 'puppeteer';
+import puppeteerCore from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
 
 /**
  * Wraps raw document body content in the exact HTML/CSS template compiler used by the frontend.
@@ -326,22 +327,26 @@ export function compileHtml(content: string): string {
 
 /**
  * Compiles document content to PDF using headless Chrome/Chromium printing.
+ * Uses @sparticuz/chromium which bundles a statically-linked Chromium binary
+ * inside node_modules — no separate browser download required on Render.
  */
 export async function generatePdfFromHtml(htmlContent: string): Promise<Buffer> {
-  const browser = await puppeteer.launch({
-    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  const browser = await puppeteerCore.launch({
+    args: chromium.args,
+    executablePath: await chromium.executablePath(),
+    headless: true as any
   });
   try {
     const page = await browser.newPage();
-    
+
     // Set viewport A4 ratio to prevent layout stretching
     await page.setViewport({ width: 816, height: 1056 });
 
     // Set A4 HTML content
     const compiledHtml = compileHtml(htmlContent);
     await page.setContent(compiledHtml, { waitUntil: 'load' });
-    
-    // Export to A4 PDF matching browser settings
+
+    // Export to A4 PDF matching browser print settings
     const pdfBuffer = await page.pdf({
       format: 'A4',
       printBackground: true,
@@ -353,7 +358,7 @@ export async function generatePdfFromHtml(htmlContent: string): Promise<Buffer> 
         right: 0
       }
     });
-    
+
     return Buffer.from(pdfBuffer);
   } finally {
     await browser.close();

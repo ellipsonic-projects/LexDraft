@@ -5,7 +5,7 @@ services:
     runtime: node
     rootDir: server
     buildCommand: npm install && npx prisma generate && npm run build
-    startCommand: PUPPETEER_CACHE_DIR=./node_modules/puppeteer_cache npx puppeteer browsers install chrome && npx prisma migrate deploy && npm start
+    startCommand: npx prisma migrate deploy && npm start
     envVars:
       - key: NODE_ENV
         value: production
