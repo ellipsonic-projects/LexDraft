@@ -75,10 +75,30 @@ app.use(morgan(env.NODE_ENV === 'development' ? 'dev' : 'combined'));
 
 // Status / Health Check Checkpoint
 app.get('/api/status', (_req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+  const cachePath = path.join(__dirname, '..', 'node_modules', 'puppeteer_cache');
+  let cacheExists = false;
+  let cacheFiles: string[] = [];
+  let errorMsg = '';
+  try {
+    cacheExists = fs.existsSync(cachePath);
+    if (cacheExists) {
+      cacheFiles = fs.readdirSync(cachePath);
+    }
+  } catch (err: any) {
+    errorMsg = err.message;
+  }
+
   res.status(200).json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    env: env.NODE_ENV
+    env: env.NODE_ENV,
+    cacheExists,
+    cacheFiles,
+    errorMsg,
+    cwd: process.cwd(),
+    envRender: process.env.RENDER
   });
 });
 
