@@ -30,4 +30,4 @@ dist-ssr
 .env.*.local
 
 # Puppeteer browser cache
-/server/.cache
+/server/puppeteer_cache
