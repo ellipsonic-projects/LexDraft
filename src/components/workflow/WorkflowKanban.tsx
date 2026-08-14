@@ -11,7 +11,8 @@ import {
   Briefcase,
   Send,
   CheckCircle2,
-  Clock
+  Clock,
+  Trash2
 } from 'lucide-react';
 import { TaskStatus, TaskPriority } from '../../types';
 
@@ -24,6 +25,7 @@ export const WorkflowKanban: React.FC = () => {
     assignTask,
     updateTaskStatus,
     sendAgreementToClient,
+    deleteTask,
     theme,
     showToast,
     clients,
@@ -37,6 +39,8 @@ export const WorkflowKanban: React.FC = () => {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [taskTitle, setTaskTitle] = useState('');
   const [sendingTaskId, setSendingTaskId] = useState<string | null>(null);
+  const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
+  const [confirmDeleteTaskId, setConfirmDeleteTaskId] = useState<string | null>(null);
 
   const [templateId, setTemplateId] = useState(templates[0]?.id || '');
   const [clientId, setClientId] = useState('');
@@ -268,9 +272,30 @@ export const WorkflowKanban: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Advance Button (Whisper-quiet look) */}
+                      {/* Advance Button */}
                       {canAdvance && t.status !== 'completed' && t.status !== 'draft_ready' && (
-                        <div className="flex justify-end pt-1">
+                        <div className="flex justify-between items-center pt-1">
+                          {isBoss && (
+                            confirmDeleteTaskId === t.id ? (
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => setConfirmDeleteTaskId(null)} className="text-[9px] text-slate-500 hover:underline cursor-pointer">Cancel</button>
+                                <button
+                                  onClick={async () => { setConfirmDeleteTaskId(null); setDeletingTaskId(t.id); await deleteTask(t.id); setDeletingTaskId(null); }}
+                                  disabled={deletingTaskId === t.id}
+                                  className="px-2 py-0.5 bg-rose-600 text-white rounded text-[9px] font-semibold cursor-pointer"
+                                >Delete</button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => setConfirmDeleteTaskId(t.id)}
+                                className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded cursor-pointer"
+                                title="Delete Task"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            )
+                          )}
+                          {!isBoss && <span />}
                           <button
                             onClick={() => {
                               const statusOrder: TaskStatus[] = ['assigned', 'in_progress', 'draft_ready', 'under_review', 'approved', 'completed'];

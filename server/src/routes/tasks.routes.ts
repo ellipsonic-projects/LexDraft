@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getTasks, getTaskById, postTask, patchTaskStatus } from '../controllers/tasks.controller';
+import { getTasks, getTaskById, postTask, patchTaskStatus, deleteTaskController } from '../controllers/tasks.controller';
 import { postSendToClient } from '../controllers/client-approval.controller';
 import { authenticate } from '../middlewares/authenticate';
 import { authorize } from '../middlewares/authorize';
@@ -48,6 +48,13 @@ router.patch('/:id/status', validate(updateTaskStatusSchema), patchTaskStatus);
  * Dispatches the legal agreement to the client with attached PDF and single-use review links.
  */
 router.post('/:taskId/send-to-client', postSendToClient);
+
+/**
+ * DELETE /api/tasks/:id
+ * Hard deletes a task and cleans up linked approval records.
+ * Only BOSS role can delete tasks.
+ */
+router.delete('/:id', authorize('BOSS'), deleteTaskController);
 
 export default router;
 

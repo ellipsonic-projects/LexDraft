@@ -286,8 +286,8 @@ export const dataRepository = {
     const res = await api.post(`/tasks/${taskId}/send-to-client`, { documentId });
     return res.data;
   },
-  deleteTask: async (_id: string): Promise<void> => {
-    // Handled in backend
+  deleteTask: async (id: string): Promise<void> => {
+    await api.delete(`/tasks/${id}`);
   },
 
   // Activity Logs

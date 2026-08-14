@@ -40,8 +40,15 @@ export const Sidebar: React.FC = () => {
       bossOnly: true
     },
     {
-      id: 'employee_dashboard',
+      id: 'lawyer_workbench',
       label: 'Lawyer Workbench',
+      icon: Briefcase,
+      bossOnly: true,
+      badge: tasks.filter(t => t.status !== 'completed').length || undefined
+    },
+    {
+      id: 'employee_dashboard',
+      label: 'My Workbench',
       icon: Briefcase
     },
     {

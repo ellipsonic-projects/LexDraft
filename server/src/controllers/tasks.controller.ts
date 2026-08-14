@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { TaskStatus } from '@prisma/client';
-import { listTasks, getTask, createTask, updateTaskStatus } from '../services/tasks.service';
+import { listTasks, getTask, createTask, updateTaskStatus, deleteTask } from '../services/tasks.service';
 
 /**
  * GET /api/tasks
@@ -88,6 +88,27 @@ export const patchTaskStatus = async (
       req.user!.organizationId
     );
     res.status(200).json({ status: 'success', data: { task } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * DELETE /api/tasks/:id
+ * Hard deletes a task. Only BOSS role.
+ */
+export const deleteTaskController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const result = await deleteTask(
+      req.params.id,
+      req.user!.role,
+      req.user!.organizationId
+    );
+    res.status(200).json({ status: 'success', data: result });
   } catch (err) {
     next(err);
   }

@@ -199,3 +199,52 @@ export const updateTaskStatus = async (
 
   return updatedTask;
 };
+
+/**
+ * Hard deletes a task and its linked document (if any).
+ * Enforces:
+ *   - Only BOSS can delete tasks.
+ *   - Task must belong to the requesting user's organization.
+ */
+export const deleteTask = async (
+  taskId: string,
+  requestingUserRole: string,
+  organizationId: string
+) => {
+  if (requestingUserRole !== 'BOSS') {
+    throw new AppError('Access denied. Only Senior Partners can delete tasks.', 403);
+  }
+
+  const task = await findTaskById(taskId, organizationId);
+  if (!task) {
+    throw new AppError('Task not found.', 404);
+  }
+
+  // Delete the task. Prisma cascade rules will clean up ClientAgreementApprovals.
+  // If a document is linked, we unlink first (document stays in vault unless separately deleted).
+  await prisma.$transaction(async (tx) => {
+    // Soft unlink document before deleting task
+    await tx.workflowTask.update({
+      where: { id: taskId },
+      data: { documentId: null }
+    });
+
+    // Delete the task (cascades: ClientAgreementApproval)
+    await tx.workflowTask.delete({ where: { id: taskId } });
+
+    // Activity log
+    await tx.activityLog.create({
+      data: {
+        userId: task.assignedById,
+        action: 'Deleted Workflow Task',
+        entityType: 'task',
+        entityId: taskId,
+        entityName: task.title,
+        details: `Task "${task.title}" permanently deleted by Senior Partner.`,
+        organizationId
+      }
+    });
+  });
+
+  return { success: true };
+};

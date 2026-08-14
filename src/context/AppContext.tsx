@@ -24,6 +24,7 @@ import { api, setAccessToken } from '../services/api';
 export type NavTab =
   | 'boss_dashboard'
   | 'employee_dashboard'
+  | 'lawyer_workbench'
   | 'template_studio'
   | 'document_generator'
   | 'house_rental_wizard'
@@ -93,6 +94,7 @@ interface AppContextType {
   assignTask: (task: Omit<WorkflowTask, 'id' | 'createdAt' | 'updatedAt' | 'assignedById' | 'assignedByName' | 'status' | 'templateName' | 'assigneeName' | 'assigneeAvatar'>) => Promise<WorkflowTask | null>;
   updateTaskStatus: (taskId: string, status: TaskStatus) => Promise<void>;
   sendAgreementToClient: (taskId: string, documentId?: string) => Promise<void>;
+  deleteTask: (taskId: string) => Promise<void>;
   markDocumentDelivered: (documentId: string) => Promise<void>;
 
   // Notifications
@@ -696,6 +698,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const deleteTask = async (taskId: string) => {
+    try {
+      await dataRepository.deleteTask(taskId);
+      setTasks(prev => prev.filter(t => t.id !== taskId));
+      const fetchedLogs = await dataRepository.getActivityLogs();
+      setActivityLogs(fetchedLogs);
+      showToast('Task deleted successfully.', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to delete task.', 'error');
+    }
+  };
+
   const markDocumentDelivered = async (documentId: string) => {
     try {
       await api.post(`/documents/${documentId}/deliver`, {});
@@ -805,6 +819,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       assignTask,
       updateTaskStatus,
       sendAgreementToClient,
+      deleteTask,
       markDocumentDelivered,
       markNotificationRead,
       clearAllNotifications,

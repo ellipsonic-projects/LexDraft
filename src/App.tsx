@@ -12,6 +12,7 @@ import { DocumentGenerator } from './components/generation/DocumentGenerator';
 import { DocumentsList } from './components/documents/DocumentsList';
 import { LegalDocumentEditor } from './components/editor/LegalDocumentEditor';
 import { WorkflowKanban } from './components/workflow/WorkflowKanban';
+import { LawyerWorkbench } from './components/workflow/LawyerWorkbench';
 import { ActivityLogView } from './components/activity/ActivityLogView';
 import { AnalyticsView } from './components/analytics/AnalyticsView';
 import { SettingsView } from './components/settings/SettingsView';
@@ -27,6 +28,8 @@ const MainContent: React.FC = () => {
     switch (activeTab) {
       case 'boss_dashboard':
         return isBoss ? <BossDashboard /> : <EmployeeDashboard />;
+      case 'lawyer_workbench':
+        return isBoss ? <LawyerWorkbench /> : <EmployeeDashboard />;
       case 'employee_dashboard':
         return <EmployeeDashboard />;
       case 'template_studio':
