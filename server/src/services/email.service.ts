@@ -8,6 +8,19 @@ const RESEND_API_KEY = process.env.RESEND_API_KEY || '';
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev';
 const RESEND_FROM_NAME = process.env.RESEND_FROM_NAME || 'LexDraft Legal Workflow';
 
+/**
+ * RESEND_TEST_OVERRIDE_EMAIL:
+ * When set, ALL outgoing emails are redirected to this address regardless of the
+ * actual recipient. Required when using Resend's free sandbox plan, which only
+ * allows sending to the account owner's verified email.
+ *
+ * Set this to your verified email in .env (local) and as an env var in Render (production).
+ * Remove or leave blank once you've verified a custom domain in Resend.
+ *
+ * Example: RESEND_TEST_OVERRIDE_EMAIL=manishgowdat23@gmail.com
+ */
+const RESEND_TEST_OVERRIDE_EMAIL = process.env.RESEND_TEST_OVERRIDE_EMAIL || '';
+
 // Initialize Resend Client
 const resendClient = RESEND_API_KEY && RESEND_API_KEY !== 're_123456789_placeholder'
   ? new Resend(RESEND_API_KEY)
@@ -190,10 +203,24 @@ async function sendEmail(params: {
   }
 
   try {
+    // Apply sandbox override: redirect to verified email if set
+    const actualRecipient = RESEND_TEST_OVERRIDE_EMAIL
+      ? RESEND_TEST_OVERRIDE_EMAIL
+      : params.to;
+
+    // When overriding, prefix the subject so you can see who the email was "really" for
+    const actualSubject = RESEND_TEST_OVERRIDE_EMAIL && actualRecipient !== params.to
+      ? `[→ ${recipientStr}] ${params.subject}`
+      : params.subject;
+
+    if (RESEND_TEST_OVERRIDE_EMAIL) {
+      console.log(`[Email Override] Redirecting ${params.emailType} from "${recipientStr}" → "${RESEND_TEST_OVERRIDE_EMAIL}"`);
+    }
+
     const payload: any = {
       from: `${RESEND_FROM_NAME} <${RESEND_FROM_EMAIL}>`,
-      to: params.to,
-      subject: params.subject,
+      to: actualRecipient,
+      subject: actualSubject,
       html: params.html,
       text: params.text
     };
