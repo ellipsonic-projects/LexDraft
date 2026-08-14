@@ -73,6 +73,149 @@ function stripHtml(html: string): string {
 }
 
 /**
+ * Renders HTML text with <strong>/<b> tags inline in PDFKit.
+ */
+function renderRichText(doc: any, html: string, options: any = {}) {
+  const oldFont = doc._font ? doc._font.name : 'Times-Roman';
+  
+  // Clean all HTML tags EXCEPT <strong> and <b> to prevent spans leaking into text
+  let cleanHtml = html
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<br\s*[\/]?>/gi, '\n')
+    .replace(/<(?!strong|\/strong|b|\/b)[^>]+>/gi, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&ensp;/g, '  ')
+    .replace(/&emsp;/g, '   ')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .trim();
+
+  // Split content by strong/b tags
+  const parts = cleanHtml.split(/(<strong>.*?<\/strong>|<b>.*?<\/b>)/gi);
+  
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (!part) continue;
+    
+    const isBold = part.startsWith('<strong>') || part.startsWith('<b>');
+    const cleanPart = part.replace(/<\/?(strong|b)>/gi, '');
+    
+    doc.font(isBold ? 'Times-Bold' : 'Times-Roman');
+    
+    const isLast = i === parts.length - 1;
+    doc.text(cleanPart, {
+      ...options,
+      continued: !isLast
+    });
+  }
+  
+  doc.font(oldFont);
+}
+
+/**
+ * Renders side-by-side signature block for Parties.
+ */
+function renderSigRow(doc: any, col1Content: string, col2Content: string) {
+  const pRegex = /<p[^>]*>([\s\S]*?)<\/p>/gi;
+  
+  const p1: string[] = [];
+  let m1;
+  while ((m1 = pRegex.exec(col1Content)) !== null) {
+    p1.push(stripHtml(m1[1]));
+  }
+  
+  pRegex.lastIndex = 0;
+  const p2: string[] = [];
+  let m2;
+  while ((m2 = pRegex.exec(col2Content)) !== null) {
+    p2.push(stripHtml(m2[1]));
+  }
+
+  doc.moveDown(1.5);
+  const startY = doc.y;
+
+  // Draw signature lines (left & right)
+  doc.strokeColor('#000000').lineWidth(0.5);
+  doc.moveTo(54, startY + 25).lineTo(254, startY + 25).stroke();
+  doc.moveTo(341, startY + 25).lineTo(541, startY + 25).stroke();
+
+  // Left Column
+  doc.font('Times-Bold').fontSize(11);
+  if (p1[0]) {
+    doc.text(p1[0], 54, startY + 32, { width: 200 });
+  }
+  doc.font('Times-Roman');
+  if (p1[1]) {
+    doc.text(p1[1], 54, doc.y, { width: 200 });
+  }
+
+  // Right Column
+  doc.font('Times-Bold');
+  if (p2[0]) {
+    doc.text(p2[0], 341, startY + 32, { width: 200 });
+  }
+  doc.font('Times-Roman');
+  if (p2[1]) {
+    doc.text(p2[1], 341, doc.y, { width: 200 });
+  }
+
+  doc.y = Math.max(doc.y, startY + 70);
+  doc.moveDown(1);
+}
+
+/**
+ * Renders side-by-side witnesses block.
+ */
+function renderWitnessRow(doc: any, col1Content: string, col2Content: string) {
+  const pRegex = /<p[^>]*>([\s\S]*?)<\/p>/gi;
+  
+  const p1: string[] = [];
+  let m1;
+  while ((m1 = pRegex.exec(col1Content)) !== null) {
+    p1.push(stripHtml(m1[1]));
+  }
+  
+  pRegex.lastIndex = 0;
+  const p2: string[] = [];
+  let m2;
+  while ((m2 = pRegex.exec(col2Content)) !== null) {
+    p2.push(stripHtml(m2[1]));
+  }
+
+  doc.moveDown(1.5);
+  const startY = doc.y;
+
+  // Draw signature lines (left & right)
+  doc.strokeColor('#000000').lineWidth(0.5);
+  doc.moveTo(54, startY + 25).lineTo(254, startY + 25).stroke();
+  doc.moveTo(341, startY + 25).lineTo(541, startY + 25).stroke();
+
+  // Left Column
+  doc.fontSize(10).font('Times-Roman');
+  if (p1[0]) {
+    doc.text(p1[0], 54, startY + 32, { width: 200 });
+  }
+  if (p1[1]) {
+    doc.text(p1[1], 54, doc.y, { width: 200 });
+  }
+
+  // Right Column
+  if (p2[0]) {
+    doc.text(p2[0], 341, startY + 32, { width: 200 });
+  }
+  if (p2[1]) {
+    doc.text(p2[1], 341, doc.y, { width: 200 });
+  }
+
+  doc.y = Math.max(doc.y, startY + 70);
+  doc.moveDown(1);
+}
+
+/**
  * Builds a professionally formatted A4 legal agreement PDF Buffer directly from the persisted DocumentVersion content.
  * Reuses standard Indian legal formatting: A4 margins, Times-Roman typography, 1.5 line spacing, structured headings.
  */
@@ -98,56 +241,132 @@ export async function buildPdfBufferFromVersion(
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', (err: Error) => reject(err));
 
-      // Header Banner
-      doc
-        .font('Times-Bold')
-        .fontSize(16)
-        .text(title.toUpperCase(), { align: 'center' });
+      // Extract execution section first to isolate layout rendering
+      const execIdx = versionContent.indexOf('<div class="execution">');
+      let bodyContent = versionContent;
+      let executionContent = '';
+      if (execIdx !== -1) {
+        bodyContent = versionContent.substring(0, execIdx);
+        executionContent = versionContent.substring(execIdx);
+      }
+
+      // Parse body content by paragraph/div blocks OR loose sub-clause span pairs
+      const bodyRegex = /<(p|div)[^>]*(?:class="([^"]+)")?[^>]*>([\s\S]*?)<\/\1>|<span[^>]*class="scnum"[^>]*>([\s\S]*?)<\/span>\s*<span[^>]*class="scbody"[^>]*>([\s\S]*?)<\/span>/gi;
+      let match;
       
-      doc.moveDown(0.5);
-
-      doc
-        .font('Times-Italic')
-        .fontSize(10)
-        .fillColor('#475569')
-        .text('LexDraft Document Delivery • Executed Version Record', { align: 'center' });
-
-      doc.moveDown(1);
-      doc.strokeColor('#cbd5e1').lineWidth(0.75).moveTo(54, doc.y).lineTo(541, doc.y).stroke();
-      doc.moveDown(1.5);
-
-      // Body text parsed from versionContent
-      const plainContent = stripHtml(versionContent);
-      const paragraphs = plainContent.split(/\n\n+/);
-
       doc.fillColor('#0f172a').fontSize(11).font('Times-Roman');
 
-      for (const paragraph of paragraphs) {
-        const trimmed = paragraph.trim();
-        if (!trimmed) continue;
+      while ((match = bodyRegex.exec(bodyContent)) !== null) {
+        const className = match[2] || '';
+        const content = match[3] ? match[3].trim() : '';
+        const scnum = match[4];
+        const scbody = match[5];
 
-        // Check if paragraph is a clause title / heading
-        if (/^(ARTICLE|SECTION|\d+\.|\([a-z]\)|WHEREAS|IN WITNESS WHEREOF|SCHEDULE)/i.test(trimmed)) {
+        if (scnum && scbody) {
+          // Loose sub-clause span pair formatting
+          const scnumText = stripHtml(scnum).trim() + '  ';
+          doc.fontSize(11).font('Times-Bold').text('    ' + scnumText, { continued: true });
+          renderRichText(doc, scbody, { align: 'justify', lineGap: 4 });
           doc.moveDown(0.5);
-          doc.font('Times-Bold').text(trimmed, {
-            lineGap: 4,
-            align: 'justify'
-          });
-          doc.font('Times-Roman');
-        } else {
-          doc.text(trimmed, {
-            lineGap: 4,
-            align: 'justify',
-            indent: 12
-          });
+          continue;
         }
-        doc.moveDown(0.5);
+
+        if (!content) continue;
+
+        const isClause = className.includes('clause') || content.includes('class="cnum"');
+        const isSubClause = className.includes('sub-clause') || content.includes('class="scnum"');
+
+        if (className.includes('doc-title')) {
+          doc.moveDown(1);
+          doc.fontSize(15).font('Times-Bold').text(stripHtml(content), { align: 'center' });
+          doc.moveDown(1.5);
+        } else if (className.includes('party-name')) {
+          doc.fontSize(11).font('Times-Bold').text(stripHtml(content), { align: 'center' });
+        } else if (className.includes('party-role')) {
+          doc.fontSize(11).font('Times-Roman').text(stripHtml(content), { align: 'center' });
+          doc.moveDown(0.5);
+        } else if (className.includes('preamble-between')) {
+          doc.fontSize(11).font('Times-Bold').text(stripHtml(content), { align: 'center' });
+          doc.moveDown(0.5);
+        } else if (isClause) {
+          // Parse spans inside clause
+          const cnumMatch = content.match(/<span[^>]*class="cnum"[^>]*>([\s\S]*?)<\/span>/i);
+          const cbodyMatch = content.match(/<span[^>]*class="cbody"[^>]*>([\s\S]*?)<\/span>/i);
+          if (cnumMatch && cbodyMatch) {
+            const cnumText = stripHtml(cnumMatch[1]).trim() + '  ';
+            doc.fontSize(11).font('Times-Bold').text(cnumText, { continued: true });
+            renderRichText(doc, cbodyMatch[1], { align: 'justify', lineGap: 4 });
+          } else {
+            renderRichText(doc, content, { align: 'justify', lineGap: 4 });
+          }
+          doc.moveDown(0.5);
+        } else if (isSubClause) {
+          // Parse spans inside sub-clause
+          const scnumMatch = content.match(/<span[^>]*class="scnum"[^>]*>([\s\S]*?)<\/span>/i);
+          const scbodyMatch = content.match(/<span[^>]*class="scbody"[^>]*>([\s\S]*?)<\/span>/i);
+          if (scnumMatch && scbodyMatch) {
+            const scnumText = stripHtml(scnumMatch[1]).trim() + '  ';
+            doc.fontSize(11).font('Times-Bold').text('    ' + scnumText, { continued: true });
+            renderRichText(doc, scbodyMatch[1], { align: 'justify', lineGap: 4 });
+          } else {
+            renderRichText(doc, content, { align: 'justify', lineGap: 4 });
+          }
+          doc.moveDown(0.5);
+        } else {
+          // Generic paragraph or block
+          doc.fontSize(11);
+          renderRichText(doc, content, { align: 'justify', lineGap: 4 });
+          doc.moveDown(0.5);
+        }
+      }
+
+      // Render execution signature page elements if present
+      if (executionContent) {
+        // Preamble for execution
+        const headingMatch = executionContent.match(/<p class="exec-heading">([\s\S]*?)<\/p>/i);
+        if (headingMatch) {
+          doc.moveDown(1);
+          renderRichText(doc, headingMatch[1], { align: 'justify', lineGap: 4 });
+        }
+
+        // Find signature columns
+        const colRegex = /<div class="sig-col">([\s\S]*?)<\/div>/gi;
+        const cols: string[] = [];
+        let colMatch;
+        while ((colMatch = colRegex.exec(executionContent)) !== null) {
+          cols.push(colMatch[1]);
+        }
+
+        // Render Parties signatures row
+        if (cols[0] && cols[1]) {
+          renderSigRow(doc, cols[0], cols[1]);
+        } else if (cols[0]) {
+          renderSigRow(doc, cols[0], '');
+        }
+
+        // Render Witnesses title
+        const witnessLabelMatch = executionContent.match(/<p class="witness-label">([\s\S]*?)<\/p>/i);
+        if (witnessLabelMatch) {
+          doc.moveDown(1);
+          doc.fontSize(11).font('Times-Bold').text(stripHtml(witnessLabelMatch[1]));
+        }
+
+        // Render Witnesses signatures row
+        if (cols[2] && cols[3]) {
+          renderWitnessRow(doc, cols[2], cols[3]);
+        } else if (cols[2]) {
+          renderWitnessRow(doc, cols[2], '');
+        }
       }
 
       // Page numbers footer
       const range = doc.bufferedPageRange();
       for (let i = range.start; i < range.start + range.count; i++) {
         doc.switchToPage(i);
+        
+        const oldBottomMargin = doc.page.margins.bottom;
+        doc.page.margins.bottom = 0;
+        
         doc
           .font('Times-Roman')
           .fontSize(9)
@@ -155,9 +374,11 @@ export async function buildPdfBufferFromVersion(
           .text(
             `Page ${i + 1} of ${range.count}`,
             54,
-            792,
+            800,
             { align: 'center', width: 487 }
           );
+
+        doc.page.margins.bottom = oldBottomMargin;
       }
 
       doc.end();
@@ -382,29 +603,48 @@ Legal Workflow System`;
   const html = `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"/></head>
-<body style="margin: 0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #1e293b;">
-  <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 32px;">
-    <div style="border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 24px;">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+</head>
+<body style="margin: 0; padding: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #1e293b;">
+  <div style="max-width: 600px; width: 100%; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; box-sizing: border-box; overflow: hidden;">
+    <div style="border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 20px;">
       <span style="font-size: 16px; font-weight: 700; color: #0f172a; letter-spacing: 0.5px;">LEXDRAFT</span>
       <span style="font-size: 12px; color: #64748b; margin-left: 8px;">Legal Workflow System</span>
     </div>
     
-    <p style="font-size: 15px; line-height: 1.6; margin-bottom: 16px;">Dear <strong>${params.clientName}</strong>,</p>
-    <p style="font-size: 14px; line-height: 1.6; color: #334155; margin-bottom: 24px;">Your legal matter has been assigned through LexDraft.</p>
+    <p style="font-size: 15px; line-height: 1.5; margin-bottom: 16px;">Dear <strong>${params.clientName}</strong>,</p>
+    <p style="font-size: 14px; line-height: 1.5; color: #334155; margin-bottom: 20px;">Your legal matter has been assigned through LexDraft.</p>
     
-    <div style="background: #f1f5f9; border-left: 4px solid #0f172a; padding: 16px; margin-bottom: 24px; border-radius: 0 6px 6px 0;">
-      <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
-        <tr><td style="padding: 4px 0; color: #64748b; width: 140px;">Matter:</td><td style="font-weight: 600; color: #0f172a;">${params.matterTitle}</td></tr>
-        <tr><td style="padding: 4px 0; color: #64748b;">Assigned Lawyer:</td><td style="font-weight: 600; color: #0f172a;">${params.lawyerName}</td></tr>
-        <tr><td style="padding: 4px 0; color: #64748b;">Priority:</td><td style="font-weight: 600; color: #0f172a;">${params.priority.toUpperCase()}</td></tr>
-        <tr><td style="padding: 4px 0; color: #64748b;">Assigned Date:</td><td style="color: #334155;">${params.assignedDate}</td></tr>
-        <tr><td style="padding: 4px 0; color: #64748b;">Due Date:</td><td style="color: #334155;">${params.dueDate}</td></tr>
-        <tr><td style="padding: 4px 0; color: #64748b;">Current Status:</td><td style="font-weight: 700; color: #2563eb;">ASSIGNED</td></tr>
-      </table>
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #0f172a; padding: 16px; margin-bottom: 20px; border-radius: 8px; box-sizing: border-box;">
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Matter</div>
+        <div style="font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.4; word-break: break-word;">${params.matterTitle}</div>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Assigned Lawyer</div>
+        <div style="font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.4;">${params.lawyerName}</div>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Priority</div>
+        <div style="font-size: 13px; font-weight: 700; color: #b45309; line-height: 1.4;">${params.priority.toUpperCase()}</div>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Assigned Date</div>
+        <div style="font-size: 13px; color: #334155; line-height: 1.4;">${params.assignedDate}</div>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Due Date</div>
+        <div style="font-size: 13px; color: #334155; line-height: 1.4;">${params.dueDate}</div>
+      </div>
+      <div>
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Current Status</div>
+        <div style="font-size: 13px; font-weight: 700; color: #2563eb; line-height: 1.4;">ASSIGNED</div>
+      </div>
     </div>
 
-    <p style="font-size: 13px; line-height: 1.6; color: #475569; margin-bottom: 28px;">
+    <p style="font-size: 13px; line-height: 1.5; color: #475569; margin-bottom: 24px;">
       Your assigned lawyer will work on the matter and you will receive updates as it progresses.
     </p>
 
@@ -458,24 +698,37 @@ Legal Workflow System`;
   const html = `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"/></head>
-<body style="margin: 0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #1e293b;">
-  <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 32px;">
-    <div style="border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 24px;">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+</head>
+<body style="margin: 0; padding: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #1e293b;">
+  <div style="max-width: 600px; width: 100%; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; box-sizing: border-box; overflow: hidden;">
+    <div style="border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 20px;">
       <span style="font-size: 16px; font-weight: 700; color: #0f172a; letter-spacing: 0.5px;">LEXDRAFT</span>
       <span style="font-size: 12px; color: #64748b; margin-left: 8px;">Legal Workflow System</span>
     </div>
     
-    <p style="font-size: 15px; line-height: 1.6; margin-bottom: 16px;">Dear <strong>${params.clientName}</strong>,</p>
-    <p style="font-size: 14px; line-height: 1.6; color: #334155; margin-bottom: 24px;">Your <strong>${params.matterTitle}</strong> matter is now in progress.</p>
+    <p style="font-size: 15px; line-height: 1.5; margin-bottom: 16px;">Dear <strong>${params.clientName}</strong>,</p>
+    <p style="font-size: 14px; line-height: 1.5; color: #334155; margin-bottom: 20px;">Your <strong>${params.matterTitle}</strong> matter is now in progress.</p>
     
-    <div style="background: #f1f5f9; border-left: 4px solid #3b82f6; padding: 16px; margin-bottom: 24px; border-radius: 0 6px 6px 0;">
-      <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
-        <tr><td style="padding: 4px 0; color: #64748b; width: 140px;">Matter:</td><td style="font-weight: 600; color: #0f172a;">${params.matterTitle}</td></tr>
-        <tr><td style="padding: 4px 0; color: #64748b;">Assigned Lawyer:</td><td style="font-weight: 600; color: #0f172a;">${params.lawyerName}</td></tr>
-        <tr><td style="padding: 4px 0; color: #64748b;">Status:</td><td style="font-weight: 700; color: #2563eb;">IN PROGRESS</td></tr>
-        <tr><td style="padding: 4px 0; color: #64748b;">Due Date:</td><td style="color: #334155;">${params.dueDate}</td></tr>
-      </table>
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-left: 4px solid #3b82f6; padding: 16px; margin-bottom: 20px; border-radius: 8px; box-sizing: border-box;">
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Matter</div>
+        <div style="font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.4; word-break: break-word;">${params.matterTitle}</div>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Assigned Lawyer</div>
+        <div style="font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.4;">${params.lawyerName}</div>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Status</div>
+        <div style="font-size: 13px; font-weight: 700; color: #2563eb; line-height: 1.4;">IN PROGRESS</div>
+      </div>
+      <div>
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Due Date</div>
+        <div style="font-size: 13px; color: #334155; line-height: 1.4;">${params.dueDate}</div>
+      </div>
     </div>
 
     <div style="border-top: 1px solid #e2e8f0; padding-top: 16px; font-size: 12px; color: #64748b;">
@@ -544,40 +797,57 @@ ${pdfFilename}`;
   const html = `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"/></head>
-<body style="margin: 0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #1e293b;">
-  <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 32px;">
-    <div style="border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 24px;">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+</head>
+<body style="margin: 0; padding: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #1e293b;">
+  <div style="max-width: 600px; width: 100%; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; box-sizing: border-box; overflow: hidden;">
+    <div style="border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 20px;">
       <span style="font-size: 16px; font-weight: 700; color: #0f172a; letter-spacing: 0.5px;">LEXDRAFT</span>
       <span style="font-size: 12px; color: #64748b; margin-left: 8px;">Legal Workflow System</span>
     </div>
     
-    <p style="font-size: 15px; line-height: 1.6; margin-bottom: 16px;">Dear <strong>${params.clientName}</strong>,</p>
-    <p style="font-size: 14px; line-height: 1.6; color: #334155; margin-bottom: 20px;">
+    <p style="font-size: 15px; line-height: 1.5; margin-bottom: 16px;">Dear <strong>${params.clientName}</strong>,</p>
+    <p style="font-size: 14px; line-height: 1.5; color: #334155; margin-bottom: 20px;">
       Your <strong>${params.matterTitle}</strong> is ready for your review.
     </p>
     
-    <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; margin-bottom: 24px; border-radius: 6px;">
-      <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
-        <tr><td style="padding: 4px 0; color: #64748b; width: 120px;">Matter:</td><td style="font-weight: 600; color: #0f172a;">${params.matterTitle}</td></tr>
-        <tr><td style="padding: 4px 0; color: #64748b;">Lawyer:</td><td style="font-weight: 600; color: #0f172a;">${params.lawyerName}</td></tr>
-        <tr><td style="padding: 4px 0; color: #64748b;">Version:</td><td style="color: #334155;">v${params.versionNumber}</td></tr>
-        <tr><td style="padding: 4px 0; color: #64748b;">Attachment:</td><td style="color: #0f172a; font-weight: 600;">📎 ${pdfFilename}</td></tr>
-      </table>
+    <div style="background: #f8fafc; border: 1px solid #e2e8f0; padding: 16px; margin-bottom: 20px; border-radius: 8px; box-sizing: border-box;">
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Matter</div>
+        <div style="font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.4; word-break: break-word;">${params.matterTitle}</div>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Lawyer</div>
+        <div style="font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.4;">${params.lawyerName}</div>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Version</div>
+        <div style="font-size: 13px; color: #334155; line-height: 1.4;">v${params.versionNumber}</div>
+      </div>
+      <div>
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Attachment</div>
+        <div style="font-size: 13px; color: #059669; font-weight: 600; line-height: 1.4; word-break: break-all;">📎 ${pdfFilename}</div>
+      </div>
     </div>
 
-    <p style="font-size: 13px; line-height: 1.6; color: #475569; margin-bottom: 24px;">
+    <p style="font-size: 13px; line-height: 1.5; color: #475569; margin-bottom: 20px;">
       The complete agreement is attached to this email as a PDF. Please review the attached document and click your decision below:
     </p>
 
     <!-- Action Buttons (Scanner-Safe Review Links) -->
-    <div style="margin: 28px 0; text-align: center;">
-      <a href="${params.approveUrl}" style="display: inline-block; padding: 12px 28px; background-color: #059669; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 14px; border-radius: 6px; margin-right: 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-        Approve Agreement
-      </a>
-      <a href="${params.rejectUrl}" style="display: inline-block; padding: 12px 28px; background-color: #dc2626; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 14px; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-        Reject Agreement
-      </a>
+    <div style="margin: 20px 0; text-align: center; font-size: 0;">
+      <div style="display: inline-block; margin: 6px; vertical-align: middle;">
+        <a href="${params.approveUrl}" style="display: inline-block; padding: 12px 28px; background-color: #059669; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 14px; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); min-width: 160px; text-align: center; box-sizing: border-box;">
+          Approve Agreement
+        </a>
+      </div>
+      <div style="display: inline-block; margin: 6px; vertical-align: middle;">
+        <a href="${params.rejectUrl}" style="display: inline-block; padding: 12px 28px; background-color: #dc2626; color: #ffffff; text-decoration: none; font-weight: 600; font-size: 14px; border-radius: 6px; box-shadow: 0 1px 2px rgba(0,0,0,0.05); min-width: 160px; text-align: center; box-sizing: border-box;">
+          Reject Agreement
+        </a>
+      </div>
     </div>
 
     <p style="font-size: 11px; line-height: 1.5; color: #94a3b8; text-align: center; margin-top: 20px;">
@@ -650,29 +920,45 @@ LexDraft Legal Workflow System`;
   const html = `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"/></head>
-<body style="margin: 0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #1e293b;">
-  <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 32px;">
-    <div style="border-bottom: 2px solid #059669; padding-bottom: 12px; margin-bottom: 24px;">
-      <span style="font-size: 16px; font-weight: 700; color: #059669;">CLIENT DECISION RECORDED</span>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+</head>
+<body style="margin: 0; padding: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #1e293b;">
+  <div style="max-width: 600px; width: 100%; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; box-sizing: border-box; overflow: hidden;">
+    <div style="border-bottom: 2px solid #059669; padding-bottom: 12px; margin-bottom: 20px;">
+      <span style="font-size: 16px; font-weight: 700; color: #059669; letter-spacing: 0.5px;">CLIENT DECISION RECORDED</span>
       <span style="font-size: 12px; color: #64748b; margin-left: 8px;">LexDraft Workflow</span>
     </div>
     
-    <p style="font-size: 15px; line-height: 1.6; margin-bottom: 16px;">
+    <p style="font-size: 15px; line-height: 1.5; margin-bottom: 16px;">
       Client <strong>${params.clientName}</strong> has <strong>APPROVED</strong> the agreement.
     </p>
     
-    <div style="background: #f0fdf4; border-left: 4px solid #059669; padding: 16px; margin-bottom: 24px; border-radius: 0 6px 6px 0;">
-      <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
-        <tr><td style="padding: 4px 0; color: #64748b; width: 140px;">Client:</td><td style="font-weight: 600; color: #0f172a;">${params.clientName}</td></tr>
-        <tr><td style="padding: 4px 0; color: #64748b;">Agreement:</td><td style="font-weight: 600; color: #0f172a;">${params.matterTitle} (v${params.versionNumber})</td></tr>
-        <tr><td style="padding: 4px 0; color: #64748b;">Lawyer:</td><td style="color: #0f172a;">${params.lawyerName}</td></tr>
-        <tr><td style="padding: 4px 0; color: #64748b;">Status:</td><td style="font-weight: 700; color: #059669;">CLIENT APPROVED</td></tr>
-        <tr><td style="padding: 4px 0; color: #64748b;">Approved At:</td><td style="color: #334155;">${params.approvedAt}</td></tr>
-      </table>
+    <div style="background: #f0fdf4; border: 1px solid #d1fae5; border-left: 4px solid #059669; padding: 16px; margin-bottom: 20px; border-radius: 8px; box-sizing: border-box;">
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Client</div>
+        <div style="font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.4;">${params.clientName}</div>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Agreement</div>
+        <div style="font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.4; word-break: break-word;">${params.matterTitle} (v${params.versionNumber})</div>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Lawyer</div>
+        <div style="font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.4;">${params.lawyerName}</div>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Status</div>
+        <div style="font-size: 13px; font-weight: 700; color: #059669; line-height: 1.4;">CLIENT APPROVED</div>
+      </div>
+      <div>
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Approved At</div>
+        <div style="font-size: 13px; color: #334155; line-height: 1.4;">${params.approvedAt}</div>
+      </div>
     </div>
 
-    <p style="font-size: 13px; line-height: 1.6; color: #475569; margin-bottom: 20px;">
+    <p style="font-size: 13px; line-height: 1.5; color: #475569; margin-bottom: 20px;">
       The legal matter is currently in <strong>UNDER REVIEW</strong> status awaiting Senior Partner final review.
     </p>
 
@@ -737,30 +1023,49 @@ LexDraft Legal Workflow System`;
   const html = `
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"/></head>
-<body style="margin: 0; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #1e293b;">
-  <div style="max-width: 580px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 32px;">
-    <div style="border-bottom: 2px solid #dc2626; padding-bottom: 12px; margin-bottom: 24px;">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+</head>
+<body style="margin: 0; padding: 12px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #1e293b;">
+  <div style="max-width: 600px; width: 100%; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 24px; box-sizing: border-box; overflow: hidden;">
+    <div style="border-bottom: 2px solid #dc2626; padding-bottom: 12px; margin-bottom: 20px;">
       <span style="font-size: 16px; font-weight: 700; color: #dc2626;">CLIENT DECISION RECORDED</span>
       <span style="font-size: 12px; color: #64748b; margin-left: 8px;">LexDraft Workflow</span>
     </div>
     
-    <p style="font-size: 15px; line-height: 1.6; margin-bottom: 16px;">
+    <p style="font-size: 15px; line-height: 1.5; margin-bottom: 16px;">
       Client <strong>${params.clientName}</strong> has <strong>REJECTED</strong> agreement version v${params.versionNumber}.
     </p>
     
-    <div style="background: #fef2f2; border-left: 4px solid #dc2626; padding: 16px; margin-bottom: 24px; border-radius: 0 6px 6px 0;">
-      <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
-        <tr><td style="padding: 4px 0; color: #64748b; width: 140px;">Client:</td><td style="font-weight: 600; color: #0f172a;">${params.clientName}</td></tr>
-        <tr><td style="padding: 4px 0; color: #64748b;">Agreement:</td><td style="font-weight: 600; color: #0f172a;">${params.matterTitle} (v${params.versionNumber})</td></tr>
-        <tr><td style="padding: 4px 0; color: #64748b;">Lawyer:</td><td style="color: #0f172a;">${params.lawyerName}</td></tr>
-        <tr><td style="padding: 4px 0; color: #64748b;">Status:</td><td style="font-weight: 700; color: #dc2626;">CLIENT REJECTED</td></tr>
-        <tr><td style="padding: 4px 0; color: #64748b;">Rejected At:</td><td style="color: #334155;">${params.rejectedAt}</td></tr>
-        ${params.rejectionReason ? `<tr><td style="padding: 4px 0; color: #64748b;">Reason:</td><td style="color: #334155;">${params.rejectionReason}</td></tr>` : ''}
-      </table>
+    <div style="background: #fef2f2; border: 1px solid #fee2e2; border-left: 4px solid #dc2626; padding: 16px; margin-bottom: 20px; border-radius: 8px; box-sizing: border-box;">
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Client</div>
+        <div style="font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.4;">${params.clientName}</div>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Agreement</div>
+        <div style="font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.4; word-break: break-word;">${params.matterTitle} (v${params.versionNumber})</div>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Lawyer</div>
+        <div style="font-size: 14px; font-weight: 600; color: #0f172a; line-height: 1.4;">${params.lawyerName}</div>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Status</div>
+        <div style="font-size: 13px; font-weight: 700; color: #dc2626; line-height: 1.4;">CLIENT REJECTED</div>
+      </div>
+      <div style="margin-bottom: 12px;">
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Rejected At</div>
+        <div style="font-size: 13px; color: #334155; line-height: 1.4;">${params.rejectedAt}</div>
+      </div>
+      ${params.rejectionReason ? `<div>
+        <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #64748b; font-weight: 700; margin-bottom: 2px;">Reason</div>
+        <div style="font-size: 13px; color: #dc2626; line-height: 1.4; word-break: break-word; font-style: italic;">${params.rejectionReason}</div>
+      </div>` : ''}
     </div>
 
-    <p style="font-size: 13px; line-height: 1.6; color: #475569; margin-bottom: 20px;">
+    <p style="font-size: 13px; line-height: 1.5; color: #475569; margin-bottom: 20px;">
       The lawyer may modify the agreement to create <strong>v${params.versionNumber + 1}</strong>. The rejected version v${params.versionNumber} remains preserved.
     </p>
 
