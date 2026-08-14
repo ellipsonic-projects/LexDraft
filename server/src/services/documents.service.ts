@@ -1,5 +1,4 @@
 import { DocumentStatus, TaskPriority } from '@prisma/client';
-import crypto from 'crypto';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middlewares/errorHandler';
 import { getExpiryStatus } from '../utils/expiry';
@@ -290,59 +289,6 @@ export const restoreVersion = async (
 };
 
 // ─── Phase 7 Service Operations ───────────────────────────────────────────────
-
-/**
- * Returns cryptographic verification and PDF download metadata for a sealed document.
- * Enforces IDOR for EMPLOYEE.
- */
-export const getDocumentPdf = async (
-  documentId: string,
-  userId: string,
-  role: string,
-  organizationId: string
-) => {
-  const doc = await prisma.legalDocument.findFirst({
-    where: { id: documentId, organizationId },
-    include: {
-      author: { select: { id: true, name: true } },
-      client: { select: { id: true, name: true } },
-      template: { select: { id: true, name: true, version: true } }
-    }
-  });
-  if (!doc) {
-    throw new AppError('Document not found.', 404);
-  }
-
-  // IDOR check
-  if (role === 'EMPLOYEE' && doc.authorId !== userId) {
-    throw new AppError('Access denied. You can only view PDF export metadata for documents you authored.', 403);
-  }
-
-  const isSealed = doc.lockedAt !== null || doc.status === DocumentStatus.approved;
-
-  // Generate SHA-256 fingerprint of the document content + lockedAt for tamper verification
-  const fingerprintSource = `${doc.content}_${doc.lockedAt?.toISOString() || doc.updatedAt.toISOString()}`;
-  const sha256Fingerprint = crypto.createHash('sha256').update(fingerprintSource).digest('hex');
-
-  const cleanTitle = doc.title.replace(/[^a-zA-Z0-9_-]/g, '_');
-
-  return {
-    documentId: doc.id,
-    title: doc.title,
-    fileName: `${cleanTitle}_v${doc.currentVersion}_${isSealed ? 'Sealed' : 'Draft'}.pdf`,
-    downloadUrl: doc.pdfExportUrl || `/exports/doc_${doc.id}_sealed.pdf`,
-    status: doc.status,
-    isSealed,
-    lockedAt: doc.lockedAt,
-    expiryDate: doc.expiryDate,
-    currentVersion: doc.currentVersion,
-    templateVersion: doc.templateVersionAtGeneration,
-    sha256Fingerprint,
-    authorName: doc.author.name,
-    clientName: doc.client.name,
-    generatedAt: new Date().toISOString()
-  };
-};
 
 /**
  * Partner marks document as delivered to client.

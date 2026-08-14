@@ -8,6 +8,8 @@ import {
   restoreVersion
 } from '../services/documents.service';
 import { AppError } from '../middlewares/errorHandler';
+import { prisma } from '../lib/prisma';
+import { generatePdfFromHtml } from '../services/pdf.service';
 
 /**
  * GET /api/documents
@@ -150,14 +152,39 @@ export const getDocumentPdf = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const pdfMetadata = await (await import('../services/documents.service')).getDocumentPdf(
-      req.params.id,
-      req.user!.userId,
-      req.user!.role,
-      req.user!.organizationId
-    );
+    const documentId = req.params.id;
+    const { organizationId, userId, role } = req.user!;
 
-    res.status(200).json({ status: 'success', data: pdfMetadata });
+    // 1. Fetch document and check access bounds
+    const doc = await prisma.legalDocument.findFirst({
+      where: { id: documentId, organizationId },
+      include: {
+        versions: { orderBy: { versionNumber: 'desc' }, take: 1 }
+      }
+    });
+
+    if (!doc) {
+      throw new AppError('Document not found.', 404);
+    }
+
+    if (role === 'EMPLOYEE' && doc.authorId !== userId) {
+      throw new AppError('Access denied. You can only view documents you authored.', 403);
+    }
+
+    // 2. Select HTML content (latest version content if available, fallback to current content)
+    const htmlContent = doc.versions[0]?.content || doc.content;
+
+    // 3. Generate PDF buffer using Puppeteer shared service
+    const pdfBuffer = await generatePdfFromHtml(htmlContent);
+
+    // 4. Return as A4 PDF attachment download
+    const cleanTitle = doc.title.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const isSealed = doc.lockedAt !== null || doc.status === DocumentStatus.approved;
+    const fileName = `${cleanTitle}_v${doc.currentVersion}_${isSealed ? 'Sealed' : 'Draft'}.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.status(200).send(pdfBuffer);
   } catch (err) {
     next(err);
   }
