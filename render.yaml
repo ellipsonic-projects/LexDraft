@@ -4,7 +4,7 @@ services:
     name: lexdraft-backend
     runtime: node
     rootDir: server
-    buildCommand: npm install && npx prisma generate && npm run build
+    buildCommand: npm install && npx puppeteer browsers install chrome && npx prisma generate && npm run build
     startCommand: npx prisma migrate deploy && npm start
     envVars:
       - key: NODE_ENV
