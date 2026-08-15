@@ -270,13 +270,16 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
   let lastPos = { x: 0, y: 0 };
   let hasStrokes = false;
 
-  function setupContext() {
+  function initCanvas() {
+    if (!canvas) return;
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.strokeStyle = '#0f172a';
     ctx.lineWidth = 3;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
   }
-  setupContext();
+  initCanvas();
 
   function getCanvasPos(e) {
     const rect = canvas.getBoundingClientRect();
@@ -289,21 +292,19 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
   }
 
   function startDrawing(e) {
-    if (e.target !== canvas) return;
-    if (e.cancelable) e.preventDefault();
     isDrawing = true;
-    setupContext();
     lastPos = getCanvasPos(e);
   }
 
   function draw(e) {
     if (!isDrawing) return;
-    if (e.cancelable) e.preventDefault();
     const currentPos = getCanvasPos(e);
+
     ctx.beginPath();
     ctx.moveTo(lastPos.x, lastPos.y);
     ctx.lineTo(currentPos.x, currentPos.y);
     ctx.stroke();
+
     lastPos = currentPos;
 
     if (!hasStrokes) {
@@ -311,8 +312,6 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
       const hint = document.getElementById('canvas-hint');
       if (hint) { hint.textContent = '✓ Signature recorded'; hint.style.color = '#16a34a'; }
     }
-    signatureData = canvas.toDataURL('image/png');
-    updateSignBtn();
   }
 
   function stopDrawing() {
@@ -325,16 +324,16 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
     }
   }
 
-  canvas.addEventListener('mousedown', startDrawing);
-  window.addEventListener('mousemove', draw);
-  window.addEventListener('mouseup', stopDrawing);
+  canvas.addEventListener('mousedown', (e) => { startDrawing(e); });
+  canvas.addEventListener('mousemove', (e) => { draw(e); });
+  window.addEventListener('mouseup', () => { stopDrawing(); });
 
-  canvas.addEventListener('touchstart', startDrawing, { passive: false });
-  window.addEventListener('touchmove', draw, { passive: false });
-  window.addEventListener('touchend', stopDrawing);
+  canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e); }, { passive: false });
+  canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); }, { passive: false });
+  window.addEventListener('touchend', () => { stopDrawing(); });
 
   function clearCanvas() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    initCanvas();
     hasStrokes = false;
     signatureData = null;
     const hint = document.getElementById('canvas-hint');
