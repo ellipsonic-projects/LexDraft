@@ -11,22 +11,19 @@ import {
 
 const router = Router();
 
-// All routes require a valid access token
-router.use(authenticate);
-
 // ─── Clients ──────────────────────────────────────────────────────────────────
 
 /**
  * GET /api/clients
  * Both roles can list clients.
  */
-router.get('/clients', getClients);
+router.get('/clients', authenticate, getClients);
 
 /**
  * POST /api/clients
  * Only BOSS (Senior Partner) can create clients.
  */
-router.post('/clients', authorize('BOSS'), validate(createClientSchema), postClient);
+router.post('/clients', authenticate, authorize('BOSS'), validate(createClientSchema), postClient);
 
 // ─── Matters ──────────────────────────────────────────────────────────────────
 
@@ -34,12 +31,12 @@ router.post('/clients', authorize('BOSS'), validate(createClientSchema), postCli
  * GET /api/matters
  * Both roles can list matters. Optional ?clientId= query filter.
  */
-router.get('/matters', getMatters);
+router.get('/matters', authenticate, getMatters);
 
 /**
  * POST /api/matters
  * Only BOSS can create matters.
  */
-router.post('/matters', authorize('BOSS'), validate(createMatterSchema), postMatter);
+router.post('/matters', authenticate, authorize('BOSS'), validate(createMatterSchema), postMatter);
 
 export default router;

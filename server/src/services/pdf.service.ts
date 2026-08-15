@@ -325,15 +325,39 @@ export function compileHtml(content: string): string {
   return wrapDocument(content);
 }
 
+async function getExecutablePath(): Promise<string | undefined> {
+  if (process.env.CHROMIUM_PATH) return process.env.CHROMIUM_PATH;
+  if (process.platform === 'win32') {
+    const fs = require('fs');
+    const possiblePaths = [
+      'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+      'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+      'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe'
+    ];
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) return p;
+    }
+  }
+  try {
+    return await chromium.executablePath();
+  } catch (err) {
+    console.warn('Chromium executablePath failed:', err);
+    return undefined;
+  }
+}
+
 /**
  * Compiles document content to PDF using headless Chrome/Chromium printing.
- * Uses @sparticuz/chromium which bundles a statically-linked Chromium binary
- * inside node_modules — no separate browser download required on Render.
+ * Uses @sparticuz/chromium on Render Linux and auto-discovers local Chrome/Edge on Windows dev.
  */
 export async function generatePdfFromHtml(htmlContent: string): Promise<Buffer> {
+  const execPath = await getExecutablePath();
   const browser = await puppeteerCore.launch({
-    args: chromium.args,
-    executablePath: await chromium.executablePath(),
+    args: process.platform === 'win32'
+      ? ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+      : chromium.args,
+    executablePath: execPath,
     headless: true as any
   });
   try {
