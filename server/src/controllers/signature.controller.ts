@@ -263,7 +263,7 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
   const API = ${JSON.stringify((req.protocol + '://' + req.get('host') + '/api'))};
   let signatureData = null;
 
-  // ─── Live Canvas Drawing (Pointer Events API) ─────────────────────────────
+  // ─── Live Canvas Drawing ──────────────────────────────────────────────────
   const canvas = document.getElementById('sig-canvas');
   let ctx = null;
   let isDrawing = false;
@@ -272,53 +272,54 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
   let hasStrokes = false;
 
   function setupCanvas() {
-    // Match canvas buffer exactly to its CSS display size — eliminates all scaling
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = Math.round(rect.width) || 600;
-    canvas.height = Math.round(rect.height) || 180;
+    const w = canvas.offsetWidth;
+    const h = canvas.offsetHeight;
+    if (!w || !h) return; // not laid out yet, skip
+    canvas.width = w;
+    canvas.height = h;
     ctx = canvas.getContext('2d');
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.strokeStyle = '#0f172a';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#1e293b';
     ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
   }
 
-  // Run after layout is complete
-  window.addEventListener('load', setupCanvas);
-  setTimeout(setupCanvas, 50);
+  // Setup immediately via rAF so layout is guaranteed complete
+  requestAnimationFrame(function() {
+    setupCanvas();
+    // Belt-and-suspenders: try again shortly in case first rAF was too early
+    setTimeout(setupCanvas, 100);
+  });
 
   canvas.addEventListener('pointerdown', function(e) {
     e.preventDefault();
-    if (!ctx) setupCanvas();
+    if (!ctx || !canvas.width) setupCanvas();
+    if (!ctx) return;
     canvas.setPointerCapture(e.pointerId);
     isDrawing = true;
-    const rect = canvas.getBoundingClientRect();
-    lastX = e.clientX - rect.left;
-    lastY = e.clientY - rect.top;
+    // offsetX/offsetY are natively relative to the canvas — no math needed
+    lastX = e.offsetX;
+    lastY = e.offsetY;
   });
 
   canvas.addEventListener('pointermove', function(e) {
     if (!isDrawing || !ctx) return;
-    e.preventDefault();
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
     ctx.beginPath();
     ctx.moveTo(lastX, lastY);
-    ctx.lineTo(x, y);
+    ctx.lineTo(e.offsetX, e.offsetY);
     ctx.stroke();
-    lastX = x;
-    lastY = y;
+    lastX = e.offsetX;
+    lastY = e.offsetY;
     if (!hasStrokes) {
       hasStrokes = true;
       const hint = document.getElementById('canvas-hint');
-      if (hint) { hint.textContent = '✓ Signature recorded'; hint.style.color = '#16a34a'; }
+      if (hint) { hint.textContent = '✓ Signature recorded'; hint.style.color = '#16a34a'; hint.style.fontWeight = '600'; }
     }
   });
 
-  canvas.addEventListener('pointerup', function(e) {
+  canvas.addEventListener('pointerup', function() {
     if (!isDrawing) return;
     isDrawing = false;
     if (hasStrokes && ctx) {
@@ -334,16 +335,12 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
   function clearCanvas() {
     hasStrokes = false;
     signatureData = null;
-    if (ctx) {
+    if (ctx && canvas.width) {
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.strokeStyle = '#0f172a';
-      ctx.lineWidth = 2.5;
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
     }
     const hint = document.getElementById('canvas-hint');
-    if (hint) { hint.textContent = 'Draw your signature above'; hint.style.color = '#64748b'; }
+    if (hint) { hint.textContent = 'Draw your signature above'; hint.style.color = '#64748b'; hint.style.fontWeight = '500'; }
     updateSignBtn();
   }
 
