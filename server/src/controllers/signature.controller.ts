@@ -218,7 +218,7 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
       <p style="margin:0 0 16px;font-size:13px;color:#64748b;">Please draw your signature inside the box below using your mouse or touchscreen.</p>
 
       <div style="border:2px solid #cbd5e1;border-radius:12px;overflow:hidden;background:#ffffff;box-shadow:inset 0 2px 4px rgba(0,0,0,0.02);">
-        <canvas id="sig-canvas" width="600" height="180" style="display:block;width:100%;height:180px;touch-action:none;cursor:crosshair;background:#ffffff;"></canvas>
+        <canvas id="sig-canvas" style="display:block;width:100%;height:180px;touch-action:none;cursor:crosshair;"></canvas>
       </div>
 
       <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;">
@@ -263,79 +263,85 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
   const API = ${JSON.stringify((req.protocol + '://' + req.get('host') + '/api'))};
   let signatureData = null;
 
-  // ─── Live Canvas Drawing ──────────────────────────────────────────────────
+  // ─── Live Canvas Drawing (Pointer Events API) ─────────────────────────────
   const canvas = document.getElementById('sig-canvas');
-  const ctx = canvas.getContext('2d');
+  let ctx = null;
   let isDrawing = false;
-  let lastPos = { x: 0, y: 0 };
+  let lastX = 0;
+  let lastY = 0;
   let hasStrokes = false;
 
-  function initCanvas() {
-    if (!canvas) return;
+  function setupCanvas() {
+    // Match canvas buffer exactly to its CSS display size — eliminates all scaling
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.round(rect.width) || 600;
+    canvas.height = Math.round(rect.height) || 180;
+    ctx = canvas.getContext('2d');
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
   }
-  initCanvas();
 
-  function getCanvasPos(e) {
-    const rect = canvas.getBoundingClientRect();
-    const clientX = (e.touches && e.touches[0]) ? e.touches[0].clientX : e.clientX;
-    const clientY = (e.touches && e.touches[0]) ? e.touches[0].clientY : e.clientY;
-    return {
-      x: (clientX - rect.left) * (canvas.width / rect.width),
-      y: (clientY - rect.top) * (canvas.height / rect.height)
-    };
-  }
+  // Run after layout is complete
+  window.addEventListener('load', setupCanvas);
+  setTimeout(setupCanvas, 50);
 
-  function startDrawing(e) {
+  canvas.addEventListener('pointerdown', function(e) {
+    e.preventDefault();
+    if (!ctx) setupCanvas();
+    canvas.setPointerCapture(e.pointerId);
     isDrawing = true;
-    lastPos = getCanvasPos(e);
-  }
+    const rect = canvas.getBoundingClientRect();
+    lastX = e.clientX - rect.left;
+    lastY = e.clientY - rect.top;
+  });
 
-  function draw(e) {
-    if (!isDrawing) return;
-    const currentPos = getCanvasPos(e);
-
+  canvas.addEventListener('pointermove', function(e) {
+    if (!isDrawing || !ctx) return;
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
     ctx.beginPath();
-    ctx.moveTo(lastPos.x, lastPos.y);
-    ctx.lineTo(currentPos.x, currentPos.y);
+    ctx.moveTo(lastX, lastY);
+    ctx.lineTo(x, y);
     ctx.stroke();
-
-    lastPos = currentPos;
-
+    lastX = x;
+    lastY = y;
     if (!hasStrokes) {
       hasStrokes = true;
       const hint = document.getElementById('canvas-hint');
       if (hint) { hint.textContent = '✓ Signature recorded'; hint.style.color = '#16a34a'; }
     }
-  }
+  });
 
-  function stopDrawing() {
-    if (isDrawing) {
-      isDrawing = false;
-      if (hasStrokes) {
-        signatureData = canvas.toDataURL('image/png');
-        updateSignBtn();
-      }
+  canvas.addEventListener('pointerup', function(e) {
+    if (!isDrawing) return;
+    isDrawing = false;
+    if (hasStrokes && ctx) {
+      signatureData = canvas.toDataURL('image/png');
+      updateSignBtn();
     }
-  }
+  });
 
-  canvas.addEventListener('mousedown', (e) => { startDrawing(e); });
-  canvas.addEventListener('mousemove', (e) => { draw(e); });
-  window.addEventListener('mouseup', () => { stopDrawing(); });
-
-  canvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e); }, { passive: false });
-  canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); }, { passive: false });
-  window.addEventListener('touchend', () => { stopDrawing(); });
+  canvas.addEventListener('pointercancel', function() {
+    isDrawing = false;
+  });
 
   function clearCanvas() {
-    initCanvas();
     hasStrokes = false;
     signatureData = null;
+    if (ctx) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+    }
     const hint = document.getElementById('canvas-hint');
     if (hint) { hint.textContent = 'Draw your signature above'; hint.style.color = '#64748b'; }
     updateSignBtn();
