@@ -206,7 +206,7 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
   <!-- Document preview -->
   <details class="card">
     <summary>📄 Preview Document Before Signing <span style="font-size:12px;color:#94a3b8;">Click to expand</span></summary>
-    <div>${details.documentContent}</div>
+    <div>${(details.documentContent || '').replace(/<script[\s\S]*?<\/script>/gi, '')}</div>
   </details>
 
   <!-- Signature panel -->
