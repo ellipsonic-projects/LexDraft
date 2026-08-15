@@ -211,48 +211,32 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
 
   <!-- Signature panel -->
   <div class="card" id="sig-panel">
-    <div id="sign-section">
-      <div style="padding:20px 24px 0;">
-        <div style="font-size:13px;font-weight:600;color:#1e293b;margin-bottom:12px;">Choose Signature Method</div>
+    <div id="sign-section" style="padding:24px;">
+      <div style="font-size:15px;font-weight:700;color:#1e293b;margin-bottom:6px;display:flex;align-items:center;gap:8px;">
+        <span>✏️</span> <span>Live Hand-drawn Signature</span>
       </div>
-      <div class="tabs">
-        <button class="tab active" onclick="switchTab('DRAWN')" id="tab-DRAWN">✏️ Draw Signature</button>
-        <button class="tab" onclick="switchTab('UPLOADED')" id="tab-UPLOADED">📁 Upload Image</button>
+      <p style="margin:0 0 16px;font-size:13px;color:#64748b;">Please draw your signature inside the box below using your mouse or touchscreen.</p>
+
+      <div style="border:2px solid #cbd5e1;border-radius:12px;overflow:hidden;background:#ffffff;box-shadow:inset 0 2px 4px rgba(0,0,0,0.02);">
+        <canvas id="sig-canvas" width="600" height="180" style="display:block;width:100%;height:180px;touch-action:none;cursor:crosshair;background:#ffffff;"></canvas>
       </div>
-      <div style="padding:20px 24px;">
-        <!-- DRAWN -->
-        <div id="panel-DRAWN">
-          <div class="canvas-wrap">
-            <canvas id="sig-canvas" width="600" height="150"></canvas>
-          </div>
-          <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;">
-            <span id="canvas-hint" style="font-size:12px;color:#94a3b8;">Draw your signature above</span>
-            <button type="button" onclick="clearCanvas()" style="background:none;border:1px solid #e2e8f0;border-radius:6px;padding:4px 10px;font-size:12px;color:#64748b;cursor:pointer;">Clear</button>
-          </div>
-        </div>
-        <!-- UPLOADED -->
-        <div id="panel-UPLOADED" style="display:none;">
-          <div class="upload-drop" onclick="document.getElementById('file-input').click()" id="drop-zone">
-            <div style="font-size:28px;margin-bottom:8px;">📁</div>
-            <p style="margin:0 0 4px;font-size:14px;font-weight:600;color:#1e293b;">Click or drag to upload</p>
-            <p style="margin:0;font-size:12px;color:#94a3b8;">PNG, JPG or SVG · Max 2 MB</p>
-          </div>
-          <img id="upload-preview" alt="Uploaded signature"/>
-          <input type="file" id="file-input" accept="image/*" onchange="handleFileUpload(event)"/>
-        </div>
 
-        <div class="warning">⏰ This link expires on <strong>${expiryDate}</strong>. Do not share this link.</div>
-        <div class="notice">🔒 By clicking "Sign Document", you agree that this electronic signature is the legal equivalent of your handwritten signature. Your IP address, device information, and timestamp will be recorded as part of the audit trail.</div>
+      <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;">
+        <span id="canvas-hint" style="font-size:13px;color:#64748b;font-weight:500;">Draw your signature above</span>
+        <button type="button" onclick="clearCanvas()" style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:6px;padding:6px 14px;font-size:12px;font-weight:600;color:#475569;cursor:pointer;">Clear Signature</button>
+      </div>
 
-        <div style="margin-top:16px;display:flex;gap:12px;">
-          <button class="btn btn-decline" style="flex:1;" onclick="showDeclineForm()">✕ Decline</button>
-          <button class="btn btn-sign" style="flex:2;" id="sign-btn" disabled onclick="submitSignature()">✍️ Sign Document</button>
-        </div>
+      <div class="warning">⏰ This link expires on <strong>${expiryDate}</strong>. Do not share this link.</div>
+      <div class="notice">🔒 By clicking "Sign Document", you agree that this electronic signature is the legal equivalent of your handwritten signature. Your IP address, device information, and timestamp will be recorded as part of the audit trail.</div>
+
+      <div style="margin-top:20px;display:flex;gap:12px;">
+        <button class="btn btn-decline" style="flex:1;" onclick="showDeclineForm()">✕ Decline</button>
+        <button class="btn btn-sign" style="flex:2;" id="sign-btn" disabled onclick="submitSignature()">✍️ Sign Document</button>
       </div>
     </div>
 
     <!-- Decline form (hidden by default) -->
-    <div id="decline-form" style="padding:24px;">
+    <div id="decline-form" style="padding:24px;display:none;">
       <h3 style="margin:0 0 8px;color:#dc2626;font-size:16px;font-weight:700;">⚠️ Decline to Sign</h3>
       <p style="margin:0 0 16px;color:#64748b;font-size:13px;">This will cancel the entire signing process and notify the responsible lawyer.</p>
       <label style="display:block;font-size:12px;font-weight:600;color:#64748b;margin-bottom:8px;">Reason (optional)</label>
@@ -277,45 +261,30 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
 <script>
   const TOKEN = ${JSON.stringify(token)};
   const API = ${JSON.stringify((req.protocol + '://' + req.get('host') + '/api'))};
-  let activeTab = 'DRAWN';
   let signatureData = null;
-  let canvasEmpty = true;
 
-  // ─── Canvas Drawing ───────────────────────────────────────────────────────
+  // ─── Live Canvas Drawing ──────────────────────────────────────────────────
   const canvas = document.getElementById('sig-canvas');
   const ctx = canvas.getContext('2d');
   let isDrawing = false;
   let lastPos = { x: 0, y: 0 };
   let hasStrokes = false;
 
-  function initCanvas() {
-    if (!canvas) return;
-    const rect = canvas.getBoundingClientRect();
-    const ratio = window.devicePixelRatio || 1;
-    canvas.width = rect.width * ratio;
-    canvas.height = rect.height * ratio;
-    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  function setupContext() {
     ctx.strokeStyle = '#0f172a';
-    ctx.lineWidth = 2.5;
+    ctx.lineWidth = 3;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, rect.width, rect.height);
   }
-
-  // Initialize canvas on DOM content loaded, load, and window resize
-  window.addEventListener('load', initCanvas);
-  window.addEventListener('resize', () => { if (!hasStrokes) initCanvas(); });
-  setTimeout(initCanvas, 50);
-  setTimeout(initCanvas, 300);
+  setupContext();
 
   function getCanvasPos(e) {
     const rect = canvas.getBoundingClientRect();
     const clientX = (e.touches && e.touches[0]) ? e.touches[0].clientX : e.clientX;
     const clientY = (e.touches && e.touches[0]) ? e.touches[0].clientY : e.clientY;
     return {
-      x: clientX - rect.left,
-      y: clientY - rect.top
+      x: (clientX - rect.left) * (canvas.width / rect.width),
+      y: (clientY - rect.top) * (canvas.height / rect.height)
     };
   }
 
@@ -323,6 +292,7 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
     if (e.target !== canvas) return;
     if (e.cancelable) e.preventDefault();
     isDrawing = true;
+    setupContext();
     lastPos = getCanvasPos(e);
   }
 
@@ -339,7 +309,7 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
     if (!hasStrokes) {
       hasStrokes = true;
       const hint = document.getElementById('canvas-hint');
-      if (hint) { hint.textContent = '✓ Signature drawn'; hint.style.color = '#16a34a'; }
+      if (hint) { hint.textContent = '✓ Signature recorded'; hint.style.color = '#16a34a'; }
     }
     signatureData = canvas.toDataURL('image/png');
     updateSignBtn();
@@ -364,13 +334,11 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
   window.addEventListener('touchend', stopDrawing);
 
   function clearCanvas() {
-    const rect = canvas.getBoundingClientRect();
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, rect.width, rect.height);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
     hasStrokes = false;
     signatureData = null;
     const hint = document.getElementById('canvas-hint');
-    if (hint) { hint.textContent = 'Draw your signature above'; hint.style.color = '#94a3b8'; }
+    if (hint) { hint.textContent = 'Draw your signature above'; hint.style.color = '#64748b'; }
     updateSignBtn();
   }
 
@@ -387,31 +355,6 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
       preview.style.display = 'block';
       document.getElementById('drop-zone').style.display = 'none';
       updateSignBtn();
-    };
-    reader.readAsDataURL(file);
-  }
-
-  const dropZone = document.getElementById('drop-zone');
-  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.style.borderColor = '#6366f1'; });
-  dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = '#cbd5e1'; });
-  dropZone.addEventListener('drop', (e) => { e.preventDefault(); dropZone.style.borderColor = '#cbd5e1'; if (e.dataTransfer.files[0]) { const dt = new DataTransfer(); dt.items.add(e.dataTransfer.files[0]); document.getElementById('file-input').files = dt.files; handleFileUpload({ target: { files: dt.files } }); } });
-
-  // ─── Tab Switching ────────────────────────────────────────────────────────
-  function switchTab(tab) {
-    activeTab = tab;
-    signatureData = null;
-    updateSignBtn();
-    ['DRAWN', 'UPLOADED'].forEach((t) => {
-      document.getElementById('panel-' + t).style.display = t === tab ? 'block' : 'none';
-      document.getElementById('tab-' + t).classList.toggle('active', t === tab);
-    });
-    if (tab === 'UPLOADED') {
-      document.getElementById('upload-preview').style.display = 'none';
-      document.getElementById('drop-zone').style.display = 'block';
-      document.getElementById('file-input').value = '';
-    }
-  }
-
   function updateSignBtn() {
     document.getElementById('sign-btn').disabled = !signatureData;
   }
@@ -435,7 +378,7 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
       const res = await fetch(API + '/signatures/signer/' + TOKEN + '/sign', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ signatureType: activeTab, signatureData })
+        body: JSON.stringify({ signatureType: 'DRAWN', signatureData })
       });
       const data = await res.json();
       if (data.status === 'success') {
