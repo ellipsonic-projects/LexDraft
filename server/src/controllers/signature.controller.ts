@@ -284,60 +284,93 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
   // ─── Canvas Drawing ───────────────────────────────────────────────────────
   const canvas = document.getElementById('sig-canvas');
   const ctx = canvas.getContext('2d');
-  let isDrawing = false, lastX = 0, lastY = 0;
+  let isDrawing = false;
+  let lastPos = { x: 0, y: 0 };
+  let hasStrokes = false;
 
-  function resizeCanvas() {
+  function initCanvas() {
+    if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * window.devicePixelRatio;
-    canvas.height = rect.height * window.devicePixelRatio;
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-    ctx.strokeStyle = '#1e293b';
-    ctx.lineWidth = 2;
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = rect.width * ratio;
+    canvas.height = rect.height * ratio;
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 2.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, rect.width, rect.height);
   }
-  resizeCanvas();
 
-  function getPos(e) {
+  // Initialize canvas on DOM content loaded, load, and window resize
+  window.addEventListener('load', initCanvas);
+  window.addEventListener('resize', () => { if (!hasStrokes) initCanvas(); });
+  setTimeout(initCanvas, 50);
+  setTimeout(initCanvas, 300);
+
+  function getCanvasPos(e) {
     const rect = canvas.getBoundingClientRect();
-    if (e.touches) {
-      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
-    }
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const clientX = (e.touches && e.touches[0]) ? e.touches[0].clientX : e.clientX;
+    const clientY = (e.touches && e.touches[0]) ? e.touches[0].clientY : e.clientY;
+    return {
+      x: clientX - rect.left,
+      y: clientY - rect.top
+    };
   }
 
-  canvas.addEventListener('mousedown', (e) => { isDrawing = true; const p = getPos(e); lastX = p.x; lastY = p.y; });
-  canvas.addEventListener('mousemove', (e) => {
+  function startDrawing(e) {
+    if (e.target !== canvas) return;
+    if (e.cancelable) e.preventDefault();
+    isDrawing = true;
+    lastPos = getCanvasPos(e);
+  }
+
+  function draw(e) {
     if (!isDrawing) return;
-    const p = getPos(e);
-    ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke();
-    lastX = p.x; lastY = p.y;
-    if (canvasEmpty) { canvasEmpty = false; document.getElementById('canvas-hint').textContent = '✓ Signature drawn'; }
+    if (e.cancelable) e.preventDefault();
+    const currentPos = getCanvasPos(e);
+    ctx.beginPath();
+    ctx.moveTo(lastPos.x, lastPos.y);
+    ctx.lineTo(currentPos.x, currentPos.y);
+    ctx.stroke();
+    lastPos = currentPos;
+
+    if (!hasStrokes) {
+      hasStrokes = true;
+      const hint = document.getElementById('canvas-hint');
+      if (hint) { hint.textContent = '✓ Signature drawn'; hint.style.color = '#16a34a'; }
+    }
     signatureData = canvas.toDataURL('image/png');
     updateSignBtn();
-  });
-  canvas.addEventListener('mouseup', () => { isDrawing = false; if (!canvasEmpty) { signatureData = canvas.toDataURL('image/png'); updateSignBtn(); } });
-  canvas.addEventListener('touchstart', (e) => { e.preventDefault(); isDrawing = true; const p = getPos(e); lastX = p.x; lastY = p.y; });
-  canvas.addEventListener('touchmove', (e) => {
-    e.preventDefault();
-    if (!isDrawing) return;
-    const p = getPos(e);
-    ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(p.x, p.y); ctx.stroke();
-    lastX = p.x; lastY = p.y;
-    if (canvasEmpty) { canvasEmpty = false; document.getElementById('canvas-hint').textContent = '✓ Signature drawn'; }
-    signatureData = canvas.toDataURL('image/png');
-    updateSignBtn();
-  });
-  canvas.addEventListener('touchend', () => { isDrawing = false; });
+  }
+
+  function stopDrawing() {
+    if (isDrawing) {
+      isDrawing = false;
+      if (hasStrokes) {
+        signatureData = canvas.toDataURL('image/png');
+        updateSignBtn();
+      }
+    }
+  }
+
+  canvas.addEventListener('mousedown', startDrawing);
+  window.addEventListener('mousemove', draw);
+  window.addEventListener('mouseup', stopDrawing);
+
+  canvas.addEventListener('touchstart', startDrawing, { passive: false });
+  window.addEventListener('touchmove', draw, { passive: false });
+  window.addEventListener('touchend', stopDrawing);
 
   function clearCanvas() {
+    const rect = canvas.getBoundingClientRect();
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, canvas.width / window.devicePixelRatio, canvas.height / window.devicePixelRatio);
-    canvasEmpty = true;
+    ctx.fillRect(0, 0, rect.width, rect.height);
+    hasStrokes = false;
     signatureData = null;
-    document.getElementById('canvas-hint').textContent = 'Draw your signature above';
+    const hint = document.getElementById('canvas-hint');
+    if (hint) { hint.textContent = 'Draw your signature above'; hint.style.color = '#94a3b8'; }
     updateSignBtn();
   }
 
