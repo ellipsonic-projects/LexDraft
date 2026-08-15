@@ -218,7 +218,7 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
       <p style="margin:0 0 16px;font-size:13px;color:#64748b;">Please draw your signature inside the box below using your mouse or touchscreen.</p>
 
       <div style="border:2px solid #cbd5e1;border-radius:12px;overflow:hidden;background:#ffffff;box-shadow:inset 0 2px 4px rgba(0,0,0,0.02);">
-        <canvas id="sig-canvas" style="display:block;width:100%;height:180px;touch-action:none;cursor:crosshair;"></canvas>
+        <canvas id="sig-canvas" width="600" height="200" style="display:block;max-width:100%;height:auto;cursor:crosshair;touch-action:none;"></canvas>
       </div>
 
       <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;">
@@ -264,102 +264,105 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
   let signatureData = null;
 
   // ─── Live Canvas Drawing ──────────────────────────────────────────────────
-  const canvas = document.getElementById('sig-canvas');
-  let ctx = null;
-  let isDrawing = false;
-  let lastX = 0;
-  let lastY = 0;
-  let hasStrokes = false;
+  var canvas = document.getElementById('sig-canvas');
+  var ctx = canvas.getContext('2d');
+  var isDrawing = false;
+  var lx = 0, ly = 0;
+  var hasStrokes = false;
 
-  function setupCanvas() {
-    const w = canvas.offsetWidth;
-    const h = canvas.offsetHeight;
-    if (!w || !h) return; // not laid out yet, skip
-    canvas.width = w;
-    canvas.height = h;
-    ctx = canvas.getContext('2d');
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, w, h);
-    ctx.strokeStyle = '#1e293b';
-    ctx.lineWidth = 2.5;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-  }
+  // Synchronous setup — canvas attrs set, no async needed
+  ctx.strokeStyle = '#1e293b';
+  ctx.lineWidth = 2.5;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
 
-  // Setup immediately via rAF so layout is guaranteed complete
-  requestAnimationFrame(function() {
-    setupCanvas();
-    // Belt-and-suspenders: try again shortly in case first rAF was too early
-    setTimeout(setupCanvas, 100);
-  });
-
-  canvas.addEventListener('pointerdown', function(e) {
-    e.preventDefault();
-    if (!ctx || !canvas.width) setupCanvas();
-    if (!ctx) return;
-    canvas.setPointerCapture(e.pointerId);
+  canvas.addEventListener('mousedown', function(e) {
     isDrawing = true;
-    // offsetX/offsetY are natively relative to the canvas — no math needed
-    lastX = e.offsetX;
-    lastY = e.offsetY;
+    lx = e.offsetX;
+    ly = e.offsetY;
+    ctx.beginPath();
+    ctx.moveTo(lx, ly);
   });
 
-  canvas.addEventListener('pointermove', function(e) {
-    if (!isDrawing || !ctx) return;
-    ctx.beginPath();
-    ctx.moveTo(lastX, lastY);
-    ctx.lineTo(e.offsetX, e.offsetY);
+  // Listen on window so drawing continues if mouse briefly leaves canvas
+  window.addEventListener('mousemove', function(e) {
+    if (!isDrawing) return;
+    var r = canvas.getBoundingClientRect();
+    var scaleX = canvas.width / r.width;
+    var scaleY = canvas.height / r.height;
+    var x = (e.clientX - r.left) * scaleX;
+    var y = (e.clientY - r.top) * scaleY;
+    ctx.lineTo(x, y);
     ctx.stroke();
-    lastX = e.offsetX;
-    lastY = e.offsetY;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
     if (!hasStrokes) {
       hasStrokes = true;
-      const hint = document.getElementById('canvas-hint');
-      if (hint) { hint.textContent = '✓ Signature recorded'; hint.style.color = '#16a34a'; hint.style.fontWeight = '600'; }
+      var hint = document.getElementById('canvas-hint');
+      if (hint) { hint.textContent = '\u2713 Signature recorded'; hint.style.color = '#16a34a'; hint.style.fontWeight = '700'; }
     }
   });
 
-  canvas.addEventListener('pointerup', function() {
+  window.addEventListener('mouseup', function() {
     if (!isDrawing) return;
     isDrawing = false;
-    if (hasStrokes && ctx) {
+    if (hasStrokes) {
       signatureData = canvas.toDataURL('image/png');
       updateSignBtn();
     }
   });
 
-  canvas.addEventListener('pointercancel', function() {
+  // Touch support
+  canvas.addEventListener('touchstart', function(e) {
+    e.preventDefault();
+    var t = e.touches[0];
+    var r = canvas.getBoundingClientRect();
+    isDrawing = true;
+    lx = (t.clientX - r.left) * (canvas.width / r.width);
+    ly = (t.clientY - r.top) * (canvas.height / r.height);
+    ctx.beginPath();
+    ctx.moveTo(lx, ly);
+  }, { passive: false });
+
+  canvas.addEventListener('touchmove', function(e) {
+    e.preventDefault();
+    if (!isDrawing) return;
+    var t = e.touches[0];
+    var r = canvas.getBoundingClientRect();
+    var x = (t.clientX - r.left) * (canvas.width / r.width);
+    var y = (t.clientY - r.top) * (canvas.height / r.height);
+    ctx.lineTo(x, y);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    if (!hasStrokes) {
+      hasStrokes = true;
+      var hint = document.getElementById('canvas-hint');
+      if (hint) { hint.textContent = '\u2713 Signature recorded'; hint.style.color = '#16a34a'; hint.style.fontWeight = '700'; }
+    }
+  }, { passive: false });
+
+  canvas.addEventListener('touchend', function() {
     isDrawing = false;
+    if (hasStrokes) {
+      signatureData = canvas.toDataURL('image/png');
+      updateSignBtn();
+    }
   });
 
   function clearCanvas() {
-    hasStrokes = false;
-    signatureData = null;
-    if (ctx && canvas.width) {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
-    const hint = document.getElementById('canvas-hint');
+    isDrawing = false; hasStrokes = false; signatureData = null;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    var hint = document.getElementById('canvas-hint');
     if (hint) { hint.textContent = 'Draw your signature above'; hint.style.color = '#64748b'; hint.style.fontWeight = '500'; }
     updateSignBtn();
   }
 
-  // ─── Upload ───────────────────────────────────────────────────────────────
-  function handleFileUpload(event) {
-    const file = event.target.files[0];
-    if (!file || !file.type.startsWith('image/')) { alert('Please upload an image file.'); return; }
-    if (file.size > 2 * 1024 * 1024) { alert('File too large. Max 2 MB.'); return; }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      signatureData = e.target.result;
-      const preview = document.getElementById('upload-preview');
-      preview.src = signatureData;
-      preview.style.display = 'block';
-      document.getElementById('drop-zone').style.display = 'none';
-      updateSignBtn();
   function updateSignBtn() {
     document.getElementById('sign-btn').disabled = !signatureData;
   }
+
 
   // ─── Decline form ─────────────────────────────────────────────────────────
   function showDeclineForm() {
