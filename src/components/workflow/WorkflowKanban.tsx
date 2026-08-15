@@ -297,8 +297,8 @@ export const WorkflowKanban: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Start Signing Process Button (Boss only, approved task with document) */}
-                      {isBoss && t.documentId && (t.status === 'approved' || t.status === 'completed') && (
+                      {/* Start Signing Process Button (Boss only, task with document) */}
+                      {isBoss && t.documentId && (t.status === 'approved' || t.status === 'under_review' || t.status === 'draft_ready' || t.status === 'completed' || t.latestClientApproval?.status === 'ACCEPTED') && (
                         <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
                           {(!signatureMap[t.id] || signatureMap[t.id]?.status === 'CANCELLED') ? (
                             <button

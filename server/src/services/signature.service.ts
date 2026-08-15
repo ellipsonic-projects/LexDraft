@@ -78,12 +78,32 @@ export function injectSignaturesIntoHtml(
     // and inject the img after the sig-line for matching signers
     const nameEscaped = signer.signerName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const roleEscaped = signer.signerRole.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const pattern = new RegExp(
-      `(<div class="sig-line"><\\/div>)(\\s*<p class="sig-name">${nameEscaped}<\\/p>\\s*<p class="sig-role">${roleEscaped}<\\/p>)`,
+
+    // Strategy 1: Exact role & name match
+    const patternBoth = new RegExp(
+      `(<div class="sig-line"><\\/div>)(\\s*(?:<p class="sig-name">.*?${nameEscaped}.*?<\\/p>)?\\s*<p class="sig-role">.*?${roleEscaped}.*?<\\/p>)`,
       'i'
     );
-    if (pattern.test(result)) {
-      result = result.replace(pattern, `<div class="sig-line">${sigBlock}</div>$2`);
+    // Strategy 2: Role match only
+    const patternRole = new RegExp(
+      `(<div class="sig-line"><\\/div>)(\\s*<p class="sig-name">.*?<\\/p>\\s*<p class="sig-role">.*?${roleEscaped}.*?<\\/p>)`,
+      'i'
+    );
+    // Strategy 3: Name match only
+    const patternName = new RegExp(
+      `(<div class="sig-line"><\\/div>)(\\s*<p class="sig-name">.*?${nameEscaped}.*?<\\/p>)`,
+      'i'
+    );
+
+    if (patternBoth.test(result)) {
+      result = result.replace(patternBoth, `<div class="sig-line">${sigBlock}</div>$2`);
+    } else if (patternRole.test(result)) {
+      result = result.replace(patternRole, `<div class="sig-line">${sigBlock}</div>$2`);
+    } else if (patternName.test(result)) {
+      result = result.replace(patternName, `<div class="sig-line">${sigBlock}</div>$2`);
+    } else {
+      // Strategy 4: Fallback to first empty sig-line
+      result = result.replace('<div class="sig-line"></div>', `<div class="sig-line">${sigBlock}</div>`);
     }
   }
   return result;
@@ -127,9 +147,12 @@ export async function createSignatureRequest(params: {
   });
   if (!doc) throw new AppError('Legal document not found.', 404);
 
-  // Must have an approved document
+  // Auto-approve document if Boss initiates signing process
   if (doc.status !== 'approved') {
-    throw new AppError('Only approved documents can be sent for signing.', 422);
+    await prisma.legalDocument.update({
+      where: { id: doc.id },
+      data: { status: 'approved' }
+    });
   }
 
   // 4. Ensure we have an exact DocumentVersion snapshot

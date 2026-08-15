@@ -262,6 +262,14 @@ export const dataRepository = {
   updateDocument: async (id: string, updates: Partial<LegalDocument>): Promise<LegalDocument> => {
     return { id, ...updates } as LegalDocument;
   },
+  getDocumentById: async (id: string): Promise<LegalDocument | null> => {
+    try {
+      const res = await api.get(`/documents/${id}`);
+      return mapDocument(res.data.document);
+    } catch {
+      return null;
+    }
+  },
   deleteDocument: async (id: string): Promise<void> => {
     await api.delete(`/documents/${id}`);
   },
