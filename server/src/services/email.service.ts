@@ -759,3 +759,239 @@ LexDraft Legal Workflow System`;
     documentId: params.documentId
   });
 }
+
+// ─── Digital Signature Email Dispatchers ──────────────────────────────────────
+
+/**
+ * Sends a personalised signature request email to a specific signer.
+ * Uses ONLY signerEmail — NOT the Client.contactEmail.
+ */
+export async function sendSignatureRequestEmail(params: {
+  recipientEmail: string;
+  signerName: string;
+  signerRole: string;
+  documentTitle: string;
+  documentVersion: number;
+  signingUrl: string;
+  expiresAt: Date;
+  totalSigners: number;
+  currentOrder: number;
+  documentId?: string;
+}): Promise<void> {
+  const expiryString = params.expiresAt.toLocaleDateString('en-IN', {
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+  });
+  const subject = `[Action Required] Sign Document: ${params.documentTitle}`;
+  const text = `Dear ${params.signerName},\n\nYou are required to sign "${params.documentTitle}" (v${params.documentVersion}) in your capacity as ${params.signerRole}.\n\nSigning link: ${params.signingUrl}\n\nThis link expires on ${expiryString}.\n\nYou are signer ${params.currentOrder} of ${params.totalSigners}.\n\nLexDraft Legal Workflow`;
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
+  <div style="max-width:600px;margin:32px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+    <div style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);padding:32px;text-align:center;">
+      <div style="font-size:28px;font-weight:700;color:#ffffff;letter-spacing:1px;">LexDraft</div>
+      <div style="font-size:13px;color:#94a3b8;margin-top:4px;">Digital Signature Request</div>
+    </div>
+
+    <div style="padding:32px;">
+      <p style="font-size:16px;color:#1e293b;font-weight:600;margin:0 0 8px 0;">Dear ${params.signerName},</p>
+      <p style="font-size:14px;color:#475569;line-height:1.6;margin:0 0 24px 0;">
+        You have been requested to <strong>digitally sign</strong> the following legal document in your capacity as
+        <strong>${params.signerRole}</strong>:
+      </p>
+
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:24px;">
+        <p style="margin:0 0 6px 0;font-size:12px;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">Document</p>
+        <p style="margin:0;font-size:16px;font-weight:700;color:#1e293b;">${params.documentTitle}</p>
+        <p style="margin:4px 0 0 0;font-size:13px;color:#64748b;">Version ${params.documentVersion} · Signer ${params.currentOrder} of ${params.totalSigners}</p>
+      </div>
+
+      <div style="text-align:center;margin-bottom:24px;">
+        <a href="${params.signingUrl}" style="display:inline-block;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#ffffff;font-weight:700;font-size:15px;padding:14px 32px;border-radius:8px;text-decoration:none;letter-spacing:0.3px;">
+          ✍️ Sign Document
+        </a>
+      </div>
+
+      <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:14px;margin-bottom:24px;">
+        <p style="margin:0;font-size:13px;color:#92400e;">
+          ⏰ This signing link expires on <strong>${expiryString}</strong>.
+          Do not share this link with anyone.
+        </p>
+      </div>
+
+      <p style="font-size:13px;color:#94a3b8;line-height:1.5;margin:0;">
+        If you did not expect this request, please contact your legal representative immediately.
+      </p>
+    </div>
+
+    <div style="background:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0;text-align:center;">
+      <p style="margin:0;font-size:12px;color:#94a3b8;">LexDraft Legal Workflow · Confidential</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  await sendEmail({
+    to: params.recipientEmail,
+    subject,
+    html,
+    text,
+    emailType: 'SIGNATURE_REQUEST',
+    documentId: params.documentId
+  });
+}
+
+/**
+ * Sends the fully-signed document PDF to all signers when signing is complete.
+ */
+export async function sendSignatureCompletedEmail(params: {
+  recipientEmails: string[];
+  documentTitle: string;
+  documentVersion: number;
+  signers: Array<{ name: string; role: string }>;
+  pdfBuffer: Buffer;
+  documentId?: string;
+}): Promise<void> {
+  const subject = `✅ Signing Complete: ${params.documentTitle}`;
+  const signerList = params.signers.map((s) => `${s.name} (${s.role})`).join(', ');
+  const text = `All parties have signed "${params.documentTitle}" (v${params.documentVersion}).\n\nSigners: ${signerList}\n\nThe fully-executed document is attached to this email.\n\nLexDraft Legal Workflow`;
+
+  const signerRows = params.signers.map((s) =>
+    `<tr>
+      <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#1e293b;font-size:13px;">${s.name}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:13px;">${s.role}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center;">✅</td>
+    </tr>`
+  ).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
+  <div style="max-width:600px;margin:32px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+    <div style="background:linear-gradient(135deg,#059669,#047857);padding:32px;text-align:center;">
+      <div style="font-size:40px;margin-bottom:8px;">✅</div>
+      <div style="font-size:22px;font-weight:700;color:#ffffff;">Signing Complete</div>
+      <div style="font-size:13px;color:#a7f3d0;margin-top:4px;">All parties have signed</div>
+    </div>
+
+    <div style="padding:32px;">
+      <p style="font-size:15px;color:#1e293b;font-weight:600;margin:0 0 16px 0;">
+        "${params.documentTitle}" (v${params.documentVersion}) has been fully executed.
+      </p>
+
+      <p style="font-size:13px;color:#64748b;margin:0 0 20px 0;">
+        The following parties completed their digital signatures:
+      </p>
+
+      <table style="width:100%;border-collapse:collapse;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;margin-bottom:24px;">
+        <thead>
+          <tr style="background:#e2e8f0;">
+            <th style="padding:10px 12px;text-align:left;font-size:12px;color:#64748b;font-weight:600;">Signer</th>
+            <th style="padding:10px 12px;text-align:left;font-size:12px;color:#64748b;font-weight:600;">Role</th>
+            <th style="padding:10px 12px;text-align:center;font-size:12px;color:#64748b;font-weight:600;">Status</th>
+          </tr>
+        </thead>
+        <tbody>${signerRows}</tbody>
+      </table>
+
+      <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:14px;margin-bottom:24px;">
+        <p style="margin:0;font-size:13px;color:#166534;">
+          📎 The fully-executed agreement is attached to this email as a PDF.
+          Please retain this for your records.
+        </p>
+      </div>
+
+      <p style="font-size:13px;color:#94a3b8;line-height:1.5;margin:0;">
+        This is an automated confirmation from LexDraft Legal Workflow.
+      </p>
+    </div>
+
+    <div style="background:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0;text-align:center;">
+      <p style="margin:0;font-size:12px;color:#94a3b8;">LexDraft Legal Workflow · Confidential</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  const safeTitle = params.documentTitle.replace(/[^a-zA-Z0-9\-_ ]/g, '').trim().replace(/\s+/g, '_');
+  await sendEmail({
+    to: params.recipientEmails,
+    subject,
+    html,
+    text,
+    attachments: [{ filename: `${safeTitle}_v${params.documentVersion}_Signed.pdf`, content: params.pdfBuffer }],
+    emailType: 'SIGNATURE_COMPLETED',
+    documentId: params.documentId
+  });
+}
+
+/**
+ * Notifies internal users (lawyers) when a signer declines.
+ */
+export async function sendSignatureDeclinedEmail(params: {
+  documentTitle: string;
+  signerName: string;
+  signerRole: string;
+  declineReason?: string;
+  documentId?: string;
+}): Promise<void> {
+  // Find all BOSS users in the org to notify — use prisma directly
+  const { prisma: db } = await import('../lib/prisma');
+  const bossUsers = await db.user.findMany({
+    where: { role: 'BOSS' },
+    select: { email: true }
+  });
+  if (bossUsers.length === 0) return;
+
+  const subject = `⚠️ Signing Declined: ${params.documentTitle}`;
+  const text = `${params.signerName} (${params.signerRole}) has declined to sign "${params.documentTitle}".\n\nReason: ${params.declineReason || 'Not specified'}\n\nThe signing process has been cancelled. Please review and restart if needed.`;
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
+  <div style="max-width:600px;margin:32px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+    <div style="background:linear-gradient(135deg,#dc2626,#b91c1c);padding:32px;text-align:center;">
+      <div style="font-size:40px;margin-bottom:8px;">⚠️</div>
+      <div style="font-size:22px;font-weight:700;color:#ffffff;">Signing Declined</div>
+      <div style="font-size:13px;color:#fca5a5;margin-top:4px;">Action required</div>
+    </div>
+
+    <div style="padding:32px;">
+      <p style="font-size:15px;color:#1e293b;font-weight:600;margin:0 0 16px 0;">
+        A signer has declined to sign "${params.documentTitle}".
+      </p>
+
+      <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:20px;margin-bottom:24px;">
+        <p style="margin:0 0 8px 0;font-size:13px;color:#64748b;"><strong>Signer:</strong> ${params.signerName}</p>
+        <p style="margin:0 0 8px 0;font-size:13px;color:#64748b;"><strong>Role:</strong> ${params.signerRole}</p>
+        <p style="margin:0;font-size:13px;color:#64748b;"><strong>Reason:</strong> ${params.declineReason || 'No reason provided.'}</p>
+      </div>
+
+      <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:14px;margin-bottom:24px;">
+        <p style="margin:0;font-size:13px;color:#991b1b;">
+          The signing process has been <strong>automatically cancelled</strong>.
+          Please review the document and restart the signing process if needed.
+        </p>
+      </div>
+    </div>
+
+    <div style="background:#f8fafc;padding:16px 32px;border-top:1px solid #e2e8f0;text-align:center;">
+      <p style="margin:0;font-size:12px;color:#94a3b8;">LexDraft Internal Notification · Confidential</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  await sendEmail({
+    to: bossUsers.map((u) => u.email),
+    subject,
+    html,
+    text,
+    emailType: 'SIGNATURE_DECLINED',
+    documentId: params.documentId
+  });
+}
+

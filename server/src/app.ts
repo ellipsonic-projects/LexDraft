@@ -16,6 +16,7 @@ import notificationsRoutes from './routes/notifications.routes';
 import activityRoutes from './routes/activity.routes';
 import analyticsRoutes from './routes/analytics.routes';
 import clientApprovalRoutes from './routes/client-approval.routes';
+import signatureRoutes from './routes/signature.routes';
 
 const app = express();
 
@@ -113,6 +114,7 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/activity-logs', activityRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/client-actions', clientApprovalRoutes);
+app.use('/api/signatures', signatureRoutes);
 
 // 404 handler for unknown routes
 app.use((req, res) => {

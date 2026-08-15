@@ -85,6 +85,37 @@ enum EmailDeliveryStatus {
   FAILED
 }
 
+// ─── Digital Signature Enums ────────────────────────────────────────────────
+
+enum SignatureRequestStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+enum SignerStatus {
+  PENDING
+  ACTIVE
+  SIGNED
+  DECLINED
+  EXPIRED
+}
+
+enum SignerType {
+  INTERNAL_USER
+  EXISTING_CLIENT
+  EXTERNAL
+}
+
+enum SignatureType {
+  DRAWN
+  UPLOADED
+  DIGITAL_CERTIFICATE
+}
+
+
 model Organization {
   id           String          @id @default(uuid())
   name         String
@@ -121,6 +152,8 @@ model User {
   activityLogs          ActivityLog[]
   templateVersionEdits  TemplateVersion[]
   customizationRequests CustomizationRequest[]
+  createdSignatureRequests SignatureRequest[]  @relation("CreatedSignatureRequests")
+  documentSigners       DocumentSigner[]
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
 }
@@ -135,18 +168,19 @@ model RefreshToken {
 }
 
 model Client {
-  id              String                    @id @default(uuid())
-  name            String
-  contactEmail    String
-  contactPhone    String
-  organizationId  String
-  organization    Organization              @relation(fields: [organizationId], references: [id])
-  matters         Matter[]
-  documents       LegalDocument[]
-  tasks           WorkflowTask[]
-  clientApprovals ClientAgreementApproval[]
-  createdAt       DateTime                  @default(now())
-  updatedAt       DateTime                  @updatedAt
+  id               String                    @id @default(uuid())
+  name             String
+  contactEmail     String
+  contactPhone     String
+  organizationId   String
+  organization     Organization              @relation(fields: [organizationId], references: [id])
+  matters          Matter[]
+  documents        LegalDocument[]
+  tasks            WorkflowTask[]
+  clientApprovals  ClientAgreementApproval[]
+  documentSigners  DocumentSigner[]
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
 }
 
 model Matter {
@@ -253,6 +287,7 @@ model LegalDocument {
   organization                Organization              @relation(fields: [organizationId], references: [id])
   tasks                       WorkflowTask[]
   clientApprovals             ClientAgreementApproval[]
+  signatureRequests           SignatureRequest[]
   createdAt                   DateTime                  @default(now())
   updatedAt                   DateTime                  @updatedAt
 }
@@ -267,34 +302,36 @@ model DocumentVersion {
   changeDescription String
   authorId          String
   clientApprovals   ClientAgreementApproval[]
+  signatureRequests SignatureRequest[]
   createdAt         DateTime                  @default(now())
 }
 
 model WorkflowTask {
-  id              String                    @id @default(uuid())
-  documentId      String?
-  document        LegalDocument?            @relation(fields: [documentId], references: [id], onDelete: SetNull)
-  templateId      String
-  template        LegalTemplate             @relation(fields: [templateId], references: [id])
-  title           String
-  clientId        String
-  client          Client                    @relation(fields: [clientId], references: [id])
-  matterId        String
-  matter          Matter                    @relation(fields: [matterId], references: [id])
-  assigneeId      String
-  assignee        User                      @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  assignedById    String
-  assignedBy      User                      @relation("TaskCreator", fields: [assignedById], references: [id])
-  status          TaskStatus                @default(assigned)
-  priority        TaskPriority              @default(medium)
-  dueDate         DateTime
-  notes           String?
-  requirements    String?
-  organizationId  String
-  organization    Organization              @relation(fields: [organizationId], references: [id])
-  clientApprovals ClientAgreementApproval[]
-  createdAt       DateTime                  @default(now())
-  updatedAt       DateTime                  @updatedAt
+  id               String                    @id @default(uuid())
+  documentId       String?
+  document         LegalDocument?            @relation(fields: [documentId], references: [id], onDelete: SetNull)
+  templateId       String
+  template         LegalTemplate             @relation(fields: [templateId], references: [id])
+  title            String
+  clientId         String
+  client           Client                    @relation(fields: [clientId], references: [id])
+  matterId         String
+  matter           Matter                    @relation(fields: [matterId], references: [id])
+  assigneeId       String
+  assignee         User                      @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  assignedById     String
+  assignedBy       User                      @relation("TaskCreator", fields: [assignedById], references: [id])
+  status           TaskStatus                @default(assigned)
+  priority         TaskPriority              @default(medium)
+  dueDate          DateTime
+  notes            String?
+  requirements     String?
+  organizationId   String
+  organization     Organization              @relation(fields: [organizationId], references: [id])
+  clientApprovals  ClientAgreementApproval[]
+  signatureRequests SignatureRequest[]
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
 }
 
 model ClientAgreementApproval {
@@ -384,4 +421,61 @@ model Notification {
   linkId     String
   read       Boolean          @default(false)
   createdAt  DateTime         @default(now())
+}
+
+// ─── Digital Signature Models ─────────────────────────────────────────────────
+
+model SignatureRequest {
+  id                String                 @id @default(uuid())
+  taskId            String
+  task              WorkflowTask           @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  documentId        String
+  document          LegalDocument          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentVersionId String
+  documentVersion   DocumentVersion        @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+  status            SignatureRequestStatus @default(PENDING)
+  createdById       String
+  createdBy         User                   @relation("CreatedSignatureRequests", fields: [createdById], references: [id])
+  expiresAt         DateTime
+  signers           DocumentSigner[]
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  @@index([taskId])
+  @@index([documentId])
+  @@index([documentVersionId])
+}
+
+model DocumentSigner {
+  id                 String           @id @default(uuid())
+  signatureRequestId String
+  signatureRequest   SignatureRequest  @relation(fields: [signatureRequestId], references: [id], onDelete: Cascade)
+  userId             String?
+  user               User?            @relation(fields: [userId], references: [id])
+  clientId           String?
+  client             Client?          @relation(fields: [clientId], references: [id])
+  signerName         String
+  signerEmail        String
+  signerRole         String           // e.g. 'Lawyer', 'Client', 'Witness', 'Partner'
+  signerType         SignerType
+  signingOrder       Int              @default(1)
+  status             SignerStatus     @default(PENDING)
+  signatureType      SignatureType?
+  signatureData      String?          // base64 PNG for DRAWN/UPLOADED; cert reference for DIGITAL_CERTIFICATE
+  signedAt           DateTime?
+  declinedAt         DateTime?
+  declineReason      String?
+  ipAddress          String?
+  userAgent          String?
+  deviceInfo         String?          // Browser/OS/device description
+  location           String?          // Only when reliably available; never fabricated
+  tokenHash          String?          @unique
+  expiresAt          DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  @@index([signatureRequestId])
+  @@index([tokenHash])
+  @@index([userId])
+  @@index([clientId])
 }

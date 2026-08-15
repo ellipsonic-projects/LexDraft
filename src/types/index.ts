@@ -200,3 +200,54 @@ export interface NotificationItem {
   type: 'review' | 'approval' | 'rejection' | 'customization' | 'task' | 'expiry';
   linkId: string;
 }
+
+// ─── Digital Signature Types ───────────────────────────────────────────────────
+
+export type SignatureRequestStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'EXPIRED';
+export type SignerStatus = 'PENDING' | 'ACTIVE' | 'SIGNED' | 'DECLINED' | 'EXPIRED';
+export type SignerType = 'INTERNAL_USER' | 'EXISTING_CLIENT' | 'EXTERNAL';
+export type SignatureType = 'DRAWN' | 'UPLOADED' | 'DIGITAL_CERTIFICATE';
+
+export interface DocumentSigner {
+  id: string;
+  signatureRequestId: string;
+  userId: string | null;
+  clientId: string | null;
+  signerName: string;
+  signerEmail: string;
+  signerRole: string;
+  signerType: SignerType;
+  signingOrder: number;
+  status: SignerStatus;
+  signatureType: SignatureType | null;
+  signedAt: string | null;
+  declinedAt: string | null;
+  declineReason: string | null;
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SignatureRequest {
+  id: string;
+  taskId: string;
+  documentId: string;
+  documentVersionId: string;
+  status: SignatureRequestStatus;
+  createdById: string;
+  expiresAt: string;
+  signers: DocumentSigner[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateSignerInput {
+  signerName: string;
+  signerEmail: string;
+  signerRole: string;
+  signerType: SignerType;
+  signingOrder: number;
+  userId?: string;
+  clientId?: string;
+}
+

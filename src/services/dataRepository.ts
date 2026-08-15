@@ -308,5 +308,31 @@ export const dataRepository = {
   saveNotifications: async (_notifications: NotificationItem[]): Promise<void> => {},
   addNotification: async (notification: NotificationItem): Promise<NotificationItem> => {
     return notification;
+  },
+
+  // Signatures
+  createSignatureRequest: async (params: {
+    taskId: string;
+    documentId: string;
+    signers: any[];
+  }): Promise<any> => {
+    const res = await api.post('/signatures/request', params);
+    return res.data;
+  },
+  getSignatureRequestForDocument: async (documentId: string): Promise<any> => {
+    try {
+      const res = await api.get(`/signatures/document/${documentId}`);
+      return res.data.data.signatureRequest;
+    } catch {
+      return null;
+    }
+  },
+  getSignatureRequestsForTask: async (taskId: string): Promise<any[]> => {
+    try {
+      const res = await api.get(`/signatures/task/${taskId}`);
+      return res.data.data.signatureRequests || [];
+    } catch {
+      return [];
+    }
   }
 };

@@ -1,5 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../context/AppContext';
+import { SignatureConfigModal } from '../signatures/SignatureConfigModal';
+import { SignatureStatusBadge } from '../signatures/SignatureStatusBadge';
+import { dataRepository } from '../../services/dataRepository';
+import { SignatureRequest } from '../../types';
 import {
   Kanban as KanbanIcon,
   Plus,
@@ -41,6 +45,12 @@ export const WorkflowKanban: React.FC = () => {
   const [sendingTaskId, setSendingTaskId] = useState<string | null>(null);
   const [deletingTaskId, setDeletingTaskId] = useState<string | null>(null);
   const [confirmDeleteTaskId, setConfirmDeleteTaskId] = useState<string | null>(null);
+  const [signingTaskId, setSigningTaskId] = useState<string | null>(null);
+  const [signingDocumentId, setSigningDocumentId] = useState<string | null>(null);
+  const [signingDocumentTitle, setSigningDocumentTitle] = useState<string>('');
+  const [signingClientId, setSigningClientId] = useState<string | null>(null);
+  // signatureMap: taskId -> SignatureRequest
+  const [signatureMap, setSignatureMap] = useState<Record<string, SignatureRequest | null>>({});
 
   const [templateId, setTemplateId] = useState(templates[0]?.id || '');
   const [clientId, setClientId] = useState('');
@@ -49,6 +59,21 @@ export const WorkflowKanban: React.FC = () => {
   const [priority, setPriority] = useState<TaskPriority>('high');
   const [dueDate, setDueDate] = useState(new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [notes, setNotes] = useState('');
+
+  // Load signature requests for all tasks that have an associated document
+  useEffect(() => {
+    const fetchSignatures = async () => {
+      const tasksWithDocs = tasks.filter((t) => t.documentId && (t.status === 'approved' || t.status === 'completed'));
+      for (const t of tasksWithDocs) {
+        if (t.documentId && !(t.id in signatureMap)) {
+          const req = await dataRepository.getSignatureRequestForDocument(t.documentId);
+          setSignatureMap((prev) => ({ ...prev, [t.id]: req }));
+        }
+      }
+    };
+    fetchSignatures();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks]);
 
   // Quick Client Creation Modal State
   const [showNewClientForm, setShowNewClientForm] = useState(false);
@@ -272,6 +297,29 @@ export const WorkflowKanban: React.FC = () => {
                         </div>
                       )}
 
+                      {/* Start Signing Process Button (Boss only, approved task with document) */}
+                      {isBoss && t.documentId && (t.status === 'approved' || t.status === 'completed') && (
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                          {(!signatureMap[t.id] || signatureMap[t.id]?.status === 'CANCELLED') ? (
+                            <button
+                              onClick={() => {
+                                setSigningTaskId(t.id);
+                                setSigningDocumentId(t.documentId || null);
+                                setSigningDocumentTitle(t.title);
+                                setSigningClientId(t.clientId);
+                              }}
+                              className="w-full py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-[11px] font-semibold flex items-center justify-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>✍️ Start Signing Process</span>
+                            </button>
+                          ) : (
+                            <SignatureStatusBadge signatureRequest={signatureMap[t.id]} compact />
+                          )}
+                        </div>
+                      )}
+
+
                       {/* Advance Button */}
                       {canAdvance && t.status !== 'completed' && t.status !== 'draft_ready' && (
                         <div className="flex justify-between items-center pt-1">
@@ -319,6 +367,29 @@ export const WorkflowKanban: React.FC = () => {
           );
         })}
       </div>
+
+      {/* Signature Config Modal */}
+      {signingTaskId && signingDocumentId && (
+        <SignatureConfigModal
+          taskId={signingTaskId}
+          documentId={signingDocumentId}
+          documentTitle={signingDocumentTitle}
+          users={users}
+          client={clients.find((c) => c.id === signingClientId) || null}
+          onClose={() => { setSigningTaskId(null); setSigningDocumentId(null); }}
+          onSuccess={() => {
+            // Refresh signature status for this task
+            if (signingDocumentId && signingTaskId) {
+              const tid = signingTaskId;
+              const did = signingDocumentId;
+              dataRepository.getSignatureRequestForDocument(did).then((req) => {
+                setSignatureMap((prev) => ({ ...prev, [tid]: req }));
+              });
+            }
+          }}
+          showToast={showToast}
+        />
+      )}
 
       {/* Assign Task Modal */}
       {showAssignModal && isBoss && (
