@@ -82,7 +82,16 @@ export async function getTaskSignatureRequests(req: Request, res: Response, next
 export async function getSigningPage(req: Request, res: Response, next: NextFunction) {
   try {
     const { token } = req.params;
+
+    // The signing page uses inline <script> blocks and onclick handlers.
+    // Helmet's global CSP (set by app.use(helmet())) blocks these.
+    // We explicitly remove the CSP header here so the page JavaScript executes.
+    res.removeHeader('Content-Security-Policy');
+    res.removeHeader('Content-Security-Policy-Report-Only');
+    res.removeHeader('X-Content-Security-Policy');
+
     const details = await getSignerDetails(token);
+
 
     if (!details.valid) {
       const codeMessages: Record<string, { icon: string; heading: string }> = {
@@ -206,7 +215,17 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
   <!-- Document preview -->
   <details class="card">
     <summary>📄 Preview Document Before Signing <span style="font-size:12px;color:#94a3b8;">Click to expand</span></summary>
-    <div>${(details.documentContent || '').replace(/<script[\s\S]*?<\/script>/gi, '')}</div>
+    <div>${
+      (details.documentContent || '')
+        // Strip <script> tags (prevent JS injection)
+        .replace(/<script[\s\S]*?<\/script>/gi, '')
+        // Strip CSP and other security-relevant <meta> tags that would override the page's own security policy
+        .replace(/<meta[^>]+http-equiv\s*=\s*["']?content-security-policy["']?[^>]*\/?>/gi, '')
+        .replace(/<meta[^>]+http-equiv\s*=\s*["']?x-frame-options["']?[^>]*\/?>/gi, '')
+        // Strip inline event handlers from injected HTML (onclick, onload, onerror, etc.)
+        .replace(/\s+on\w+\s*=\s*["'][^"']*["']/gi, '')
+        .replace(/\s+on\w+\s*=\s*\{[^}]*\}/gi, '')
+    }</div>
   </details>
 
   <!-- Signature panel -->
