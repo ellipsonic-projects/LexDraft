@@ -1,7 +1,8 @@
 // ─── AI Types ────────────────────────────────────────────────────────────────
 // Central type definitions for the LexDraft AI Review Engine & Rewrite Assistant
 
-export type AIProvider = 'gemini' | 'openai' | 'rule_based';
+export type AIProvider = 'groq' | 'gemini' | 'openai' | 'rule_based';
+export type AIProviderStatus = 'GEMINI_OK' | 'GEMINI_QUOTA_EXHAUSTED' | 'GEMINI_ERROR' | 'RULE_BASED';
 
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
@@ -26,20 +27,55 @@ export type RewriteAction =
   | 'IMPROVE_CLARITY'
   | 'IMPROVE_FORMALITY';
 
+export type FindingType =
+  | 'REQUIRED_LEGAL_ELEMENT'
+  | 'MISSING_INFORMATION'
+  | 'POTENTIAL_LEGAL_RISK'
+  | 'DRAFTING_ISSUE'
+  | 'GRAMMAR'
+  | 'COMPLIANCE'
+  | 'RECOMMENDATION';
+
+export type RequirementType = 'REQUIRED' | 'RECOMMENDED' | 'POTENTIAL_RISK';
+
+export type ExistenceState =
+  | 'MISSING'
+  | 'PRESENT'
+  | 'PRESENT_BUT_INCOMPLETE'
+  | 'PRESENT_BUT_AMBIGUOUS'
+  | 'RECOMMENDED_ENHANCEMENT';
+
+export interface FindingLocation {
+  section?: string;
+  clauseNumber?: string;
+  paragraphIndex?: number;
+  sourceText?: string;
+  startOffset?: number;
+  endOffset?: number;
+  insertionAnchor?: string;
+}
+
 // ─── Finding ─────────────────────────────────────────────────────────────────
 
 export interface AIFinding {
   id: string;
   category: FindingCategory;
+  findingType?: FindingType;
+  requirementType?: RequirementType;
+  existenceState?: ExistenceState;
   severity: FindingSeverity;
   title: string;
   description: string;
-  /** The exact text excerpt that triggered this finding (if available) */
+  evidence?: string;
   textExcerpt?: string;
-  /** Suggested clause text to insert (for MISSING_CLAUSE findings) */
+  recommendation?: string;
   suggestedClause?: string;
-  /** Specific location in the document (e.g. "Section 3, Paragraph 2") */
   location?: string;
+  locationMeta?: FindingLocation;
+  confidence?: number;
+  source?: 'AI' | 'RULE' | 'BOTH';
+  needsLegalReview?: boolean;
+  reason?: string;
 }
 
 // ─── Risk Score ───────────────────────────────────────────────────────────────
@@ -84,6 +120,10 @@ export interface DocumentReviewResponse {
   provider: AIProvider;
   /** The AI model name used, or "heuristic-v1" for rule_based */
   model: string;
+  /** Provider status (GEMINI_OK | GEMINI_QUOTA_EXHAUSTED | GEMINI_ERROR | RULE_BASED) */
+  status: AIProviderStatus;
+  /** True if deterministic rule-based fallback was used */
+  fallbackUsed: boolean;
   /** Executive summary of the overall document health */
   summary: string;
   riskScore: RiskScore;
@@ -93,6 +133,14 @@ export interface DocumentReviewResponse {
   confidence?: number;
   /** Label shown to users when fallback was used */
   providerLabel: string;
+}
+
+// ─── Legal Basis & Statutory Citation ─────────────────────────────────────────
+
+export interface LegalBasisItem {
+  source: string;
+  reference: string;
+  relevance: string;
 }
 
 // ─── Rewrite Request / Response ───────────────────────────────────────────────
@@ -106,18 +154,28 @@ export interface RewriteRequest {
   action: RewriteAction;
   /** Surrounding context for better AI understanding (optional, ±200 chars around selection) */
   context?: string;
-  /** Document type for prompt specialization */
+  /** Document type for prompt specialization (e.g. "Residential Rental Agreement") */
   documentType?: string;
+  /** Jurisdiction for state-specific legal drafting (e.g. "Karnataka, India") */
+  jurisdiction?: string;
+  /** Current section title or clause header */
+  sectionName?: string;
 }
 
 export interface RewriteResponse {
   provider: AIProvider;
   model: string;
+  status: AIProviderStatus;
+  fallbackUsed: boolean;
   action: RewriteAction;
   originalText: string;
   rewrittenText: string;
-  /** Explanation of what changed and why */
+  /** Explanation of what changed and why in Indian legal drafting style */
   rationale: string;
+  /** Statutory references and Indian legal authorities applied */
+  legalBasis?: LegalBasisItem[];
+  /** Legal cautions or statutory notices */
+  warnings?: string[];
   providerLabel: string;
   /** Whether the model flagged uncertainty and recommends legal review */
   needsLegalReview: boolean;

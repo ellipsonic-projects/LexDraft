@@ -4,8 +4,8 @@
 import { z } from 'zod';
 
 export const reviewRequestSchema = z.object({
-  documentId: z.string().uuid('Invalid documentId'),
-  documentVersionId: z.string().uuid('Invalid documentVersionId'),
+  documentId: z.string().min(1, 'Invalid documentId'),
+  documentVersionId: z.string().min(1, 'Invalid documentVersionId'),
 });
 
 const REWRITE_ACTIONS = [
@@ -21,8 +21,8 @@ const REWRITE_ACTIONS = [
 ] as const;
 
 export const rewriteRequestSchema = z.object({
-  documentId: z.string().uuid('Invalid documentId'),
-  documentVersionId: z.string().uuid('Invalid documentVersionId'),
+  documentId: z.string().min(1, 'Invalid documentId'),
+  documentVersionId: z.string().min(1, 'Invalid documentVersionId'),
   selectedText: z
     .string()
     .min(5, 'Selected text must be at least 5 characters')
@@ -32,11 +32,14 @@ export const rewriteRequestSchema = z.object({
       message: `action must be one of: ${REWRITE_ACTIONS.join(', ')}`,
     }),
   }),
-  context: z.string().max(1000).optional(),
+  context: z.string().max(2000).optional(),
+  documentType: z.string().max(200).optional(),
+  jurisdiction: z.string().max(200).optional(),
+  sectionName: z.string().max(200).optional(),
 });
 
 export const rewriteAcceptedSchema = z.object({
-  documentId: z.string().uuid('Invalid documentId'),
+  documentId: z.string().min(1, 'Invalid documentId'),
   action: z.enum(REWRITE_ACTIONS),
   documentTitle: z.string().min(1),
 });

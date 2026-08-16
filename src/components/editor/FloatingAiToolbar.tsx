@@ -56,15 +56,16 @@ export const FloatingAiToolbar: React.FC<FloatingAiToolbarProps> = ({
     const toolbarWidth = 240;
     const toolbarHeight = 36;
 
-    let left = selectionRect.left - containerRect.left + selectionRect.width / 2 - toolbarWidth / 2;
-    let top = selectionRect.top - containerRect.top - toolbarHeight - 10 + editorContainer.scrollTop;
+    // Calculate position relative to container viewport bounds
+    let left = selectionRect.left - containerRect.left + (selectionRect.width / 2) - (toolbarWidth / 2);
+    let top = selectionRect.top - containerRect.top - toolbarHeight - 10;
 
-    // Clamp horizontally
-    left = Math.max(8, Math.min(left, containerRect.width - toolbarWidth - 8));
+    // Clamp horizontally inside container
+    left = Math.max(12, Math.min(left, containerRect.width - toolbarWidth - 12));
 
-    // If above the top, show below selection instead
-    if (top < editorContainer.scrollTop + 4) {
-      top = selectionRect.bottom - containerRect.top + 8 + editorContainer.scrollTop;
+    // If toolbar extends above visible container, show below selection instead
+    if (top < 8) {
+      top = selectionRect.bottom - containerRect.top + 8;
     }
 
     setPosition({ top, left });

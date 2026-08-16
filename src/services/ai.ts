@@ -18,15 +18,53 @@ export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type FindingCategory = 'MISSING_CLAUSE' | 'HIGH_RISK' | 'COMPLIANCE' | 'GRAMMAR' | 'STRUCTURAL' | 'RECOMMENDATION';
 export type FindingSeverity = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
 
+export type FindingType =
+  | 'REQUIRED_LEGAL_ELEMENT'
+  | 'MISSING_INFORMATION'
+  | 'POTENTIAL_LEGAL_RISK'
+  | 'DRAFTING_ISSUE'
+  | 'GRAMMAR'
+  | 'COMPLIANCE'
+  | 'RECOMMENDATION';
+
+export type RequirementType = 'REQUIRED' | 'RECOMMENDED' | 'POTENTIAL_RISK';
+
+export type ExistenceState =
+  | 'MISSING'
+  | 'PRESENT'
+  | 'PRESENT_BUT_INCOMPLETE'
+  | 'PRESENT_BUT_AMBIGUOUS'
+  | 'RECOMMENDED_ENHANCEMENT';
+
+export interface FindingLocation {
+  section?: string;
+  clauseNumber?: string;
+  paragraphIndex?: number;
+  sourceText?: string;
+  startOffset?: number;
+  endOffset?: number;
+  insertionAnchor?: string;
+}
+
 export interface AIFinding {
   id: string;
   category: FindingCategory;
+  findingType?: FindingType;
+  requirementType?: RequirementType;
+  existenceState?: ExistenceState;
   severity: FindingSeverity;
   title: string;
   description: string;
+  evidence?: string;
   textExcerpt?: string;
+  recommendation?: string;
   suggestedClause?: string;
   location?: string;
+  locationMeta?: FindingLocation;
+  confidence?: number;
+  source?: 'AI' | 'RULE' | 'BOTH';
+  needsLegalReview?: boolean;
+  reason?: string;
 }
 
 export interface RiskScore {
@@ -52,6 +90,12 @@ export interface DocumentReviewResult {
   providerLabel: string;
 }
 
+export interface LegalBasisItem {
+  source: string;
+  reference: string;
+  relevance: string;
+}
+
 export interface RewriteResult {
   provider: string;
   model: string;
@@ -59,6 +103,8 @@ export interface RewriteResult {
   originalText: string;
   rewrittenText: string;
   rationale: string;
+  legalBasis?: LegalBasisItem[];
+  warnings?: string[];
   providerLabel: string;
   needsLegalReview: boolean;
 }

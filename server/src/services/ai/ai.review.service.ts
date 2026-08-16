@@ -4,6 +4,7 @@
 import { prisma } from '../../lib/prisma';
 import { getAIProvider } from './ai.provider';
 import { DocumentReviewRequest, DocumentReviewResponse } from './ai.types';
+import { evaluateFindingsDeterministically, EvaluationContext } from './deterministicRiskEngine';
 
 export interface StartReviewOptions {
   documentId: string;
@@ -29,14 +30,32 @@ export async function runDocumentReview(options: StartReviewOptions): Promise<Do
     throw Object.assign(new Error('Document not found or access denied'), { statusCode: 404 });
   }
 
-  // ── 2. Validate version ───────────────────────────────────────────────────
-  const version = await prisma.documentVersion.findFirst({
+  // ── 2. Validate version (fallback to latest or auto-create v1 if missing) ───
+  let version = await prisma.documentVersion.findFirst({
     where: { id: documentVersionId, documentId },
     select: { id: true, versionNumber: true, content: true },
   });
 
   if (!version) {
-    throw Object.assign(new Error('Document version not found'), { statusCode: 404 });
+    version = await prisma.documentVersion.findFirst({
+      where: { documentId },
+      orderBy: { versionNumber: 'desc' },
+      select: { id: true, versionNumber: true, content: true },
+    });
+  }
+
+  if (!version) {
+    version = await prisma.documentVersion.create({
+      data: {
+        documentId,
+        versionNumber: 1,
+        content: doc.content || '<p>Initial Document Content</p>',
+        variablesState: {},
+        changeDescription: 'Initial draft version snapshot',
+        authorId: userId,
+      },
+      select: { id: true, versionNumber: true, content: true },
+    });
   }
 
   // ── 3. Strip HTML to plain text for AI ───────────────────────────────────
@@ -55,24 +74,45 @@ export async function runDocumentReview(options: StartReviewOptions): Promise<Do
     },
   });
 
-  // ── 5. Run AI analysis ────────────────────────────────────────────────────
+  // ── 5. Run AI analysis (Stage 1) ──────────────────────────────────────────
   const provider = getAIProvider();
   const reviewRequest: DocumentReviewRequest = {
     documentId,
-    documentVersionId,
+    documentVersionId: version.id,
     contentText,
     title: doc.title,
     documentType: inferDocumentType(doc.title),
   };
 
-  const result = await provider.reviewDocument(reviewRequest);
+  const rawResult = await provider.reviewDocument(reviewRequest);
 
-  // ── 6. Persist review to DB ───────────────────────────────────────────────
+  // ── 6. Deterministic Risk Engine Evaluation (Stage 2) ─────────────────────
+  const evalContext: EvaluationContext = {
+    documentTitle: doc.title,
+    documentType: inferDocumentType(doc.title),
+    jurisdiction: 'Karnataka',
+    lifecycleStage: 'DRAFT',
+  };
+
+  const { finalizedFindings, riskScore, categories } = evaluateFindingsDeterministically(
+    rawResult.findings,
+    evalContext,
+    contentText
+  );
+
+  const result: DocumentReviewResponse = {
+    ...rawResult,
+    riskScore,
+    findings: finalizedFindings,
+    categories,
+  };
+
+  // ── 7. Persist review to DB using resolved version.id ─────────────────────
   await prisma.documentReview.upsert({
     where: {
       documentId_documentVersionId: {
         documentId,
-        documentVersionId,
+        documentVersionId: version.id,
       },
     },
     update: {
@@ -87,7 +127,7 @@ export async function runDocumentReview(options: StartReviewOptions): Promise<Do
     },
     create: {
       documentId,
-      documentVersionId,
+      documentVersionId: version.id,
       riskScore: result.riskScore.score,
       riskLevel: result.riskScore.level,
       summary: result.summary,
@@ -130,8 +170,24 @@ export async function getLatestReview(
   });
   if (!doc) return null;
 
-  const review = await prisma.documentReview.findUnique({
-    where: { documentId_documentVersionId: { documentId, documentVersionId } },
+  let targetVersionId = documentVersionId;
+  if (!targetVersionId || targetVersionId === 'latest') {
+    const latestVer = await prisma.documentVersion.findFirst({
+      where: { documentId },
+      orderBy: { versionNumber: 'desc' },
+      select: { id: true },
+    });
+    if (latestVer) {
+      targetVersionId = latestVer.id;
+    }
+  }
+
+  const review = await prisma.documentReview.findFirst({
+    where: {
+      documentId,
+      ...(targetVersionId && targetVersionId !== 'latest' ? { documentVersionId: targetVersionId } : {}),
+    },
+    orderBy: { createdAt: 'desc' },
   });
 
   if (!review) return null;
@@ -139,6 +195,8 @@ export async function getLatestReview(
   return {
     provider: review.provider as any,
     model: review.model,
+    status: review.provider === 'rule_based' ? 'RULE_BASED' : 'GEMINI_OK',
+    fallbackUsed: review.provider === 'rule_based',
     summary: review.summary,
     riskScore: {
       score: review.riskScore,

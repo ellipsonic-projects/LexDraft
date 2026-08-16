@@ -108,8 +108,8 @@ export const RewritePreviewModal: React.FC<RewritePreviewModalProps> = ({
               <div style={{ fontSize: '13px', fontWeight: 700, color: 'white' }}>
                 AI Rewrite Preview
               </div>
-              <div style={{ fontSize: '10px', color: 'rgba(199,210,254,0.8)', marginTop: '1px' }}>
-                {ACTION_LABELS[result.action]} · {result.providerLabel}
+              <div style={{ fontSize: '10px', color: 'rgba(199,210,254,0.9)', marginTop: '1px', fontWeight: 600 }}>
+                {ACTION_LABELS[result.action]} · 🇮🇳 Indian Legal Drafting · {result.providerLabel}
               </div>
             </div>
           </div>
@@ -152,6 +152,28 @@ export const RewritePreviewModal: React.FC<RewritePreviewModalProps> = ({
               <p style={{ fontSize: '11px', color: isDark ? '#fca5a5' : '#991b1b', margin: 0 }}>
                 <strong>Needs Legal Review:</strong> The AI flagged uncertainty in this rewrite. Have a qualified legal professional review before applying.
               </p>
+            </div>
+          )}
+
+          {/* Warnings */}
+          {result.warnings && result.warnings.length > 0 && (
+            <div
+              style={{
+                background: isDark ? '#3b2005' : '#fffbe6',
+                border: isDark ? '1px solid #78350f' : '1px solid #ffe58f',
+                borderRadius: '10px',
+                padding: '10px 12px',
+                marginBottom: '16px',
+              }}
+            >
+              <div style={{ fontSize: '9px', fontWeight: 800, color: isDark ? '#fde047' : '#d97706', marginBottom: '4px', textTransform: 'uppercase' }}>
+                Statutory Cautions & Legal Warnings
+              </div>
+              {result.warnings.map((w, idx) => (
+                <div key={idx} style={{ fontSize: '11px', color: isDark ? '#fef08a' : '#92400e', lineHeight: 1.4 }}>
+                  • {w}
+                </div>
+              ))}
             </div>
           )}
 
@@ -203,7 +225,7 @@ export const RewritePreviewModal: React.FC<RewritePreviewModalProps> = ({
                   textTransform: 'uppercase',
                 }}
               >
-                AI Suggestion
+                Suggested Text (Indian Legal Drafting)
               </div>
               <div
                 style={{
@@ -226,6 +248,64 @@ export const RewritePreviewModal: React.FC<RewritePreviewModalProps> = ({
             </div>
           </div>
 
+          {/* Legal Basis Cards */}
+          {result.legalBasis && result.legalBasis.length > 0 && (
+            <div
+              style={{
+                background: isDark ? '#1e293b' : '#f0f9ff',
+                border: isDark ? '1px solid #334155' : '1px solid #bae6fd',
+                borderRadius: '10px',
+                padding: '10px 12px',
+                marginBottom: '12px',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: '9px',
+                  fontWeight: 800,
+                  letterSpacing: '0.08em',
+                  color: isDark ? '#38bdf8' : '#0284c7',
+                  marginBottom: '6px',
+                  textTransform: 'uppercase',
+                }}
+              >
+                ⚖️ Applicable Indian Statutory Basis
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {result.legalBasis.map((item, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      background: isDark ? '#0f172a' : '#ffffff',
+                      border: `1px solid ${border}`,
+                      borderRadius: '8px',
+                      padding: '8px 10px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, color: text }}>{item.source}</span>
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          background: isDark ? '#312e81' : '#e0e7ff',
+                          color: isDark ? '#c7d2fe' : '#4338ca',
+                          padding: '2px 8px',
+                          borderRadius: '12px',
+                        }}
+                      >
+                        {item.reference}
+                      </span>
+                    </div>
+                    <p style={{ fontSize: '10px', color: subtext, margin: '4px 0 0 0', lineHeight: 1.4 }}>
+                      {item.relevance}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Rationale */}
           {result.rationale && (
             <div
@@ -246,7 +326,7 @@ export const RewritePreviewModal: React.FC<RewritePreviewModalProps> = ({
                   textTransform: 'uppercase',
                 }}
               >
-                AI Rationale
+                Drafting Rationale
               </div>
               <p style={{ fontSize: '11px', color: text, margin: 0, lineHeight: 1.5 }}>
                 {result.rationale}

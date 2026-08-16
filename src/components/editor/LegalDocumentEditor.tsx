@@ -47,7 +47,7 @@ import { RewritePreviewModal } from './RewritePreviewModal';
 import { InsertClauseModal } from './InsertClauseModal';
 import { compileHouseAgreement, wrapDocument } from '../../utils/HouseAgreementCompiler';
 import { DEFAULT_HOUSE_WIZARD_STATE } from '../../types/houseWizardTypes';
-import { aiService, DocumentReviewResult, AIFinding, FindingCategory, RewriteAction, RewriteResult } from '../../services/ai';
+import { aiService, DocumentReviewResult, AIFinding, FindingCategory, FindingLocation, RewriteAction, RewriteResult } from '../../services/ai';
 
 // Helper to extract editable body HTML from full HTML documents
 function extractEditableHtml(rawHtml?: string): string {
@@ -162,17 +162,127 @@ export const LegalDocumentEditor: React.FC = () => {
   const [isRewriteLoading, setIsRewriteLoading] = useState(false);
   const [rewriteResult, setRewriteResult] = useState<RewriteResult | null>(null);
   // Clause insertion state
-  const [insertClauseData, setInsertClauseData] = useState<{ clauseHtml: string; findingTitle: string; findingDescription: string } | null>(null);
+  const [insertClauseData, setInsertClauseData] = useState<{ clauseHtml: string; findingTitle: string; findingDescription: string; locationMeta?: FindingLocation } | null>(null);
 
   const editorRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const isDark = theme === 'dark';
+
+  // ── Custom Undo / Redo History Stack (past[], present, future[]) ──────────────
+  const pastRef = useRef<string[]>([]);
+  const futureRef = useRef<string[]>([]);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const isHistoryOperation = useRef(false);
+  const lastHtmlRef = useRef<string>('');
+  const typingTimerRef = useRef<any>(null);
+
+  const syncUndoRedoButtons = () => {
+    setCanUndo(pastRef.current.length > 0);
+    setCanRedo(futureRef.current.length > 0);
+  };
+
+  // Push snapshot to past stack, clearing future stack on user edits
+  const pushSnapshot = useCallback((newHtml: string, isTyping = false) => {
+    if (isHistoryOperation.current) {
+      isHistoryOperation.current = false;
+      return;
+    }
+    if (!newHtml) return;
+
+    const currentPresent = lastHtmlRef.current;
+    if (newHtml === currentPresent) return;
+
+    if (isTyping) {
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+      typingTimerRef.current = setTimeout(() => {
+        if (currentPresent && currentPresent !== newHtml) {
+          pastRef.current.push(currentPresent);
+          if (pastRef.current.length > 100) pastRef.current.shift();
+          futureRef.current = [];
+          lastHtmlRef.current = newHtml;
+          syncUndoRedoButtons();
+        }
+      }, 700);
+    } else {
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+      if (currentPresent) {
+        pastRef.current.push(currentPresent);
+        if (pastRef.current.length > 100) pastRef.current.shift();
+      }
+      futureRef.current = [];
+      lastHtmlRef.current = newHtml;
+      syncUndoRedoButtons();
+    }
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    if (pastRef.current.length === 0) return;
+
+    const currentPresent = editorRef.current?.innerHTML || contentHtml;
+    const previousState = pastRef.current.pop()!;
+    futureRef.current.push(currentPresent);
+
+    isHistoryOperation.current = true;
+    lastHtmlRef.current = previousState;
+    setContentHtml(previousState);
+    if (editorRef.current) {
+      editorRef.current.innerHTML = previousState;
+    }
+    updateStats(previousState);
+    syncUndoRedoButtons();
+  }, [contentHtml]);
+
+  const handleRedo = useCallback(() => {
+    if (futureRef.current.length === 0) return;
+
+    const currentPresent = editorRef.current?.innerHTML || contentHtml;
+    const nextState = futureRef.current.pop()!;
+    pastRef.current.push(currentPresent);
+
+    isHistoryOperation.current = true;
+    lastHtmlRef.current = nextState;
+    setContentHtml(nextState);
+    if (editorRef.current) {
+      editorRef.current.innerHTML = nextState;
+    }
+    updateStats(nextState);
+    syncUndoRedoButtons();
+  }, [contentHtml]);
+
+  // Keyboard shortcut listener for Ctrl+Z and Ctrl+Y / Ctrl+Shift+Z
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        if (e.shiftKey) {
+          e.preventDefault();
+          handleRedo();
+        } else {
+          e.preventDefault();
+          handleUndo();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+
+    const node = editorRef.current;
+    if (node) {
+      node.addEventListener('keydown', handleKeyDown);
+      return () => node.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [handleUndo, handleRedo]);
 
   // Load document content on select / document change
   useEffect(() => {
     if (doc) {
       const resolved = resolveDocContent(doc.content, doc.variables);
       setContentHtml(resolved);
+      lastHtmlRef.current = resolved;
+      pastRef.current = [];
+      futureRef.current = [];
+      syncUndoRedoButtons();
       if (editorRef.current) {
         editorRef.current.innerHTML = resolved;
         updateStats(resolved);
@@ -207,16 +317,29 @@ export const LegalDocumentEditor: React.FC = () => {
   const exec = (command: string, value: string | undefined = undefined) => {
     if (!editorRef.current) return;
     editorRef.current.focus();
+
+    if (command === 'undo') {
+      handleUndo();
+      return;
+    }
+    if (command === 'redo') {
+      handleRedo();
+      return;
+    }
+
+    // Record state snapshot before applying formatting action
+    pushSnapshot(editorRef.current.innerHTML, false);
     document.execCommand(command, false, value);
-    handleEditorInput();
+    handleEditorInput(false);
     handleSelection();
   };
 
-  const handleEditorInput = () => {
+  const handleEditorInput = (isTyping = true) => {
     if (editorRef.current) {
       const newHtml = editorRef.current.innerHTML;
       setContentHtml(newHtml);
       updateStats(newHtml);
+      pushSnapshot(newHtml, isTyping);
     }
   };
 
@@ -260,14 +383,14 @@ export const LegalDocumentEditor: React.FC = () => {
         try {
           iframe.contentWindow?.focus();
           iframe.contentWindow?.print();
-        } catch (err) {
-          console.error('Print iframe execution failed:', err);
+        } catch (e) {
+          console.error('Print iframe error:', e);
         } finally {
           setTimeout(() => {
             if (document.body.contains(iframe)) {
               document.body.removeChild(iframe);
             }
-          }, 3000);
+          }, 1000);
         }
       }, 300);
     }
@@ -281,16 +404,7 @@ export const LegalDocumentEditor: React.FC = () => {
     setAiReview(null);
 
     try {
-      // Get the latest version ID from the document's versions array
-      const latestVersion = doc.versions?.[0]; // versions are ordered desc by versionNumber
-      const versionId = latestVersion?.id;
-
-      if (!versionId) {
-        setAiError('Document has no version history. Please save the document first.');
-        setIsAiLoading(false);
-        return;
-      }
-
+      const versionId = doc.versions?.[0]?.id || 'latest';
       const result = await aiService.reviewDocument(doc.id, versionId);
       setAiReview(result);
       setAiCategoryFilter('ALL');
@@ -302,14 +416,108 @@ export const LegalDocumentEditor: React.FC = () => {
   };
 
   // ── Module D: Insert Clause ─────────────────────────────────────────────────
-  const handleInsertClause = (clauseHtml: string) => {
+  const sanitizeClauseHtml = (rawHtml: string) => {
+    return rawHtml
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/on\w+="[^"]*"/gi, '')
+      .replace(/on\w+='[^']*'/gi, '');
+  };
+
+  const handleInsertClause = (clauseHtml: string, locationMeta?: FindingLocation, findingTitle?: string) => {
     if (!editorRef.current) return;
+    const cleanHtml = sanitizeClauseHtml(clauseHtml);
     editorRef.current.focus();
-    document.execCommand('insertHTML', false, clauseHtml);
-    handleEditorInput();
-    // Auto-save the document after insertion
+
+    pushSnapshot(editorRef.current.innerHTML, false);
+
+    const titleLower = (findingTitle || '').toLowerCase();
+    const anchorKeyword = locationMeta?.insertionAnchor || locationMeta?.section || '';
+    const anchorLower = anchorKeyword.toLowerCase();
+
+    const editor = editorRef.current;
+    let targetNode: HTMLElement | null = null;
+
+    // Search all block elements (<p>, <div>, <li>, <h2>, <h3>, blockquote) inside editor
+    const blockElements = Array.from(editor.querySelectorAll('p, div, li, h2, h3, blockquote')) as HTMLElement[];
+
+    if (anchorLower) {
+      for (const el of blockElements) {
+        if (el.innerText.toLowerCase().includes(anchorLower)) {
+          targetNode = el;
+          break;
+        }
+      }
+    }
+
+    // Target Node Fallbacks based on title keywords
+    if (!targetNode && (titleLower.includes('execution') || titleLower.includes('signature') || titleLower.includes('witness'))) {
+      for (const el of blockElements) {
+        if (el.innerText.toLowerCase().includes('in witness whereof') || el.innerText.toLowerCase().includes('signed by')) {
+          targetNode = el;
+          break;
+        }
+      }
+      if (!targetNode && blockElements.length > 0) {
+        targetNode = blockElements[blockElements.length - 1]; // End of document for execution block
+      }
+    } else if (!targetNode && (titleLower.includes('notice') || titleLower.includes('address'))) {
+      for (const el of blockElements) {
+        if (el.innerText.toLowerCase().includes('address for notice') || el.innerText.toLowerCase().includes('29.')) {
+          targetNode = el;
+          break;
+        }
+      }
+    } else if (!targetNode && titleLower.includes('termination')) {
+      for (const el of blockElements) {
+        if (el.innerText.toLowerCase().includes('termination') || el.innerText.toLowerCase().includes('7.')) {
+          targetNode = el;
+          break;
+        }
+      }
+    } else if (!targetNode && (titleLower.includes('dispute') || titleLower.includes('governing law') || titleLower.includes('jurisdiction'))) {
+      for (const el of blockElements) {
+        if (el.innerText.toLowerCase().includes('governing law') || el.innerText.toLowerCase().includes('28.')) {
+          targetNode = el;
+          break;
+        }
+      }
+    }
+
+    // Perform targeted insertion relative to targetNode
+    if (targetNode && targetNode.parentNode) {
+      const wrapper = document.createElement('div');
+      wrapper.innerHTML = cleanHtml.startsWith('<') ? cleanHtml : `<p class="legal-paragraph">${cleanHtml}</p>`;
+      
+      const newChild = wrapper.firstElementChild || wrapper;
+      if (targetNode.getAttribute('style')) {
+        newChild.setAttribute('style', targetNode.getAttribute('style') || '');
+      }
+
+      // Insert immediately after targetNode
+      targetNode.parentNode.insertBefore(wrapper.firstElementChild || wrapper, targetNode.nextSibling);
+
+      // Scroll target element into view smoothly
+      (wrapper.firstElementChild || targetNode).scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+      // If target node could not be matched with high confidence, ask user confirmation
+      const confirmInsertAtEnd = window.confirm(
+        `Suggested insertion location for "${findingTitle || 'clause'}" could not be determined confidently.\n\nWould you like to insert it at the end of the document?`
+      );
+      if (confirmInsertAtEnd) {
+        const wrapper = document.createElement('p');
+        wrapper.className = 'legal-paragraph';
+        wrapper.innerHTML = cleanHtml;
+        editor.appendChild(wrapper);
+        wrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        setInsertClauseData(null);
+        return;
+      }
+    }
+
+    handleEditorInput(false);
     if (doc) {
-      saveDocumentDraft(doc.id, editorRef.current.innerHTML || contentHtml, doc.variables || {}, 'AI recommended clause inserted');
+      saveDocumentDraft(doc.id, editorRef.current.innerHTML || contentHtml, doc.variables || {}, `AI recommended clause inserted: ${findingTitle || 'clause'}`);
     }
     setInsertClauseData(null);
   };
@@ -320,7 +528,6 @@ export const LegalDocumentEditor: React.FC = () => {
     const handleSelectionChange = () => {
       const sel = window.getSelection();
       if (!sel || sel.isCollapsed || !sel.toString().trim()) {
-        // Only hide if not clicking inside the toolbar itself
         setFloatingToolbarVisible(false);
         return;
       }
@@ -349,15 +556,13 @@ export const LegalDocumentEditor: React.FC = () => {
 
   const handleRewriteAction = async (action: RewriteAction) => {
     if (!doc || !floatingSelectedText) return;
-    const latestVersion = doc.versions?.[0];
-    const versionId = latestVersion?.id;
-    if (!versionId) return;
-
     setFloatingToolbarVisible(false);
     setIsRewriteLoading(true);
 
     try {
-      // Grab ±300 chars of context around the selection from the editor
+      const versionId = doc.versions?.[0]?.id || 'latest';
+
+      // Grab ±200 chars of context around the selection from the editor
       const fullText = editorRef.current?.innerText || '';
       const idx = fullText.indexOf(floatingSelectedText);
       const context = idx >= 0
@@ -377,28 +582,75 @@ export const LegalDocumentEditor: React.FC = () => {
     if (!editorRef.current) return;
     editorRef.current.focus();
 
+    // Push snapshot to history stack before applying AI rewrite
+    pushSnapshot(editorRef.current.innerHTML, false);
+
+    // Clean and normalize text to single line spaces (preventing multi-div paragraph destruction)
+    const cleanText = text
+      .trim()
+      .replace(/^["']|["']$/g, '')
+      .replace(/\r\n/g, '\n')
+      .replace(/\n+/g, ' ')
+      .replace(/ +/g, ' ');
+
     if (savedRange && mode === 'replace') {
       const sel = window.getSelection();
       if (sel) {
         sel.removeAllRanges();
         sel.addRange(savedRange);
-        document.execCommand('insertText', false, text);
       }
-    } else {
-      // Insert below: collapse to end of saved range, then insert
-      if (savedRange) {
-        const sel = window.getSelection();
-        if (sel) {
-          const range = savedRange.cloneRange();
-          range.collapse(false); // move to end
-          sel.removeAllRanges();
-          sel.addRange(range);
-          document.execCommand('insertHTML', false, `<p>${text}</p>`);
+
+      // Perform direct format-preserving DOM node replacement inside savedRange
+      if (editorRef.current.contains(savedRange.commonAncestorContainer) || editorRef.current === savedRange.commonAncestorContainer) {
+        const textNode = document.createTextNode(cleanText);
+        savedRange.deleteContents();
+        savedRange.insertNode(textNode);
+
+        // Position cursor after inserted text node
+        savedRange.setStartAfter(textNode);
+        savedRange.setEndAfter(textNode);
+
+        const parent = textNode.parentNode;
+        if (parent) {
+          parent.normalize();
         }
+      } else {
+        // Fallback: search and replace exact selected text in innerHTML
+        const currentHtml = editorRef.current.innerHTML;
+        if (floatingSelectedText && currentHtml.includes(floatingSelectedText)) {
+          editorRef.current.innerHTML = currentHtml.replace(floatingSelectedText, cleanText);
+        }
+      }
+    } else if (savedRange && mode === 'insertBelow') {
+      // Find nearest block parent (P, DIV, LI, H1, H2, H3, BLOCKQUOTE) to inherit exact formatting
+      let blockParent: HTMLElement | null = null;
+      let curr: Node | null = savedRange.endContainer;
+      while (curr && curr !== editorRef.current) {
+        if (curr.nodeType === Node.ELEMENT_NODE && ['P', 'DIV', 'LI', 'H1', 'H2', 'H3', 'BLOCKQUOTE'].includes((curr as HTMLElement).tagName)) {
+          blockParent = curr as HTMLElement;
+          break;
+        }
+        curr = curr.parentNode;
+      }
+
+      const newPara = document.createElement('p');
+      if (blockParent && blockParent.getAttribute('style')) {
+        newPara.setAttribute('style', blockParent.getAttribute('style') || '');
+      }
+      if (blockParent && blockParent.className) {
+        newPara.className = blockParent.className;
+      }
+      newPara.textContent = cleanText;
+
+      if (blockParent && blockParent.parentNode) {
+        blockParent.parentNode.insertBefore(newPara, blockParent.nextSibling);
+      } else {
+        savedRange.collapse(false);
+        savedRange.insertNode(newPara);
       }
     }
 
-    handleEditorInput();
+    handleEditorInput(false);
     setRewriteResult(null);
     setSavedRange(null);
     setFloatingSelectedText('');
@@ -407,6 +659,52 @@ export const LegalDocumentEditor: React.FC = () => {
     if (doc) {
       saveDocumentDraft(doc.id, editorRef.current.innerHTML || contentHtml, doc.variables || {}, `AI rewrite applied: ${rewriteResult?.action}`);
       aiService.logRewriteAccepted(doc.id, rewriteResult!.action, doc.title).catch(() => {});
+    }
+  };
+
+  // ── Module D: Locate / Highlight Finding in Editor ──────────────────────────
+  const handleHighlightFinding = (finding: AIFinding) => {
+    if (!editorRef.current) return;
+    const targetText = finding.textExcerpt || finding.location || finding.title;
+    if (!targetText) return;
+
+    const editor = editorRef.current;
+    const textNodes: Node[] = [];
+    const walk = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT, null);
+    let n: Node | null;
+    while ((n = walk.nextNode())) {
+      textNodes.push(n);
+    }
+
+    const searchStr = targetText.trim().toLowerCase();
+    const matchSnippet = searchStr.length > 20 ? searchStr.slice(0, 20) : searchStr;
+
+    for (const node of textNodes) {
+      const nodeText = (node.textContent || '').toLowerCase();
+      const idx = nodeText.indexOf(matchSnippet);
+      if (idx !== -1 && node.parentElement) {
+        node.parentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        const range = document.createRange();
+        const sel = window.getSelection();
+        try {
+          range.setStart(node, idx);
+          range.setEnd(node, Math.min(nodeText.length, idx + matchSnippet.length));
+          if (sel) {
+            sel.removeAllRanges();
+            sel.addRange(range);
+          }
+        } catch (_) {}
+
+        const parentEl = node.parentElement;
+        const originalBg = parentEl.style.backgroundColor;
+        parentEl.style.transition = 'background-color 0.3s ease';
+        parentEl.style.backgroundColor = 'rgba(251, 191, 36, 0.4)';
+        setTimeout(() => {
+          parentEl.style.backgroundColor = originalBg;
+        }, 2000);
+        return;
+      }
     }
   };
 
@@ -632,8 +930,30 @@ export const LegalDocumentEditor: React.FC = () => {
       }`}>
         {/* Undo / Redo */}
         <div className="flex items-center space-x-0.5">
-          <button onClick={() => exec('undo')} className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer" title="Undo (Ctrl+Z)"><Undo2 className="w-3.5 h-3.5" /></button>
-          <button onClick={() => exec('redo')} className="p-1.5 rounded hover:bg-slate-200 dark:hover:bg-slate-800 cursor-pointer" title="Redo (Ctrl+Y)"><Redo2 className="w-3.5 h-3.5" /></button>
+          <button
+            onClick={handleUndo}
+            disabled={!canUndo}
+            className={`p-1.5 rounded transition-colors ${
+              canUndo
+                ? 'hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer'
+                : 'text-slate-300 dark:text-slate-700 cursor-not-allowed opacity-40'
+            }`}
+            title="Undo (Ctrl+Z)"
+          >
+            <Undo2 className="w-3.5 h-3.5" />
+          </button>
+          <button
+            onClick={handleRedo}
+            disabled={!canRedo}
+            className={`p-1.5 rounded transition-colors ${
+              canRedo
+                ? 'hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 cursor-pointer'
+                : 'text-slate-300 dark:text-slate-700 cursor-not-allowed opacity-40'
+            }`}
+            title="Redo (Ctrl+Y)"
+          >
+            <Redo2 className="w-3.5 h-3.5" />
+          </button>
         </div>
 
         <div className="h-4 w-px bg-slate-300 dark:bg-slate-700 mx-1" />
@@ -860,8 +1180,19 @@ export const LegalDocumentEditor: React.FC = () => {
           {/* Scrollable canvas area */}
           <div
             ref={canvasRef}
-            className="flex-1 overflow-y-auto overflow-x-auto bg-[#c2c2c2] dark:bg-[#0c0d10]"
+            className="flex-1 overflow-y-auto overflow-x-auto bg-[#c2c2c2] dark:bg-[#0c0d10] relative"
           >
+            {/* ── Module E: Floating AI Rewrite Toolbar ───────────────────────────── */}
+            <FloatingAiToolbar
+              visible={floatingToolbarVisible || isRewriteLoading}
+              selectedText={floatingSelectedText}
+              selectionRect={floatingSelectionRect}
+              editorContainer={canvasRef.current}
+              isLoading={isRewriteLoading}
+              onAction={handleRewriteAction}
+              onClose={() => { setFloatingToolbarVisible(false); setSavedRange(null); }}
+              isDark={isDark}
+            />
           {/* Inner centering wrapper — grows to accommodate scaled paper */}
           <div
             style={{
@@ -889,7 +1220,7 @@ export const LegalDocumentEditor: React.FC = () => {
                 suppressContentEditableWarning
                 onMouseUp={handleSelection}
                 onKeyUp={handleSelection}
-                onInput={handleEditorInput}
+                onInput={() => handleEditorInput(true)}
                 className="legal-document-paper focus:outline-none focus:ring-2 focus:ring-blue-400/30 transition-shadow"
                 style={{
                   cursor: isApproved ? 'default' : 'text',
@@ -1121,28 +1452,57 @@ export const LegalDocumentEditor: React.FC = () => {
                   ).map((finding) => (
                     <div
                       key={finding.id}
-                      className={`p-3.5 rounded-xl border text-xs space-y-2 ${
+                      onClick={() => handleHighlightFinding(finding)}
+                      className={`p-3.5 rounded-xl border text-xs space-y-2 cursor-pointer transition-all hover:ring-2 hover:ring-indigo-400 ${
                         finding.severity === 'CRITICAL' ? 'bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800' :
                         finding.severity === 'HIGH' ? 'bg-orange-50 dark:bg-orange-950 border-orange-200 dark:border-orange-800' :
                         finding.severity === 'MEDIUM' ? 'bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800' :
                         'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800'
                       }`}
+                      title="Click to locate and highlight this section in the document"
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded mr-1 ${
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                          <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
                             finding.severity === 'CRITICAL' ? 'bg-red-200 dark:bg-red-900 text-red-800 dark:text-red-200' :
                             finding.severity === 'HIGH' ? 'bg-orange-200 dark:bg-orange-900 text-orange-800 dark:text-orange-200' :
                             finding.severity === 'MEDIUM' ? 'bg-amber-200 dark:bg-amber-900 text-amber-800 dark:text-amber-200' :
+                            finding.severity === 'LOW' ? 'bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-200' :
                             'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
                           }`}>{finding.severity}</span>
-                          <span className="font-semibold text-slate-800 dark:text-slate-200">{finding.title}</span>
+
+                          {finding.requirementType && (
+                            <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded border ${
+                              finding.requirementType === 'REQUIRED' ? 'bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20' :
+                              finding.requirementType === 'POTENTIAL_RISK' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20' :
+                              'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20'
+                            }`}>
+                              {finding.requirementType === 'REQUIRED' ? 'Required' : finding.requirementType === 'POTENTIAL_RISK' ? 'Potential Risk' : 'Recommended'}
+                            </span>
+                          )}
+
+                          {finding.source && (
+                            <span className="text-[8px] font-mono uppercase px-1 py-0.5 rounded bg-slate-200/60 dark:bg-slate-800 text-slate-500">
+                              {finding.source}
+                            </span>
+                          )}
                         </div>
+                        <span className="font-semibold text-slate-800 dark:text-slate-200">{finding.title}</span>
                       </div>
                       <p className="text-[10px] text-slate-600 dark:text-slate-400 leading-relaxed">{finding.description}</p>
+                      {finding.reason && (
+                        <p className="text-[9px] text-slate-500 dark:text-slate-400 italic bg-slate-100/50 dark:bg-slate-900/50 p-1.5 rounded">
+                          ⚖️ {finding.reason}
+                        </p>
+                      )}
                       {finding.textExcerpt && (
                         <p className="text-[9px] font-mono italic text-slate-500 dark:text-slate-500 bg-white dark:bg-slate-900 rounded p-1.5 border border-slate-200 dark:border-slate-700">
                           "{finding.textExcerpt.slice(0, 100)}{finding.textExcerpt.length > 100 ? '…' : ''}"
+                        </p>
+                      )}
+                      {finding.locationMeta?.section && (
+                        <p className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">
+                          📍 Location: <span className="font-semibold text-slate-700 dark:text-slate-300">{finding.locationMeta.section}</span> {finding.locationMeta.clauseNumber ? `(${finding.locationMeta.clauseNumber})` : ''}
                         </p>
                       )}
                       {finding.suggestedClause && (
@@ -1151,6 +1511,7 @@ export const LegalDocumentEditor: React.FC = () => {
                             clauseHtml: finding.suggestedClause!,
                             findingTitle: finding.title,
                             findingDescription: finding.description,
+                            locationMeta: finding.locationMeta,
                           })}
                           className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
                         >
@@ -1402,18 +1763,6 @@ export const LegalDocumentEditor: React.FC = () => {
         />
       )}
 
-      {/* ── Module E: Floating AI Rewrite Toolbar ───────────────────────────── */}
-      <FloatingAiToolbar
-        visible={floatingToolbarVisible || isRewriteLoading}
-        selectedText={floatingSelectedText}
-        selectionRect={floatingSelectionRect}
-        editorContainer={canvasRef.current}
-        isLoading={isRewriteLoading}
-        onAction={handleRewriteAction}
-        onClose={() => { setFloatingToolbarVisible(false); setSavedRange(null); }}
-        isDark={isDark}
-      />
-
       {/* ── Module E: Rewrite Preview Modal ──────────────────────────────────── */}
       {rewriteResult && (
         <RewritePreviewModal
@@ -1431,7 +1780,7 @@ export const LegalDocumentEditor: React.FC = () => {
           clauseHtml={insertClauseData.clauseHtml}
           findingTitle={insertClauseData.findingTitle}
           findingDescription={insertClauseData.findingDescription}
-          onConfirm={() => handleInsertClause(insertClauseData.clauseHtml)}
+          onConfirm={() => handleInsertClause(insertClauseData.clauseHtml, insertClauseData.locationMeta, insertClauseData.findingTitle)}
           onCancel={() => setInsertClauseData(null)}
           isDark={isDark}
         />

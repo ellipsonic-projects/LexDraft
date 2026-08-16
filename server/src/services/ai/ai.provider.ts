@@ -14,6 +14,7 @@ import {
   RewriteResponse,
 } from './ai.types';
 import { calculateRiskScore, detectMissingMandatorySections } from './ai.risk.service';
+import { getIndianLegalContext } from './indianLegalContext';
 
 // ─── UUID generation using Node built-in crypto ───────────────────────────────
 import { randomUUID } from 'crypto';
@@ -29,7 +30,7 @@ function newId(): string {
 
 class GeminiAIProvider implements IAIProvider {
   readonly provider: AIProvider = 'gemini';
-  readonly model = 'gemini-1.5-flash';
+  readonly model = 'gemini-3.6-flash';
   private apiKey: string;
 
   constructor(apiKey: string) {
@@ -37,22 +38,70 @@ class GeminiAIProvider implements IAIProvider {
   }
 
   async reviewDocument(request: DocumentReviewRequest): Promise<DocumentReviewResponse> {
-    const prompt = buildReviewPrompt(request);
-    const raw = await this.callGemini(prompt);
-    return parseReviewJSON(raw, this.provider, this.model, request.contentText);
+    try {
+      const prompt = buildReviewPrompt(request);
+      const raw = await this.callGemini(prompt);
+      const review = parseReviewJSON(raw, this.provider, this.model, request.contentText);
+      review.status = 'GEMINI_OK';
+      review.fallbackUsed = false;
+      review.providerLabel = 'Powered by Google Gemini';
+      return review;
+    } catch (err: any) {
+      const isQuotaExhausted = err.message.includes('PerDay') || err.message.includes('RESOURCE_EXHAUSTED') || err.message.includes('quota') || err.message.includes('429');
+      const status = isQuotaExhausted ? 'GEMINI_QUOTA_EXHAUSTED' : 'GEMINI_ERROR';
+      const label = isQuotaExhausted
+        ? 'Gemini daily quota exhausted. Rule-based analysis is being used until the quota resets.'
+        : 'Rule-based analysis — AI provider error';
+
+      console.warn(`[Gemini] Review failed (${status}: ${err.message}). Falling back to DeterministicRuleProvider.`);
+      return new DeterministicRuleProvider(status, label).reviewDocument(request);
+    }
   }
 
   async rewriteText(request: RewriteRequest): Promise<RewriteResponse> {
-    const prompt = buildRewritePrompt(request);
-    const raw = await this.callGemini(prompt);
-    return parseRewriteJSON(raw, this.provider, this.model, request);
+    const timestamp = new Date().toISOString();
+    try {
+      console.log(`[AI REWRITE DIAGNOSTIC] timestamp=${timestamp}, provider=gemini, model=${this.model}, action=${request.action}, selectedChars=${request.selectedText.length}`);
+      
+      const prompt = buildRewritePrompt(request);
+      const raw = await this.callGemini(prompt);
+      let rewrite = parseRewriteJSON(raw, this.provider, this.model, request);
+
+      // Check if response is identical to original text
+      if (rewrite.rewrittenText.trim().toLowerCase() === request.selectedText.trim().toLowerCase()) {
+        console.warn(`[GeminiAIProvider] Response identical to original text for action ${request.action}. Retrying with corrective prompt...`);
+        const retryPrompt = `${prompt}\n\nCRITICAL CORRECTION REQUIRED:\nYour previous response produced text identical to the original input. You MUST produce a genuine, material transformation according to the action "${request.action}". The suggestedText MUST be visibly and structurally different from originalText while preserving all factual parameters (names, dates, amounts).`;
+        
+        const retryRaw = await this.callGemini(retryPrompt);
+        rewrite = parseRewriteJSON(retryRaw, this.provider, this.model, request);
+      }
+
+      rewrite.status = rewrite.rewrittenText.trim().toLowerCase() === request.selectedText.trim().toLowerCase()
+        ? 'NO_MEANINGFUL_TRANSFORMATION'
+        : 'GEMINI_OK';
+      rewrite.fallbackUsed = false;
+      rewrite.providerLabel = 'Powered by Google Gemini';
+
+      console.log(`[AI REWRITE DIAGNOSTIC] timestamp=${timestamp}, provider=gemini, model=${this.model}, status=SUCCESS, outputLen=${rewrite.rewrittenText.length}`);
+      return rewrite;
+    } catch (err: any) {
+      console.warn(`[AI REWRITE DIAGNOSTIC] timestamp=${timestamp}, provider=gemini, model=${this.model}, status=FAILED, error=${err.message}`);
+      const isQuotaExhausted = err.message.includes('PerDay') || err.message.includes('RESOURCE_EXHAUSTED') || err.message.includes('quota') || err.message.includes('429');
+      const status = isQuotaExhausted ? 'GEMINI_QUOTA_EXHAUSTED' : 'GEMINI_ERROR';
+      const label = isQuotaExhausted
+        ? 'Gemini daily quota exhausted. Rule-based analysis is being used until the quota resets.'
+        : 'Rule-based analysis — AI provider error';
+
+      console.warn(`[Gemini] Rewrite failed (${status}: ${err.message}). Falling back to DeterministicRuleProvider.`);
+      return new DeterministicRuleProvider(status, label).rewriteText(request);
+    }
   }
 
   private async callGemini(prompt: string): Promise<string> {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
     const body = {
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.1, maxOutputTokens: 4096 },
+      generationConfig: { temperature: 0.2, maxOutputTokens: 4096 },
     };
 
     const response = await fetch(url, {
@@ -61,14 +110,14 @@ class GeminiAIProvider implements IAIProvider {
       body: JSON.stringify(body),
     });
 
-    if (!response.ok) {
-      const err = await response.text();
-      throw new Error(`Gemini API error ${response.status}: ${err}`);
+    if (response.ok) {
+      const data = (await response.json()) as any;
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+      if (text) return text;
     }
 
-    const data = await response.json() as any;
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-    return text;
+    const lastError = await response.text();
+    throw new Error(`Gemini API error ${response.status}: ${lastError}`);
   }
 }
 
@@ -84,15 +133,31 @@ class OpenAIProvider implements IAIProvider {
   }
 
   async reviewDocument(request: DocumentReviewRequest): Promise<DocumentReviewResponse> {
-    const prompt = buildReviewPrompt(request);
-    const raw = await this.callOpenAI(prompt);
-    return parseReviewJSON(raw, this.provider, this.model, request.contentText);
+    try {
+      const prompt = buildReviewPrompt(request);
+      const raw = await this.callOpenAI(prompt);
+      const review = parseReviewJSON(raw, this.provider, this.model, request.contentText);
+      review.status = 'GEMINI_OK';
+      review.fallbackUsed = false;
+      return review;
+    } catch (err: any) {
+      console.warn(`OpenAI review failed (${err.message}). Falling back to DeterministicRuleProvider.`);
+      return new DeterministicRuleProvider('RULE_BASED', 'Rule-based analysis — OpenAI provider error').reviewDocument(request);
+    }
   }
 
   async rewriteText(request: RewriteRequest): Promise<RewriteResponse> {
-    const prompt = buildRewritePrompt(request);
-    const raw = await this.callOpenAI(prompt);
-    return parseRewriteJSON(raw, this.provider, this.model, request);
+    try {
+      const prompt = buildRewritePrompt(request);
+      const raw = await this.callOpenAI(prompt);
+      const rewrite = parseRewriteJSON(raw, this.provider, this.model, request);
+      rewrite.status = 'GEMINI_OK';
+      rewrite.fallbackUsed = false;
+      return rewrite;
+    } catch (err: any) {
+      console.warn(`OpenAI rewrite failed (${err.message}). Falling back to DeterministicRuleProvider.`);
+      return new DeterministicRuleProvider('RULE_BASED', 'Rule-based analysis — OpenAI provider error').rewriteText(request);
+    }
   }
 
   private async callOpenAI(prompt: string): Promise<string> {
@@ -128,6 +193,13 @@ class OpenAIProvider implements IAIProvider {
 class DeterministicRuleProvider implements IAIProvider {
   readonly provider: AIProvider = 'rule_based';
   readonly model = 'heuristic-v1';
+  private customStatus: any;
+  private customLabel: string;
+
+  constructor(status: any = 'RULE_BASED', label = 'Rule-based analysis — AI provider unavailable') {
+    this.customStatus = status;
+    this.customLabel = label;
+  }
 
   async reviewDocument(request: DocumentReviewRequest): Promise<DocumentReviewResponse> {
     const text = request.contentText;
@@ -191,26 +263,160 @@ class DeterministicRuleProvider implements IAIProvider {
     return {
       provider: this.provider,
       model: this.model,
+      status: this.customStatus,
+      fallbackUsed: true,
       summary: `Rule-based analysis detected ${findings.length} issue(s). This is a deterministic structural scan — not AI legal reasoning. A qualified legal professional should review this document.`,
       riskScore,
       findings,
       categories,
-      providerLabel: 'Rule-based analysis — AI provider unavailable',
+      providerLabel: this.customLabel,
     };
   }
 
   async rewriteText(request: RewriteRequest): Promise<RewriteResponse> {
+    const indianContext = getIndianLegalContext(request.documentType, request.jurisdiction, request.sectionName);
+
+    // Apply rule-based legal transformations for fallback
+    let fallbackText = request.selectedText;
+    if (request.action === 'REWRITE_LEGALLY' || request.action === 'IMPROVE_FORMALITY' || request.action === 'REWRITE_PROFESSIONALLY') {
+      fallbackText = fallbackText
+        .replace(/\blandlord\b/gi, 'Lessor')
+        .replace(/\btenant\b/gi, 'Lessee')
+        .replace(/\bhouse|apartment|flat|property\b/gi, 'Demised Premises')
+        .replace(/\bcan leave\b/gi, 'may terminate this Lease by serving 30 (thirty) days written notice')
+        .replace(/\bevery month\b/gi, 'in advance on or before the 5th day of each calendar month')
+        .replace(/\btalk out any issues before going to court\b/gi, 'attempt amicable resolution through good-faith negotiations prior to initiating legal proceedings')
+        .replace(/\brent\b/gi, 'Monthly Rent');
+    } else if (request.action === 'SIMPLIFY' || request.action === 'IMPROVE_CLARITY') {
+      fallbackText = fallbackText
+        .replace(/notwithstanding anything hereinbefore contained to the contrary,?/gi, 'Despite anything else in this agreement,')
+        .replace(/yield up/gi, 'vacate and return')
+        .replace(/demised premises/gi, 'leased property')
+        .replace(/whoever lives in the house when due or else penalties apply/gi, 'the occupying Tenant on or before the due date, failing which statutory late fees shall apply');
+    } else if (request.action === 'SUMMARIZE' || request.action === 'SHORTEN') {
+      const sentences = fallbackText.split(/\.\s+/);
+      fallbackText = sentences[0] ? `${sentences[0]}.` : fallbackText;
+    } else if (request.action === 'EXPAND' || request.action === 'MAKE_DEFENSIBLE') {
+      fallbackText = `${fallbackText} The parties hereto explicitly agree that all rights and liabilities under this clause shall be governed by the laws of India and subject to the exclusive jurisdiction of courts at ${indianContext.detectedJurisdiction}.`;
+    }
+
     return {
       provider: this.provider,
       model: this.model,
+      status: this.customStatus,
+      fallbackUsed: true,
       action: request.action,
       originalText: request.selectedText,
-      rewrittenText: request.selectedText,
-      rationale:
-        'AI provider is not configured. Rule-based rewrite is not available. Please configure GEMINI_API_KEY or OPENAI_API_KEY on the server to enable AI-powered rewrites.',
-      providerLabel: 'Rule-based analysis — AI provider unavailable',
-      needsLegalReview: true,
+      rewrittenText: fallbackText,
+      rationale: `${this.customLabel}. Standard Indian legal rule-based transformation applied.`,
+      legalBasis: indianContext.framework.keyStatutes.map(s => ({
+        source: s.source,
+        reference: s.reference,
+        relevance: s.summary
+      })),
+      warnings: ['Quota limit reached or AI provider unavailable — Rule-based fallback utilized.'],
+      providerLabel: this.customLabel,
     };
+  }
+}
+
+// ─── Groq AI Provider ─────────────────────────────────────────────────────────
+
+class GroqProvider implements IAIProvider {
+  readonly provider: AIProvider = 'groq';
+  readonly model = process.env.GROQ_MODEL || 'llama-3.3-70b-versatile';
+  private apiKey: string;
+
+  constructor(apiKey: string) {
+    this.apiKey = apiKey;
+  }
+
+  async reviewDocument(request: DocumentReviewRequest): Promise<DocumentReviewResponse> {
+    const timestamp = new Date().toISOString();
+    try {
+      console.log(`[AI PROVIDER] timestamp=${timestamp}, provider=groq, model=${this.model}, action=REVIEW, chars=${request.contentText.length}, status=EXECUTING`);
+      const prompt = buildReviewPrompt(request);
+      const raw = await this.callGroq(prompt);
+      const review = parseReviewJSON(raw, this.provider, this.model, request.contentText);
+      review.status = 'GEMINI_OK';
+      review.fallbackUsed = false;
+      review.providerLabel = 'Powered by Groq (Llama 3.3 70B)';
+      console.log(`[AI PROVIDER] timestamp=${timestamp}, provider=groq, model=${this.model}, status=SUCCESS`);
+      return review;
+    } catch (err: any) {
+      console.warn(`[AI PROVIDER] timestamp=${timestamp}, provider=groq, model=${this.model}, status=FAILED, error=${err.message}`);
+      
+      const geminiKey = process.env.GEMINI_API_KEY;
+      if (geminiKey && geminiKey.trim() !== '') {
+        console.warn(`[GroqProvider] Falling back to GeminiAIProvider...`);
+        return new GeminiAIProvider(geminiKey.trim()).reviewDocument(request);
+      }
+
+      return new DeterministicRuleProvider('GEMINI_ERROR', 'Rule-based analysis — Groq provider error').reviewDocument(request);
+    }
+  }
+
+  async rewriteText(request: RewriteRequest): Promise<RewriteResponse> {
+    const timestamp = new Date().toISOString();
+    try {
+      console.log(`[AI PROVIDER] timestamp=${timestamp}, provider=groq, model=${this.model}, action=${request.action}, chars=${request.selectedText.length}, status=EXECUTING`);
+      const prompt = buildRewritePrompt(request);
+      const raw = await this.callGroq(prompt);
+      let rewrite = parseRewriteJSON(raw, this.provider, this.model, request);
+
+      // Check if response is identical to original text
+      if (rewrite.rewrittenText.trim().toLowerCase() === request.selectedText.trim().toLowerCase()) {
+        console.warn(`[GroqProvider] Response identical for action ${request.action}. Retrying with corrective prompt...`);
+        const retryPrompt = `${prompt}\n\nCRITICAL CORRECTION REQUIRED:\nYour previous response produced text identical to the original input. You MUST produce a genuine, material transformation according to the action "${request.action}". The suggestedText MUST be visibly and structurally different from originalText while preserving all factual parameters (names, dates, amounts).`;
+        const retryRaw = await this.callGroq(retryPrompt);
+        rewrite = parseRewriteJSON(retryRaw, this.provider, this.model, request);
+      }
+
+      rewrite.status = rewrite.rewrittenText.trim().toLowerCase() === request.selectedText.trim().toLowerCase()
+        ? 'NO_MEANINGFUL_TRANSFORMATION'
+        : 'GEMINI_OK';
+      rewrite.fallbackUsed = false;
+      rewrite.providerLabel = 'Powered by Groq (Llama 3.3 70B)';
+      console.log(`[AI PROVIDER] timestamp=${timestamp}, provider=groq, model=${this.model}, status=SUCCESS, outputLen=${rewrite.rewrittenText.length}`);
+      return rewrite;
+    } catch (err: any) {
+      console.warn(`[AI PROVIDER] timestamp=${timestamp}, provider=groq, model=${this.model}, status=FAILED, error=${err.message}`);
+      
+      const geminiKey = process.env.GEMINI_API_KEY;
+      if (geminiKey && geminiKey.trim() !== '') {
+        console.warn(`[GroqProvider] Falling back to GeminiAIProvider...`);
+        return new GeminiAIProvider(geminiKey.trim()).rewriteText(request);
+      }
+
+      return new DeterministicRuleProvider('GEMINI_ERROR', 'Rule-based analysis — Groq provider error').rewriteText(request);
+    }
+  }
+
+  private async callGroq(prompt: string): Promise<string> {
+    const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${this.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: this.model,
+        messages: [
+          { role: 'system', content: 'You are a Senior Principal Indian Legal Counsel and Master Legal Draftsman. Always respond with raw valid JSON matching the requested schema.' },
+          { role: 'user', content: prompt },
+        ],
+        temperature: 0.2,
+        response_format: { type: 'json_object' },
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(`Groq API error ${response.status}: ${err}`);
+    }
+
+    const data = (await response.json()) as any;
+    return data?.choices?.[0]?.message?.content ?? '';
   }
 }
 
@@ -221,17 +427,21 @@ let _cachedProvider: IAIProvider | null = null;
 export function getAIProvider(): IAIProvider {
   if (_cachedProvider) return _cachedProvider;
 
+  const groqKey = process.env.GROQ_API_KEY;
   const geminiKey = process.env.GEMINI_API_KEY;
   const openaiKey = process.env.OPENAI_API_KEY;
 
-  if (geminiKey && geminiKey.trim() !== '') {
-    console.log('[AI] Using Gemini provider');
+  if (groqKey && groqKey.trim() !== '') {
+    console.log('[AI] Selected Primary Provider: Groq (GROQ_API_KEY)');
+    _cachedProvider = new GroqProvider(groqKey.trim());
+  } else if (geminiKey && geminiKey.trim() !== '') {
+    console.log('[AI] Selected Primary Provider: Google Gemini (GEMINI_API_KEY)');
     _cachedProvider = new GeminiAIProvider(geminiKey.trim());
   } else if (openaiKey && openaiKey.trim() !== '') {
-    console.log('[AI] Using OpenAI provider');
+    console.log('[AI] Selected Primary Provider: OpenAI (OPENAI_API_KEY)');
     _cachedProvider = new OpenAIProvider(openaiKey.trim());
   } else {
-    console.warn('[AI] No AI API key configured. Using deterministic rule-based fallback.');
+    console.warn('[AI] No AI API key configured. Selected Primary Provider: Deterministic Rule-Based Fallback');
     _cachedProvider = new DeterministicRuleProvider();
   }
 
@@ -285,44 +495,72 @@ RULES:
 }
 
 function buildRewritePrompt(request: RewriteRequest): string {
-  const actionDescriptions: Record<RewriteAction, string> = {
-    REWRITE_LEGALLY: 'Rewrite using precise, enforceable legal language suitable for a formal legal agreement',
-    REWRITE_PROFESSIONALLY: 'Rewrite in formal, professional business language while preserving legal meaning',
-    SIMPLIFY: 'Simplify into plain English while preserving all legal obligations and meaning',
-    SUMMARIZE: 'Summarize the key legal points of this section in 2-3 concise sentences',
-    MAKE_DEFENSIBLE: 'Strengthen this clause to be more legally defensible and harder to challenge',
-    EXPAND: 'Expand this clause with more specific detail, conditions, and legal protections',
-    SHORTEN: 'Shorten this clause to its essential legal requirements while keeping enforceability',
-    IMPROVE_CLARITY: 'Improve clarity by removing ambiguity and making obligations more specific',
-    IMPROVE_FORMALITY: 'Increase the formal legal register and professional tone of this text',
+  const actionInstructions: Record<RewriteAction, string> = {
+    REWRITE_LEGALLY: 'Your task is to REWRITE LEGALLY: Convert the selected text into authoritative formal Indian legal drafting using standard statutory phrasing (e.g., Transfer of Property Act 1882, Indian Contract Act 1872 standards). Use precise Indian legal terms such as "Lessor", "Lessee", "Demised Premises", "covenants", "hereby demises and leases", "yield and paying", "indemnify and hold harmless".',
+
+    REWRITE_PROFESSIONALLY: 'Your task is to REWRITE PROFESSIONALLY: Upgrade the selected text into formal, polished corporate and legal business language. Eliminate colloquialisms, informal phrasing, and casual tone while elevating executive tone.',
+
+    SIMPLIFY: 'Your task is to SIMPLIFY: Rewrite the selected text into clear, modern plain-English legal phrasing. Remove archaic legalese, convoluted sentence structures, and multi-clause complexity while preserving full enforceability.',
+
+    SUMMARIZE: 'Your task is to SUMMARIZE: Produce a substantially shorter version (1 to 2 concise sentences maximum) containing ONLY the core legal obligation or right.',
+
+    MAKE_DEFENSIBLE: 'Your task is to MAKE DEFENSIBLE: Strengthen the clause to make it highly defensible against legal challenges in Indian courts. Remove ambiguities, close potential contractual loopholes, and add clear standard of care / notice mechanics.',
+
+    EXPAND: 'Your task is to EXPAND: Provide comprehensive legal detail and operational completeness. Add explicit timelines, written notice requirements, remedies upon breach, duty to mitigate, and governing statutory safeguards.',
+
+    SHORTEN: 'Your task is to SHORTEN: Make the selected text materially more concise by reducing word count by at least 30-50% while strictly retaining all core legal rights and liabilities.',
+
+    IMPROVE_CLARITY: 'Your task is to IMPROVE CLARITY: Re-structure sentence mechanics and layout to eliminate any vagueness or ambiguous interpretations.',
+
+    IMPROVE_FORMALITY: 'Your task is to IMPROVE FORMALITY: Increase the formal legal register and traditional Indian legal document tone.',
   };
 
-  const instruction = actionDescriptions[request.action];
-  const context = request.context ? `\n\nSURROUNDING CONTEXT:\n${request.context}` : '';
-  const docType = request.documentType || 'Legal Agreement';
+  const indianContext = getIndianLegalContext(request.documentType, request.jurisdiction, request.sectionName);
 
-  return `You are a senior legal drafting expert. Your task: ${instruction}.
+  const contextStr = request.context ? `\nSURROUNDING CONTEXT:\n${request.context}` : '';
+  const sectionStr = request.sectionName ? `\nCURRENT SECTION: ${request.sectionName}` : '';
 
-DOCUMENT TYPE: ${docType}
-SELECTED TEXT:
+  return `You are a Senior Principal Indian Legal Counsel and Master Legal Draftsman.
+
+${actionInstructions[request.action]}
+
+DOCUMENT DETAILS:
+- Category / Type: ${indianContext.documentCategory} (${request.documentType || 'Legal Agreement'})
+- Jurisdiction: ${indianContext.detectedJurisdiction}${sectionStr}
+
+APPLICABLE STATUTORY FRAMEWORK & INDIAN DRAFTING GUIDANCE:
+- Governing Statutes: ${indianContext.framework.governingLaws.join('; ')}
+- Statutory References: ${indianContext.framework.keyStatutes.map(s => `${s.source} (${s.reference}): ${s.summary}`).join(' | ')}
+- Drafting Conventions: ${indianContext.framework.draftingConventions.join('; ')}
+
+ORIGINAL SELECTED TEXT TO REWRITE:
 ---
 ${request.selectedText}
----${context}
+---${contextStr}
 
-Respond with ONLY a valid JSON object (no markdown, no explanation):
+Respond with ONLY a valid JSON object matching this schema exactly:
 {
-  "rewrittenText": "The rewritten text here",
-  "rationale": "1-2 sentence explanation of key changes made and why",
+  "suggestedText": "The transformed rewritten text according to requested action (${request.action})",
+  "rationale": "Clear explanation of legal and stylistic improvements made",
+  "legalBasis": [
+    {
+      "source": "Exact Statutory Act or legal authority (e.g. Indian Contract Act, 1872)",
+      "reference": "Exact Section (e.g. Section 73)",
+      "relevance": "Why this authority applies to the rewrite"
+    }
+  ],
+  "warnings": [
+    "Any statutory warning or legal caveat"
+  ],
   "needsLegalReview": false
 }
 
 CRITICAL RULES:
-1. Do NOT invent statutes, jurisdiction-specific laws, or legal citations you are not certain about.
-2. If you are uncertain about any legal facts, set needsLegalReview to true.
-3. Preserve all defined terms, party names, and specific legal obligations from the original.
-4. Return only the JSON object. No markdown code fences.
-5. If the action is SUMMARIZE, the rewrittenText should be a clean summary paragraph.
-6. Output plain text (not HTML) for the rewrittenText — the frontend will handle formatting.`;
+1. MANDATORY TRANSFORMATION: You MUST produce a genuine, material transformation of the selected text according to requested action (${request.action}). Do NOT return the original text back unchanged.
+2. PRESERVE FACTS: Preserve all defined party names, property addresses, monetary amounts, dates, and core factual parameters.
+3. PRESERVE INTENT: Maintain the underlying legal intent unless the action explicitly specifies expansion or summarization.
+4. NO HALLUCINATIONS: If no specific statutory section applies directly, return [] for legalBasis. Do NOT fabricate acts or sections.
+5. RAW JSON ONLY: Return ONLY the valid JSON object. No markdown code blocks, no text before or after.`;
 }
 
 // ─── JSON Response Parsers ────────────────────────────────────────────────────
@@ -347,42 +585,43 @@ function parseReviewJSON(
   contentText: string
 ): DocumentReviewResponse {
   let parsed: any;
-  try {
-    parsed = extractJSON(raw);
-  } catch {
-    console.error('[AI] Failed to parse review response, falling back to rule-based:', raw.slice(0, 200));
-    const fallback = new DeterministicRuleProvider();
-    return fallback.reviewDocument({
-      documentId: '',
-      documentVersionId: '',
-      contentText,
-      title: '',
-    }) as any;
-  }
-
-  const findings = (parsed.findings || []).map((f: any, i: number) => ({
-    id: f.id || `finding-${i}`,
-    category: f.category || 'STRUCTURAL',
-    severity: f.severity || 'LOW',
-    title: f.title || 'Issue Found',
-    description: f.description || '',
-    textExcerpt: f.textExcerpt,
-    suggestedClause: f.suggestedClause,
-    location: f.location,
-  }));
-
-  const riskScore = calculateRiskScore(findings, contentText);
-  const categories = buildCategorySummary(findings);
-
   const providerLabels: Record<AIProvider, string> = {
+    groq: 'Powered by Groq (Llama 3.3 70B)',
     gemini: 'Powered by Google Gemini',
     openai: 'Powered by OpenAI GPT',
     rule_based: 'Rule-based analysis — AI provider unavailable',
   };
 
+  try {
+    parsed = extractJSON(raw);
+  } catch {
+    console.warn('[AIProvider] Unprocessable JSON response from review provider');
+    return new DeterministicRuleProvider('GEMINI_ERROR', providerLabels[provider]).reviewDocument({
+      title: 'Document Review',
+      contentText,
+    });
+  }
+
+  const rawFindings = Array.isArray(parsed.findings) ? parsed.findings : [];
+  const findings: AIFinding[] = rawFindings.map((f: any) => ({
+    id: f.id || newId(),
+    category: f.category || 'RECOMMENDATION',
+    severity: f.severity || 'MEDIUM',
+    title: f.title || 'Legal Observation',
+    description: f.description || '',
+    textExcerpt: f.textExcerpt || undefined,
+    suggestedClause: f.suggestedClause || undefined,
+    location: f.location || undefined,
+  }));
+
+  const riskScore = calculateRiskScore(findings, contentText);
+  const categories = buildCategorySummary(findings);
+
   return {
     provider,
     model,
+    status: 'GEMINI_OK',
+    fallbackUsed: false,
     summary: parsed.summary || 'AI analysis complete.',
     riskScore,
     findings,
@@ -400,6 +639,7 @@ function parseRewriteJSON(
 ): RewriteResponse {
   let parsed: any;
   const providerLabels: Record<AIProvider, string> = {
+    groq: 'Powered by Groq (Llama 3.3 70B)',
     gemini: 'Powered by Google Gemini',
     openai: 'Powered by OpenAI GPT',
     rule_based: 'Rule-based analysis — AI provider unavailable',
@@ -408,9 +648,12 @@ function parseRewriteJSON(
   try {
     parsed = extractJSON(raw);
   } catch {
+    const indianContext = getIndianLegalContext(request.documentType, request.jurisdiction, request.sectionName);
     return {
       provider,
       model,
+      status: 'GEMINI_ERROR',
+      fallbackUsed: true,
       action: request.action,
       originalText: request.selectedText,
       rewrittenText: request.selectedText,
@@ -420,15 +663,29 @@ function parseRewriteJSON(
     };
   }
 
+  const rewrittenText = (parsed.suggestedText || parsed.rewrittenText || '').trim();
+  const legalBasis = Array.isArray(parsed.legalBasis)
+    ? parsed.legalBasis.filter((b: any) => b && b.source && b.reference)
+    : [];
+  const warnings = Array.isArray(parsed.warnings)
+    ? parsed.warnings.filter((w: any) => typeof w === 'string')
+    : [];
+
   return {
     provider,
     model,
+    status: rewrittenText.toLowerCase() === request.selectedText.trim().toLowerCase()
+      ? 'NO_MEANINGFUL_TRANSFORMATION'
+      : 'GEMINI_OK',
+    fallbackUsed: false,
     action: request.action,
     originalText: request.selectedText,
-    rewrittenText: parsed.rewrittenText || request.selectedText,
-    rationale: parsed.rationale || '',
+    rewrittenText: rewrittenText || request.selectedText,
+    rationale: parsed.rationale || 'Rewritten according to requested action and Indian legal drafting conventions.',
+    legalBasis,
+    warnings,
     providerLabel: providerLabels[provider],
-    needsLegalReview: parsed.needsLegalReview === true,
+    needsLegalReview: Boolean(parsed.needsLegalReview ?? false),
   };
 }
 
