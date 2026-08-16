@@ -2,7 +2,7 @@
 // Central type definitions for the LexDraft AI Review Engine & Rewrite Assistant
 
 export type AIProvider = 'groq' | 'gemini' | 'openai' | 'rule_based';
-export type AIProviderStatus = 'GEMINI_OK' | 'GEMINI_QUOTA_EXHAUSTED' | 'GEMINI_ERROR' | 'RULE_BASED';
+export type AIProviderStatus = 'GEMINI_OK' | 'GEMINI_QUOTA_EXHAUSTED' | 'GEMINI_ERROR' | 'RULE_BASED' | 'NO_MEANINGFUL_TRANSFORMATION';
 
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 

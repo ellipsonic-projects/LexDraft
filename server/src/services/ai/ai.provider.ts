@@ -15,6 +15,7 @@ import {
 } from './ai.types';
 import { calculateRiskScore, detectMissingMandatorySections } from './ai.risk.service';
 import { getIndianLegalContext } from './indianLegalContext';
+import { evaluateFindingsDeterministically } from './deterministicRiskEngine';
 
 // ─── UUID generation using Node built-in crypto ───────────────────────────────
 import { randomUUID } from 'crypto';
@@ -41,7 +42,7 @@ class GeminiAIProvider implements IAIProvider {
     try {
       const prompt = buildReviewPrompt(request);
       const raw = await this.callGemini(prompt);
-      const review = parseReviewJSON(raw, this.provider, this.model, request.contentText);
+      const review = parseReviewJSON(raw, this.provider, this.model, request);
       review.status = 'GEMINI_OK';
       review.fallbackUsed = false;
       review.providerLabel = 'Powered by Google Gemini';
@@ -136,7 +137,7 @@ class OpenAIProvider implements IAIProvider {
     try {
       const prompt = buildReviewPrompt(request);
       const raw = await this.callOpenAI(prompt);
-      const review = parseReviewJSON(raw, this.provider, this.model, request.contentText);
+      const review = parseReviewJSON(raw, this.provider, this.model, request);
       review.status = 'GEMINI_OK';
       review.fallbackUsed = false;
       return review;
@@ -316,6 +317,7 @@ class DeterministicRuleProvider implements IAIProvider {
       })),
       warnings: ['Quota limit reached or AI provider unavailable — Rule-based fallback utilized.'],
       providerLabel: this.customLabel,
+      needsLegalReview: true,
     };
   }
 }
@@ -337,7 +339,7 @@ class GroqProvider implements IAIProvider {
       console.log(`[AI PROVIDER] timestamp=${timestamp}, provider=groq, model=${this.model}, action=REVIEW, chars=${request.contentText.length}, status=EXECUTING`);
       const prompt = buildReviewPrompt(request);
       const raw = await this.callGroq(prompt);
-      const review = parseReviewJSON(raw, this.provider, this.model, request.contentText);
+      const review = parseReviewJSON(raw, this.provider, this.model, request);
       review.status = 'GEMINI_OK';
       review.fallbackUsed = false;
       review.providerLabel = 'Powered by Groq (Llama 3.3 70B)';
@@ -582,7 +584,7 @@ function parseReviewJSON(
   raw: string,
   provider: AIProvider,
   model: string,
-  contentText: string
+  request: DocumentReviewRequest
 ): DocumentReviewResponse {
   let parsed: any;
   const providerLabels: Record<AIProvider, string> = {
@@ -596,10 +598,24 @@ function parseReviewJSON(
     parsed = extractJSON(raw);
   } catch {
     console.warn('[AIProvider] Unprocessable JSON response from review provider');
-    return new DeterministicRuleProvider('GEMINI_ERROR', providerLabels[provider]).reviewDocument({
-      title: 'Document Review',
-      contentText,
-    });
+    const rawFindings = detectMissingMandatorySections(request.contentText);
+    const { finalizedFindings, riskScore, categories } = evaluateFindingsDeterministically(
+      rawFindings,
+      { documentTitle: request.title || 'Document Review', documentType: request.documentType || 'Legal Agreement', jurisdiction: 'Karnataka', lifecycleStage: 'DRAFT' },
+      request.contentText
+    );
+
+    return {
+      provider,
+      model,
+      status: 'GEMINI_ERROR',
+      fallbackUsed: true,
+      summary: 'Fallback rule-based analysis complete. Primary AI provider was unavailable or returned invalid output.',
+      riskScore,
+      findings: finalizedFindings,
+      categories,
+      providerLabel: providerLabels[provider],
+    };
   }
 
   const rawFindings = Array.isArray(parsed.findings) ? parsed.findings : [];
@@ -614,7 +630,7 @@ function parseReviewJSON(
     location: f.location || undefined,
   }));
 
-  const riskScore = calculateRiskScore(findings, contentText);
+  const riskScore = calculateRiskScore(findings, request.contentText);
   const categories = buildCategorySummary(findings);
 
   return {
@@ -648,7 +664,6 @@ function parseRewriteJSON(
   try {
     parsed = extractJSON(raw);
   } catch {
-    const indianContext = getIndianLegalContext(request.documentType, request.jurisdiction, request.sectionName);
     return {
       provider,
       model,

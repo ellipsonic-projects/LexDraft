@@ -23,7 +23,7 @@ export interface EvaluationContext {
  */
 export function evaluateFindingsDeterministically(
   rawFindings: AIFinding[],
-  context: EvaluationContext,
+  _context: EvaluationContext,
   overallContentText: string
 ): {
   finalizedFindings: AIFinding[];
@@ -33,7 +33,6 @@ export function evaluateFindingsDeterministically(
   // ── 1. Process & Refine Each Finding ─────────────────────────────────────────
   const processedFindings: AIFinding[] = rawFindings.map((finding) => {
     const titleLower = finding.title.toLowerCase();
-    const descLower = finding.description.toLowerCase();
 
     // Default source if omitted
     const source = finding.source || 'AI';
