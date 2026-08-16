@@ -423,6 +423,27 @@ export const LegalDocumentEditor: React.FC = () => {
       .replace(/on\w+='[^']*'/gi, '');
   };
 
+  // ── Module D: Apply Grammar Correction ─────────────────────────────────────
+  const handleApplyGrammarCorrection = (finding: AIFinding) => {
+    if (!editorRef.current || !finding.incorrectText || !finding.correctedText) return;
+    const editor = editorRef.current;
+    const currentHtml = editor.innerHTML;
+
+    if (!currentHtml.includes(finding.incorrectText)) {
+      alert(`Could not locate exact text "${finding.incorrectText}" in editor content.`);
+      return;
+    }
+
+    pushSnapshot(currentHtml, false);
+    const updatedHtml = currentHtml.replace(finding.incorrectText, finding.correctedText);
+    editor.innerHTML = updatedHtml;
+    handleEditorInput(false);
+
+    if (doc) {
+      saveDocumentDraft(doc.id, updatedHtml, doc.variables || {}, `Grammar correction applied: ${finding.incorrectText} -> ${finding.correctedText}`);
+    }
+  };
+
   const handleInsertClause = (clauseHtml: string, locationMeta?: FindingLocation, findingTitle?: string) => {
     if (!editorRef.current) return;
     const cleanHtml = sanitizeClauseHtml(clauseHtml);
@@ -539,7 +560,7 @@ export const LegalDocumentEditor: React.FC = () => {
       if (!editorNode.contains(range.commonAncestorContainer)) return;
 
       const text = sel.toString().trim();
-      if (text.length < 3) return;
+      if (text.length < 2) return;
 
       const rect = range.getBoundingClientRect();
       setFloatingSelectedText(text);
@@ -550,8 +571,25 @@ export const LegalDocumentEditor: React.FC = () => {
       setSavedRange(range.cloneRange());
     };
 
+    const handleScrollOrResize = () => {
+      const sel = window.getSelection();
+      if (sel && !sel.isCollapsed && sel.rangeCount > 0) {
+        const range = sel.getRangeAt(0);
+        if (editorRef.current && editorRef.current.contains(range.commonAncestorContainer)) {
+          setFloatingSelectionRect(range.getBoundingClientRect());
+        }
+      }
+    };
+
     document.addEventListener('selectionchange', handleSelectionChange);
-    return () => document.removeEventListener('selectionchange', handleSelectionChange);
+    window.addEventListener('scroll', handleScrollOrResize, true);
+    window.addEventListener('resize', handleScrollOrResize);
+
+    return () => {
+      document.removeEventListener('selectionchange', handleSelectionChange);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
+      window.removeEventListener('resize', handleScrollOrResize);
+    };
   }, []);
 
   const handleRewriteAction = async (action: RewriteAction) => {
@@ -1341,9 +1379,9 @@ export const LegalDocumentEditor: React.FC = () => {
               <button
                 onClick={handleRunAiAnalysis}
                 disabled={isAiLoading}
-                className="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 text-white font-semibold text-xs rounded-full shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center space-x-1.5 transition-opacity"
+                className="btn-filled w-full py-2.5 text-xs flex items-center justify-center space-x-2 cursor-pointer shadow-md disabled:opacity-50"
               >
-                <Sparkles className="w-3.5 h-3.5" />
+                <Sparkles className="w-4 h-4 text-blush-peach dark:text-sienna-brown animate-pulse" />
                 <span>{isAiLoading ? 'Analyzing Legal Provisions…' : 'Scan Clauses & Risks'}</span>
               </button>
             </div>
@@ -1445,7 +1483,7 @@ export const LegalDocumentEditor: React.FC = () => {
                 )}
 
                 {/* Findings */}
-                <div className="space-y-2.5">
+                <div className="space-y-3">
                   {(aiCategoryFilter === 'ALL'
                     ? aiReview.findings
                     : aiReview.findings.filter(f => f.category === aiCategoryFilter)
@@ -1453,17 +1491,18 @@ export const LegalDocumentEditor: React.FC = () => {
                     <div
                       key={finding.id}
                       onClick={() => handleHighlightFinding(finding)}
-                      className={`p-3.5 rounded-xl border text-xs space-y-2 cursor-pointer transition-all hover:ring-2 hover:ring-indigo-400 ${
-                        finding.severity === 'CRITICAL' ? 'bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800' :
-                        finding.severity === 'HIGH' ? 'bg-orange-50 dark:bg-orange-950 border-orange-200 dark:border-orange-800' :
-                        finding.severity === 'MEDIUM' ? 'bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800' :
+                      className={`p-4 rounded-2xl border text-xs space-y-2.5 cursor-pointer transition-all hover:ring-2 hover:ring-indigo-500/50 ${
+                        finding.severity === 'CRITICAL' ? 'bg-red-50/50 dark:bg-red-950/40 border-red-200 dark:border-red-800' :
+                        finding.severity === 'HIGH' ? 'bg-orange-50/50 dark:bg-orange-950/40 border-orange-200 dark:border-orange-800' :
+                        finding.severity === 'MEDIUM' ? 'bg-amber-50/50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800' :
                         'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800'
                       }`}
                       title="Click to locate and highlight this section in the document"
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex flex-wrap items-center gap-1.5 mb-1">
-                          <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${
+                      {/* Header badges & title */}
+                      <div className="space-y-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
                             finding.severity === 'CRITICAL' ? 'bg-red-200 dark:bg-red-900 text-red-800 dark:text-red-200' :
                             finding.severity === 'HIGH' ? 'bg-orange-200 dark:bg-orange-900 text-orange-800 dark:text-orange-200' :
                             finding.severity === 'MEDIUM' ? 'bg-amber-200 dark:bg-amber-900 text-amber-800 dark:text-amber-200' :
@@ -1472,50 +1511,112 @@ export const LegalDocumentEditor: React.FC = () => {
                           }`}>{finding.severity}</span>
 
                           {finding.requirementType && (
-                            <span className={`text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded border ${
+                            <span className={`text-[9px] font-bold uppercase px-2 py-0.5 rounded border ${
                               finding.requirementType === 'REQUIRED' ? 'bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/20' :
                               finding.requirementType === 'POTENTIAL_RISK' ? 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/20' :
                               'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border-emerald-500/20'
                             }`}>
-                              {finding.requirementType === 'REQUIRED' ? 'Required' : finding.requirementType === 'POTENTIAL_RISK' ? 'Potential Risk' : 'Recommended'}
+                              {finding.requirementType === 'REQUIRED' ? 'Required' : finding.requirementType === 'POTENTIAL_RISK' ? 'Potential Risk' : 'Recommendation (0 Score Impact)'}
                             </span>
                           )}
 
                           {finding.source && (
-                            <span className="text-[8px] font-mono uppercase px-1 py-0.5 rounded bg-slate-200/60 dark:bg-slate-800 text-slate-500">
+                            <span className="text-[8px] font-mono uppercase px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
                               {finding.source}
                             </span>
                           )}
+
+                          {finding.confidence && (
+                            <span className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400">
+                              {Math.round(finding.confidence * 100)}% confidence
+                            </span>
+                          )}
                         </div>
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">{finding.title}</span>
+                        <h4 className="font-bold text-slate-800 dark:text-slate-100 text-xs">{finding.title}</h4>
                       </div>
-                      <p className="text-[10px] text-slate-600 dark:text-slate-400 leading-relaxed">{finding.description}</p>
-                      {finding.reason && (
-                        <p className="text-[9px] text-slate-500 dark:text-slate-400 italic bg-slate-100/50 dark:bg-slate-900/50 p-1.5 rounded">
-                          ⚖️ {finding.reason}
-                        </p>
-                      )}
-                      {finding.textExcerpt && (
-                        <p className="text-[9px] font-mono italic text-slate-500 dark:text-slate-500 bg-white dark:bg-slate-900 rounded p-1.5 border border-slate-200 dark:border-slate-700">
-                          "{finding.textExcerpt.slice(0, 100)}{finding.textExcerpt.length > 100 ? '…' : ''}"
-                        </p>
-                      )}
+
+                      {/* Location */}
                       {finding.locationMeta?.section && (
-                        <p className="text-[9px] text-slate-500 dark:text-slate-400 font-medium">
-                          📍 Location: <span className="font-semibold text-slate-700 dark:text-slate-300">{finding.locationMeta.section}</span> {finding.locationMeta.clauseNumber ? `(${finding.locationMeta.clauseNumber})` : ''}
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                          📍 <span className="font-semibold text-slate-700 dark:text-slate-300">{finding.locationMeta.section}</span> {finding.locationMeta.clauseNumber ? `(${finding.locationMeta.clauseNumber})` : ''}
                         </p>
                       )}
+
+                      {/* Evidence */}
+                      {(finding.textExcerpt || finding.evidence) && (
+                        <div className="bg-white dark:bg-slate-900 p-2 rounded-lg border border-slate-200 dark:border-slate-800 space-y-1">
+                          <span className="text-[8px] font-bold uppercase tracking-wider text-slate-400">Evidence Excerpt:</span>
+                          <p className="text-[10px] font-mono italic text-slate-600 dark:text-slate-400 leading-snug">
+                            "{finding.textExcerpt || finding.evidence}"
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Description / What is wrong */}
+                      <p className="text-[10px] text-slate-600 dark:text-slate-300 leading-relaxed">{finding.description}</p>
+
+                      {/* Legal Reason / Why it matters */}
+                      {finding.reason && (
+                        <p className="text-[10px] text-slate-500 dark:text-slate-400 italic bg-slate-100/60 dark:bg-slate-900/60 p-2 rounded-lg border border-slate-200/50 dark:border-slate-800/50">
+                          ⚖️ <span className="font-semibold">Why:</span> {finding.reason}
+                        </p>
+                      )}
+
+                      {/* Actionable Grammar Section */}
+                      {finding.findingType === 'GRAMMAR' && (finding.incorrectText || finding.correctedText) && (
+                        <div className="p-2.5 bg-indigo-50/70 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/60 rounded-xl space-y-1.5">
+                          <div className="text-[9px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300 flex items-center gap-1">
+                            ✨ Grammar Correction Detail
+                          </div>
+                          {finding.incorrectText && (
+                            <p className="text-[10px] text-red-600 dark:text-red-400">
+                              <span className="font-bold">Original:</span> <span className="line-through">{finding.incorrectText}</span>
+                            </p>
+                          )}
+                          {finding.problem && (
+                            <p className="text-[9px] text-slate-600 dark:text-slate-400">
+                              <span className="font-semibold">Problem:</span> {finding.problem}
+                            </p>
+                          )}
+                          {finding.correctedText && (
+                            <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium">
+                              <span className="font-bold">Suggested:</span> {finding.correctedText}
+                            </p>
+                          )}
+                          {finding.explanation && (
+                            <p className="text-[9px] text-slate-500 italic">
+                              <span className="font-semibold">Explanation:</span> {finding.explanation}
+                            </p>
+                          )}
+                          {finding.incorrectText && finding.correctedText && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleApplyGrammarCorrection(finding);
+                              }}
+                              className="w-full mt-1 py-1 px-2.5 bg-indigo-600 text-white rounded-lg font-bold text-[10px] hover:bg-indigo-700 transition-colors shadow-xs flex items-center justify-center gap-1 cursor-pointer"
+                            >
+                              ✓ Apply Correction
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Recommended Clause Insertion */}
                       {finding.suggestedClause && (
                         <button
-                          onClick={() => setInsertClauseData({
-                            clauseHtml: finding.suggestedClause!,
-                            findingTitle: finding.title,
-                            findingDescription: finding.description,
-                            locationMeta: finding.locationMeta,
-                          })}
-                          className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setInsertClauseData({
+                              clauseHtml: finding.suggestedClause!,
+                              findingTitle: finding.title,
+                              findingDescription: finding.description,
+                              locationMeta: finding.locationMeta,
+                            });
+                          }}
+                          className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer pt-1"
                         >
-                          <Plus className="w-3 h-3" />
+                          <Plus className="w-3.5 h-3.5" />
                           Insert Recommended Clause
                         </button>
                       )}

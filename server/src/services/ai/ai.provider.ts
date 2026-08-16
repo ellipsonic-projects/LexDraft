@@ -101,7 +101,7 @@ class GeminiAIProvider implements IAIProvider {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${this.model}:generateContent?key=${this.apiKey}`;
     const body = {
       contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: { temperature: 0.2, maxOutputTokens: 4096 },
+      generationConfig: { temperature: 0, maxOutputTokens: 4096 },
     };
 
     const response = await fetch(url, {
@@ -405,7 +405,7 @@ class GroqProvider implements IAIProvider {
           { role: 'system', content: 'You are a Senior Principal Indian Legal Counsel and Master Legal Draftsman. Always respond with raw valid JSON matching the requested schema.' },
           { role: 'user', content: prompt },
         ],
-        temperature: 0.2,
+        temperature: 0,
         response_format: { type: 'json_object' },
       }),
     });

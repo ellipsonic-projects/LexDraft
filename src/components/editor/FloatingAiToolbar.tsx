@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Sparkles, RefreshCw, FileText, Minimize2, Shield, ZoomIn, Scissors, Eye, Pen } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Sparkles, RefreshCw, FileText, Shield, ZoomIn, Scissors, Eye, Pen, ChevronDown, ChevronUp, X } from 'lucide-react';
 import type { RewriteAction } from '../../services/ai';
 
 interface FloatingAiToolbarProps {
@@ -9,7 +10,7 @@ interface FloatingAiToolbarProps {
   selectedText: string;
   /** The bounding rect of the selection (used to position the toolbar) */
   selectionRect: DOMRect | null;
-  /** The editor container element (used for scroll-adjusted positioning) */
+  /** The editor container element */
   editorContainer: HTMLElement | null;
   /** Whether an AI rewrite is in progress */
   isLoading: boolean;
@@ -17,60 +18,56 @@ interface FloatingAiToolbarProps {
   onAction: (action: RewriteAction) => void;
   /** Callback when toolbar closes */
   onClose: () => void;
-  isDark: boolean;
+  isDark?: boolean;
 }
 
-const ACTIONS: { action: RewriteAction; label: string; icon: React.ReactNode; color: string }[] = [
-  { action: 'REWRITE_LEGALLY', label: 'Rewrite Legally', icon: <Shield className="w-3 h-3" />, color: '#6366f1' },
-  { action: 'REWRITE_PROFESSIONALLY', label: 'Rewrite Professionally', icon: <Pen className="w-3 h-3" />, color: '#0ea5e9' },
-  { action: 'SIMPLIFY', label: 'Simplify', icon: <Eye className="w-3 h-3" />, color: '#10b981' },
-  { action: 'SUMMARIZE', label: 'Summarize', icon: <FileText className="w-3 h-3" />, color: '#f59e0b' },
-  { action: 'MAKE_DEFENSIBLE', label: 'Make Defensible', icon: <Shield className="w-3 h-3" />, color: '#ef4444' },
-  { action: 'EXPAND', label: 'Expand', icon: <ZoomIn className="w-3 h-3" />, color: '#8b5cf6' },
-  { action: 'SHORTEN', label: 'Shorten', icon: <Scissors className="w-3 h-3" />, color: '#64748b' },
-  { action: 'IMPROVE_CLARITY', label: 'Improve Clarity', icon: <RefreshCw className="w-3 h-3" />, color: '#06b6d4' },
-  { action: 'IMPROVE_FORMALITY', label: 'Improve Formality', icon: <Sparkles className="w-3 h-3" />, color: '#f97316' },
+const ACTIONS: { action: RewriteAction; label: string; icon: React.ReactNode }[] = [
+  { action: 'REWRITE_LEGALLY', label: 'Rewrite Legally', icon: <Shield className="w-3.5 h-3.5 text-indigo-500" /> },
+  { action: 'REWRITE_PROFESSIONALLY', label: 'Rewrite Professionally', icon: <Pen className="w-3.5 h-3.5 text-blue-500" /> },
+  { action: 'SIMPLIFY', label: 'Simplify', icon: <Eye className="w-3.5 h-3.5 text-emerald-500" /> },
+  { action: 'SUMMARIZE', label: 'Summarize', icon: <FileText className="w-3.5 h-3.5 text-amber-500" /> },
+  { action: 'MAKE_DEFENSIBLE', label: 'Make Defensible', icon: <Shield className="w-3.5 h-3.5 text-rose-500" /> },
+  { action: 'EXPAND', label: 'Expand', icon: <ZoomIn className="w-3.5 h-3.5 text-purple-500" /> },
+  { action: 'SHORTEN', label: 'Shorten', icon: <Scissors className="w-3.5 h-3.5 text-slate-500" /> },
+  { action: 'IMPROVE_CLARITY', label: 'Improve Clarity', icon: <RefreshCw className="w-3.5 h-3.5 text-cyan-500" /> },
+  { action: 'IMPROVE_FORMALITY', label: 'Improve Formality', icon: <Sparkles className="w-3.5 h-3.5 text-amber-400" /> },
 ];
 
 export const FloatingAiToolbar: React.FC<FloatingAiToolbarProps> = ({
   visible,
   selectedText,
   selectionRect,
-  editorContainer,
   isLoading,
   onAction,
   onClose,
-  isDark,
 }) => {
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const [showActions, setShowActions] = useState(false);
 
   useEffect(() => {
-    if (!visible || !selectionRect || !editorContainer) {
+    if (!visible || !selectionRect) {
       setShowActions(false);
       return;
     }
 
-    const containerRect = editorContainer.getBoundingClientRect();
-    const toolbarWidth = 240;
-    const toolbarHeight = 36;
+    const toolbarWidth = 260;
+    const toolbarHeight = 40;
 
-    // Calculate position relative to container viewport bounds
-    let left = selectionRect.left - containerRect.left + (selectionRect.width / 2) - (toolbarWidth / 2);
-    let top = selectionRect.top - containerRect.top - toolbarHeight - 10;
+    // Calculate fixed viewport coordinates directly relative to window
+    let left = selectionRect.left + (selectionRect.width / 2) - (toolbarWidth / 2);
+    let top = selectionRect.top - toolbarHeight - 10;
 
-    // Clamp horizontally inside container
-    left = Math.max(12, Math.min(left, containerRect.width - toolbarWidth - 12));
+    // Clamp horizontally inside window viewport
+    left = Math.max(12, Math.min(left, window.innerWidth - toolbarWidth - 12));
 
-    // If toolbar extends above visible container, show below selection instead
-    if (top < 8) {
-      top = selectionRect.bottom - containerRect.top + 8;
+    // If toolbar extends above top of visible window, position directly below selection
+    if (top < 10) {
+      top = selectionRect.bottom + 8;
     }
 
     setPosition({ top, left });
-    setShowActions(false);
-  }, [visible, selectionRect, editorContainer]);
+  }, [visible, selectionRect]);
 
   // Close when clicking outside
   useEffect(() => {
@@ -86,142 +83,57 @@ export const FloatingAiToolbar: React.FC<FloatingAiToolbarProps> = ({
 
   if (!visible || !selectionRect) return null;
 
-  const bg = isDark ? '#1e293b' : '#ffffff';
-  const border = isDark ? '#334155' : '#e2e8f0';
-  const text = isDark ? '#f1f5f9' : '#0f172a';
-  const subtext = isDark ? '#94a3b8' : '#64748b';
-
-  return (
+  return createPortal(
     <div
       ref={toolbarRef}
       style={{
-        position: 'absolute',
-        top: position.top,
-        left: position.left,
-        zIndex: 1000,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '4px',
-        pointerEvents: 'all',
+        position: 'fixed',
+        top: `${position.top}px`,
+        left: `${position.left}px`,
+        zIndex: 99999,
       }}
+      className="flex flex-col gap-1.5 pointer-events-auto animate-in fade-in duration-150 select-none"
     >
-      {/* Main trigger pill */}
+      {/* Main LexDraft Pill Control */}
       <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          background: isDark ? 'linear-gradient(135deg, #312e81, #1e1b4b)' : 'linear-gradient(135deg, #4f46e5, #7c3aed)',
-          border: '1px solid rgba(99,102,241,0.4)',
-          borderRadius: '20px',
-          padding: '5px 12px',
-          boxShadow: '0 4px 16px rgba(99,102,241,0.35)',
-          cursor: isLoading ? 'not-allowed' : 'pointer',
-          userSelect: 'none',
-          transition: 'transform 0.15s ease',
-          width: 'max-content',
-          minWidth: '180px',
-          maxWidth: '280px',
-        }}
-        onMouseEnter={(e) => { if (!isLoading) (e.currentTarget as HTMLElement).style.transform = 'scale(1.02)'; }}
-        onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = 'scale(1)'; }}
         onClick={() => !isLoading && setShowActions(s => !s)}
+        className="flex items-center gap-2 px-3.5 py-1.5 bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900 rounded-full shadow-2xl border border-slate-800 dark:border-slate-200 cursor-pointer transition-all hover:scale-105"
       >
-        <Sparkles className="w-3.5 h-3.5 text-indigo-200" style={{ flexShrink: 0 }} />
-        <span style={{ fontSize: '11px', fontWeight: 700, color: 'white', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
+        <Sparkles className="w-3.5 h-3.5 text-amber-400 dark:text-amber-600 animate-pulse shrink-0" />
+        <span className="text-xs font-bold tracking-tight">
           {isLoading ? 'AI Writing…' : 'AI Rewrite'}
         </span>
-        <span
-          style={{
-            fontSize: '10px',
-            color: 'rgba(199,210,254,0.85)',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap',
-            maxWidth: '120px',
-          }}
-          title={selectedText}
-        >
-          · "{selectedText.slice(0, 30)}{selectedText.length > 30 ? '…' : ''}"
+        <span className="text-[10px] opacity-75 truncate max-w-[110px]" title={selectedText}>
+          · "{selectedText.slice(0, 24)}{selectedText.length > 24 ? '…' : ''}"
         </span>
-        <span style={{ marginLeft: 'auto', fontSize: '10px', color: 'rgba(199,210,254,0.7)', flexShrink: 0 }}>
-          {showActions ? '▲' : '▼'}
-        </span>
+        {showActions ? <ChevronUp className="w-3 h-3 opacity-60 ml-1 shrink-0" /> : <ChevronDown className="w-3 h-3 opacity-60 ml-1 shrink-0" />}
       </div>
 
-      {/* Actions dropdown */}
+      {/* Actions Grid Menu */}
       {showActions && !isLoading && (
-        <div
-          style={{
-            background: bg,
-            border: `1px solid ${border}`,
-            borderRadius: '12px',
-            padding: '6px',
-            boxShadow: isDark
-              ? '0 8px 32px rgba(0,0,0,0.5)'
-              : '0 8px 32px rgba(0,0,0,0.15)',
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '4px',
-            minWidth: '240px',
-          }}
-        >
-          {ACTIONS.map(({ action, label, icon, color }) => (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-2 shadow-2xl grid grid-cols-1 sm:grid-cols-2 gap-1 min-w-[260px] animate-in fade-in zoom-in-95 duration-150">
+          {ACTIONS.map(({ action, label, icon }) => (
             <button
               key={action}
               onClick={() => {
                 setShowActions(false);
                 onAction(action);
               }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '7px 10px',
-                borderRadius: '8px',
-                border: 'none',
-                background: 'transparent',
-                cursor: 'pointer',
-                color: text,
-                fontSize: '11px',
-                fontWeight: 600,
-                transition: 'background 0.1s',
-                textAlign: 'left',
-                width: '100%',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLElement).style.background = isDark ? '#1e3a5f22' : '#f1f5f9';
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLElement).style.background = 'transparent';
-              }}
+              className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs font-medium transition-colors text-left w-full cursor-pointer"
             >
-              <span style={{ color, flexShrink: 0 }}>{icon}</span>
-              {label}
+              {icon}
+              <span className="truncate">{label}</span>
             </button>
           ))}
           <button
             onClick={onClose}
-            style={{
-              gridColumn: '1 / -1',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '4px',
-              padding: '5px',
-              borderRadius: '8px',
-              border: 'none',
-              background: 'transparent',
-              cursor: 'pointer',
-              color: subtext,
-              fontSize: '10px',
-              marginTop: '2px',
-            }}
+            className="col-span-full mt-1 pt-1 border-t border-slate-100 dark:border-slate-800 flex items-center justify-center gap-1 text-[10px] font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 py-1 transition-colors cursor-pointer"
           >
-            Dismiss
+            <X className="w-3 h-3" /> Dismiss
           </button>
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 };

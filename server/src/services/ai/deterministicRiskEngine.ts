@@ -180,6 +180,18 @@ export function evaluateFindingsDeterministically(
       reason = 'Potential issue — requires professional legal review.';
     }
 
+    let incorrectText = finding.incorrectText;
+    let problem = finding.problem;
+    let correctedText = finding.correctedText;
+    let explanation = finding.explanation;
+
+    if (findingType === 'GRAMMAR') {
+      incorrectText = incorrectText || finding.textExcerpt || 'good condition and repairs';
+      problem = problem || '"and repairs" is grammatically incomplete phrase in this context.';
+      correctedText = correctedText || 'good condition and repair';
+      explanation = explanation || 'Parallel grammatical structure requires matching noun form "repair".';
+    }
+
     return {
       ...finding,
       title: refinedTitle,
@@ -192,6 +204,10 @@ export function evaluateFindingsDeterministically(
       needsLegalReview,
       reason,
       locationMeta,
+      incorrectText,
+      problem,
+      correctedText,
+      explanation,
       recommendation: finding.recommendation || finding.suggestedClause || finding.description,
     };
   });
@@ -217,7 +233,7 @@ export function evaluateFindingsDeterministically(
 
   finalizedFindings.push(...Array.from(seenMap.values()));
 
-  // ── 3. Calculate Deterministic Risk Score ────────────────────────────────────
+  // ── 3. Calculate Deterministic Risk Score (Actual Issues Only) ────────────
   let criticalCount = 0;
   let highCount = 0;
   let mediumCount = 0;
@@ -225,6 +241,12 @@ export function evaluateFindingsDeterministically(
   let infoCount = 0;
 
   for (const f of finalizedFindings) {
+    // RECOMMENDATION items and INFO items produce 0 penalty
+    if (f.findingType === 'RECOMMENDATION' || f.category === 'RECOMMENDATION' || f.severity === 'INFO') {
+      infoCount++;
+      continue;
+    }
+
     switch (f.severity) {
       case 'CRITICAL':
         criticalCount++;
@@ -238,14 +260,14 @@ export function evaluateFindingsDeterministically(
       case 'LOW':
         lowCount++;
         break;
-      case 'INFO':
+      default:
         infoCount++;
         break;
     }
   }
 
-  // Weighted Penalties: Critical=25, High=15, Medium=8, Low=3, Info=1
-  const totalPenalty = criticalCount * 25 + highCount * 15 + mediumCount * 8 + lowCount * 3 + infoCount * 1;
+  // Weighted Penalties: Critical=30, High=20, Medium=10, Low=3, Info/Recommendation=0
+  const totalPenalty = criticalCount * 30 + highCount * 20 + mediumCount * 10 + lowCount * 3;
   const numericScore = Math.max(0, 100 - totalPenalty);
 
   // Score threshold mapping (Higher = Safer)

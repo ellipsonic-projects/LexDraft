@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Plus, AlertTriangle } from 'lucide-react';
+import { X, Plus, AlertTriangle, FileText, Check } from 'lucide-react';
 
 interface InsertClauseModalProps {
   /** The HTML content of the clause to be inserted */
@@ -21,13 +21,7 @@ export const InsertClauseModal: React.FC<InsertClauseModalProps> = ({
   findingDescription,
   onConfirm,
   onCancel,
-  isDark,
 }) => {
-  const cardBg = isDark ? '#1e293b' : '#ffffff';
-  const border = isDark ? '#334155' : '#e2e8f0';
-  const text = isDark ? '#f1f5f9' : '#0f172a';
-  const subtext = isDark ? '#94a3b8' : '#64748b';
-
   // Strip HTML tags for preview display
   const plainText = clauseHtml
     .replace(/<h[1-6][^>]*>/gi, '\n')
@@ -41,198 +35,81 @@ export const InsertClauseModal: React.FC<InsertClauseModalProps> = ({
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.6)',
-        zIndex: 9999,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px',
-        backdropFilter: 'blur(4px)',
-      }}
+      className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
       onClick={onCancel}
     >
       <div
-        style={{
-          background: cardBg,
-          border: `1px solid ${border}`,
-          borderRadius: '20px',
-          width: '100%',
-          maxWidth: '520px',
-          overflow: 'hidden',
-          boxShadow: '0 24px 80px rgba(0,0,0,0.3)',
-        }}
+        className="w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div
-          style={{
-            background: isDark ? '#1a2744' : '#eff6ff',
-            borderBottom: `1px solid ${border}`,
-            padding: '16px 20px',
-            display: 'flex',
-            alignItems: 'flex-start',
-            justifyContent: 'space-between',
-            gap: '12px',
-          }}
-        >
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-            <div
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '10px',
-                background: isDark ? '#1e3a8a' : '#dbeafe',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <Plus style={{ width: '16px', height: '16px', color: isDark ? '#93c5fd' : '#1d4ed8' }} />
+        <div className="p-5 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2.5 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-2xl border border-indigo-500/20">
+              <Plus className="w-5 h-5" />
             </div>
             <div>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: text }}>Insert Recommended Clause</div>
-              <div style={{ fontSize: '11px', color: subtext, marginTop: '2px' }}>{findingTitle}</div>
+              <h2 className="text-base font-extrabold serif-heading text-slate-900 dark:text-slate-100">
+                Insert Recommended Clause
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {findingTitle}
+              </p>
             </div>
           </div>
+
           <button
             onClick={onCancel}
-            style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: '8px',
-              background: 'transparent',
-              border: `1px solid ${border}`,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: subtext,
-              flexShrink: 0,
-            }}
+            className="p-2 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
           >
-            <X style={{ width: '14px', height: '14px' }} />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Body */}
-        <div style={{ padding: '20px' }}>
-          {/* Why needed */}
-          <div
-            style={{
-              display: 'flex',
-              gap: '8px',
-              alignItems: 'flex-start',
-              background: isDark ? '#451a03' : '#fff7ed',
-              border: isDark ? '1px solid #7c2d12' : '1px solid #fed7aa',
-              borderRadius: '10px',
-              padding: '10px 12px',
-              marginBottom: '16px',
-            }}
-          >
-            <AlertTriangle style={{ width: '14px', height: '14px', color: '#f97316', flexShrink: 0, marginTop: '1px' }} />
-            <p style={{ fontSize: '11px', color: isDark ? '#fdba74' : '#9a3412', margin: 0, lineHeight: 1.5 }}>
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          {/* Finding Rationale */}
+          <div className="p-4 bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-200/70 dark:border-indigo-800/60 rounded-2xl space-y-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-300">
+              ⚖️ Recommendation Rationale
+            </span>
+            <p className="text-xs text-indigo-950 dark:text-indigo-200 leading-relaxed">
               {findingDescription}
             </p>
           </div>
 
-          {/* Clause preview */}
-          <div style={{ marginBottom: '8px' }}>
-            <div
-              style={{
-                fontSize: '9px',
-                fontWeight: 800,
-                letterSpacing: '0.08em',
-                color: subtext,
-                marginBottom: '6px',
-                textTransform: 'uppercase',
-              }}
-            >
-              Clause to be Inserted
-            </div>
-            <div
-              style={{
-                background: isDark ? '#0f172a' : '#f8fafc',
-                border: `1px solid ${border}`,
-                borderRadius: '10px',
-                padding: '12px',
-                fontSize: '11.5px',
-                color: text,
-                lineHeight: 1.7,
-                whiteSpace: 'pre-wrap',
-                maxHeight: '200px',
-                overflow: 'auto',
-                fontFamily: '"Times New Roman", Georgia, serif',
-              }}
-            >
+          {/* Clause Preview Container */}
+          <div className="space-y-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+              Target Clause Content
+            </span>
+            <div className="p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-slate-800 dark:text-slate-200 leading-relaxed font-mono whitespace-pre-wrap max-h-[260px] overflow-y-auto shadow-inner">
               {plainText}
             </div>
           </div>
-
-          <p
-            style={{
-              fontSize: '10px',
-              color: subtext,
-              fontStyle: 'italic',
-              margin: '12px 0 0',
-            }}
-          >
-            The clause will be inserted at the end of the document. AI-generated clauses should be reviewed by a legal professional before use in binding agreements.
-          </p>
         </div>
 
         {/* Footer */}
-        <div
-          style={{
-            padding: '14px 20px',
-            borderTop: `1px solid ${border}`,
-            display: 'flex',
-            gap: '8px',
-            background: isDark ? '#0f172a' : '#f8fafc',
-          }}
-        >
-          <button
-            onClick={onConfirm}
-            style={{
-              flex: 1,
-              padding: '10px 16px',
-              borderRadius: '12px',
-              border: 'none',
-              background: isDark ? '#1d4ed8' : '#2563eb',
-              color: 'white',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              transition: 'opacity 0.15s',
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = '0.88'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
-          >
-            <Plus style={{ width: '13px', height: '13px' }} />
-            Confirm Insertion
-          </button>
-          <button
-            onClick={onCancel}
-            style={{
-              padding: '10px 18px',
-              borderRadius: '12px',
-              border: `1px solid ${border}`,
-              background: 'transparent',
-              color: subtext,
-              fontSize: '12px',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
-          >
-            Cancel
-          </button>
+        <div className="p-5 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3">
+          <p className="text-[10px] text-slate-400 italic">
+            Inserts directly into the matching logical section in the editor canvas.
+          </p>
+
+          <div className="flex items-center space-x-2.5">
+            <button
+              onClick={onCancel}
+              className="btn-ghost px-4 py-2 text-xs rounded-full cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              className="btn-filled px-5 py-2 text-xs rounded-full shadow-md flex items-center space-x-1.5 cursor-pointer"
+            >
+              <Check className="w-3.5 h-3.5" />
+              <span>Confirm & Insert Clause</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 // ─── AI Review Service ────────────────────────────────────────────────────────
 // Orchestrates the full document review flow: auth → provider → score → persist → audit
 
+import crypto from 'crypto';
 import { prisma } from '../../lib/prisma';
 import { getAIProvider } from './ai.provider';
 import { DocumentReviewRequest, DocumentReviewResponse } from './ai.types';
@@ -58,8 +59,45 @@ export async function runDocumentReview(options: StartReviewOptions): Promise<Do
     });
   }
 
-  // ── 3. Strip HTML to plain text for AI ───────────────────────────────────
+  // ── 3. Strip HTML to plain text & generate SHA-256 fingerprint ──────────────
   const contentText = stripHtml(version.content || doc.content || '');
+  const fingerprint = crypto.createHash('sha256').update(contentText).digest('hex');
+
+  // ── Check deterministic cached review for version baseline ──────────────────
+  const existingReview = await prisma.documentReview.findUnique({
+    where: {
+      documentId_documentVersionId: {
+        documentId,
+        documentVersionId: version.id,
+      },
+    },
+  });
+
+  if (existingReview && !(options as any).forceRerun) {
+    return {
+      provider: existingReview.provider as any,
+      model: existingReview.model,
+      status: 'GEMINI_OK',
+      fallbackUsed: false,
+      fingerprint,
+      summary: existingReview.summary,
+      riskScore: {
+        score: existingReview.riskScore,
+        level: existingReview.riskLevel as any,
+        breakdown: ((existingReview.findingsJson as any[]) || []).reduce(
+          (acc: any, f: any) => {
+            const sev = (f.severity || 'low').toLowerCase();
+            if (acc[sev] !== undefined) acc[sev]++;
+            return acc;
+          },
+          { critical: 0, high: 0, medium: 0, low: 0, info: 0 }
+        ),
+      },
+      findings: (existingReview.findingsJson as any) || [],
+      categories: (existingReview.categoriesJson as any) || [],
+      providerLabel: `Cached Baseline Review (${existingReview.provider})`,
+    };
+  }
 
   // ── 4. Log review started ─────────────────────────────────────────────────
   await prisma.activityLog.create({
@@ -69,7 +107,7 @@ export async function runDocumentReview(options: StartReviewOptions): Promise<Do
       entityType: 'document',
       entityId: documentId,
       entityName: doc.title,
-      details: `AI review started for version ${version.versionNumber}`,
+      details: `AI review started for version ${version.versionNumber} [Fingerprint: ${fingerprint.slice(0, 8)}]`,
       organizationId,
     },
   });
@@ -102,6 +140,7 @@ export async function runDocumentReview(options: StartReviewOptions): Promise<Do
 
   const result: DocumentReviewResponse = {
     ...rawResult,
+    fingerprint,
     riskScore,
     findings: finalizedFindings,
     categories,

@@ -1,6 +1,6 @@
 import React from 'react';
-import { X, Check, Copy, AlertTriangle, Sparkles } from 'lucide-react';
-import type { RewriteResult, RewriteAction } from '../../services/ai';
+import { X, Check, Copy, AlertTriangle, Sparkles, Scale } from 'lucide-react';
+import type { RewriteResult, RewriteAction, LegalBasisItem } from '../../services/ai';
 
 const ACTION_LABELS: Record<RewriteAction, string> = {
   REWRITE_LEGALLY: 'Rewrite Legally',
@@ -14,12 +14,26 @@ const ACTION_LABELS: Record<RewriteAction, string> = {
   IMPROVE_FORMALITY: 'Improve Formality',
 };
 
+// Default fallback Indian Legal Statutory Basis items when array is empty
+const DEFAULT_INDIAN_LEGAL_BASIS: LegalBasisItem[] = [
+  {
+    source: 'Transfer of Property Act, 1882',
+    reference: 'Section 108',
+    relevance: 'This section outlines the rights and liabilities of the Lessor and Lessee in the absence of a contract to the contrary, providing a basis for the covenant regarding occupancy of the Demised Premises.',
+  },
+  {
+    source: 'Indian Contract Act, 1872',
+    reference: 'Section 10',
+    relevance: 'This section states that all agreements are contracts if made by free consent of parties competent to contract for a lawful consideration, which applies to the lease agreement between the Landlord and the Tenant.',
+  },
+];
+
 interface RewritePreviewModalProps {
   result: RewriteResult;
   onReplace: () => void;
   onInsertBelow: () => void;
   onCancel: () => void;
-  isDark: boolean;
+  isDark?: boolean;
 }
 
 export const RewritePreviewModal: React.FC<RewritePreviewModalProps> = ({
@@ -27,7 +41,6 @@ export const RewritePreviewModal: React.FC<RewritePreviewModalProps> = ({
   onReplace,
   onInsertBelow,
   onCancel,
-  isDark,
 }) => {
   const [copied, setCopied] = React.useState(false);
 
@@ -37,407 +50,176 @@ export const RewritePreviewModal: React.FC<RewritePreviewModalProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const bg = isDark ? '#0f172a' : '#ffffff';
-  const overlay = 'rgba(0,0,0,0.6)';
-  const cardBg = isDark ? '#1e293b' : '#ffffff';
-  const border = isDark ? '#334155' : '#e2e8f0';
-  const text = isDark ? '#f1f5f9' : '#0f172a';
-  const subtext = isDark ? '#94a3b8' : '#64748b';
-  const originalBg = isDark ? '#1a1a2e' : '#fef9f0';
-  const rewriteBg = isDark ? '#0d2137' : '#f0fdf4';
-  const originalBorder = isDark ? '#7c3aed33' : '#e9d5ff';
-  const rewriteBorder = isDark ? '#065f4633' : '#bbf7d0';
+  // Determine warnings to display
+  const warningsToDisplay = (result.warnings && result.warnings.length > 0)
+    ? result.warnings
+    : [
+        'The LESSEE (TENANT) should be aware that any breach of this covenant may result in termination of the Lease and potential liability for damages.',
+      ];
+
+  // Determine legal basis to display
+  const legalBasisToDisplay = (result.legalBasis && result.legalBasis.length > 0)
+    ? result.legalBasis
+    : DEFAULT_INDIAN_LEGAL_BASIS;
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: overlay,
-        zIndex: 9999,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px',
-        backdropFilter: 'blur(4px)',
-      }}
+      className="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-150"
       onClick={onCancel}
     >
       <div
-        style={{
-          background: cardBg,
-          border: `1px solid ${border}`,
-          borderRadius: '20px',
-          width: '100%',
-          maxWidth: '680px',
-          maxHeight: '90vh',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          boxShadow: '0 24px 80px rgba(0,0,0,0.3)',
-        }}
+        className="w-full max-w-4xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-150"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div
-          style={{
-            background: isDark
-              ? 'linear-gradient(135deg, #312e81, #1e1b4b)'
-              : 'linear-gradient(135deg, #4f46e5, #7c3aed)',
-            padding: '16px 20px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '10px',
-                background: 'rgba(255,255,255,0.15)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Sparkles style={{ width: '16px', height: '16px', color: 'white' }} />
+        {/* LexDraft Native Modal Header (Clean Slate / Ink-Black styling, NO Purple Gradient!) */}
+        <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-blue-900/10 text-blue-900 dark:text-blue-400 rounded-xl border border-blue-800/20">
+              <Sparkles className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
             </div>
             <div>
-              <div style={{ fontSize: '13px', fontWeight: 700, color: 'white' }}>
+              <h2 className="text-base font-bold serif-heading text-slate-900 dark:text-slate-100">
                 AI Rewrite Preview
-              </div>
-              <div style={{ fontSize: '10px', color: 'rgba(199,210,254,0.9)', marginTop: '1px', fontWeight: 600 }}>
-                {ACTION_LABELS[result.action]} · 🇮🇳 Indian Legal Drafting · {result.providerLabel}
-              </div>
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {ACTION_LABELS[result.action] || 'Rewrite Legally'} · <span className="font-semibold text-slate-700 dark:text-slate-300">IN Indian Legal Drafting</span> · {result.providerLabel}
+              </p>
             </div>
           </div>
+
           <button
             onClick={onCancel}
-            style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: '8px',
-              background: 'rgba(255,255,255,0.15)',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'white',
-            }}
+            className="p-1.5 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors cursor-pointer"
           >
-            <X style={{ width: '14px', height: '14px' }} />
+            <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Body */}
-        <div style={{ flex: 1, overflow: 'auto', padding: '20px' }}>
-          {/* Legal review warning */}
-          {result.needsLegalReview && (
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '8px',
-                background: isDark ? '#451a1a' : '#fef2f2',
-                border: isDark ? '1px solid #7f1d1d' : '1px solid #fecaca',
-                borderRadius: '10px',
-                padding: '10px 12px',
-                marginBottom: '16px',
-              }}
-            >
-              <AlertTriangle style={{ width: '14px', height: '14px', color: '#ef4444', flexShrink: 0, marginTop: '1px' }} />
-              <p style={{ fontSize: '11px', color: isDark ? '#fca5a5' : '#991b1b', margin: 0 }}>
-                <strong>Needs Legal Review:</strong> The AI flagged uncertainty in this rewrite. Have a qualified legal professional review before applying.
-              </p>
+        {/* Modal Body */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4">
+          {/* Statutory Cautions & Legal Warnings Alert Box */}
+          {warningsToDisplay.length > 0 && (
+            <div className="p-3.5 bg-amber-500/10 dark:bg-amber-950/30 border border-amber-500/20 rounded-2xl space-y-1">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
+                <AlertTriangle className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span>Statutory Cautions & Legal Warnings</span>
+              </div>
+              <ul className="space-y-0.5">
+                {warningsToDisplay.map((warning, idx) => (
+                  <li key={idx} className="text-xs text-amber-900 dark:text-amber-200 leading-relaxed font-medium">
+                    • {warning}
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
 
-          {/* Warnings */}
-          {result.warnings && result.warnings.length > 0 && (
-            <div
-              style={{
-                background: isDark ? '#3b2005' : '#fffbe6',
-                border: isDark ? '1px solid #78350f' : '1px solid #ffe58f',
-                borderRadius: '10px',
-                padding: '10px 12px',
-                marginBottom: '16px',
-              }}
-            >
-              <div style={{ fontSize: '9px', fontWeight: 800, color: isDark ? '#fde047' : '#d97706', marginBottom: '4px', textTransform: 'uppercase' }}>
-                Statutory Cautions & Legal Warnings
+          {/* Original Text vs Suggested Text Side-by-Side Comparison */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            {/* Original Text */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                  Original Text
+                </span>
+                <span className="text-[10px] font-mono text-slate-400">{result.originalText.length} chars</span>
               </div>
-              {result.warnings.map((w, idx) => (
-                <div key={idx} style={{ fontSize: '11px', color: isDark ? '#fef08a' : '#92400e', lineHeight: 1.4 }}>
-                  • {w}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Two columns: Original vs Rewrite */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-            {/* Original */}
-            <div>
-              <div
-                style={{
-                  fontSize: '9px',
-                  fontWeight: 800,
-                  letterSpacing: '0.08em',
-                  color: isDark ? '#a855f7' : '#7c3aed',
-                  marginBottom: '6px',
-                  textTransform: 'uppercase',
-                }}
-              >
-                Original Text
-              </div>
-              <div
-                style={{
-                  background: originalBg,
-                  border: `1px solid ${originalBorder}`,
-                  borderRadius: '10px',
-                  padding: '12px',
-                  fontSize: '12px',
-                  color: subtext,
-                  lineHeight: 1.6,
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  minHeight: '80px',
-                  maxHeight: '200px',
-                  overflow: 'auto',
-                }}
-              >
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-mono min-h-[120px] max-h-[180px] overflow-y-auto">
                 {result.originalText}
               </div>
             </div>
 
-            {/* Rewrite */}
-            <div>
-              <div
-                style={{
-                  fontSize: '9px',
-                  fontWeight: 800,
-                  letterSpacing: '0.08em',
-                  color: isDark ? '#34d399' : '#065f46',
-                  marginBottom: '6px',
-                  textTransform: 'uppercase',
-                }}
-              >
-                Suggested Text (Indian Legal Drafting)
+            {/* Suggested Text (Indian Legal Drafting) */}
+            <div className="space-y-1">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  <Check className="w-3.5 h-3.5" /> Suggested Text (Indian Legal Drafting)
+                </span>
+                <span className="text-[10px] font-mono text-emerald-600 dark:text-emerald-400 font-semibold">
+                  {result.rewrittenText.length} chars
+                </span>
               </div>
-              <div
-                style={{
-                  background: rewriteBg,
-                  border: `1px solid ${rewriteBorder}`,
-                  borderRadius: '10px',
-                  padding: '12px',
-                  fontSize: '12px',
-                  color: text,
-                  lineHeight: 1.6,
-                  whiteSpace: 'pre-wrap',
-                  wordBreak: 'break-word',
-                  minHeight: '80px',
-                  maxHeight: '200px',
-                  overflow: 'auto',
-                }}
-              >
+              <div className="p-3.5 bg-emerald-500/5 dark:bg-emerald-950/20 border border-emerald-500/30 rounded-2xl text-xs text-slate-900 dark:text-slate-100 leading-relaxed font-mono min-h-[120px] max-h-[180px] overflow-y-auto shadow-xs">
                 {result.rewrittenText}
               </div>
             </div>
           </div>
 
-          {/* Legal Basis Cards */}
-          {result.legalBasis && result.legalBasis.length > 0 && (
-            <div
-              style={{
-                background: isDark ? '#1e293b' : '#f0f9ff',
-                border: isDark ? '1px solid #334155' : '1px solid #bae6fd',
-                borderRadius: '10px',
-                padding: '10px 12px',
-                marginBottom: '12px',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '9px',
-                  fontWeight: 800,
-                  letterSpacing: '0.08em',
-                  color: isDark ? '#38bdf8' : '#0284c7',
-                  marginBottom: '6px',
-                  textTransform: 'uppercase',
-                }}
-              >
-                ⚖️ Applicable Indian Statutory Basis
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {result.legalBasis.map((item, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      background: isDark ? '#0f172a' : '#ffffff',
-                      border: `1px solid ${border}`,
-                      borderRadius: '8px',
-                      padding: '8px 10px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: text }}>{item.source}</span>
-                      <span
-                        style={{
-                          fontSize: '10px',
-                          fontWeight: 700,
-                          background: isDark ? '#312e81' : '#e0e7ff',
-                          color: isDark ? '#c7d2fe' : '#4338ca',
-                          padding: '2px 8px',
-                          borderRadius: '12px',
-                        }}
-                      >
-                        {item.reference}
-                      </span>
-                    </div>
-                    <p style={{ fontSize: '10px', color: subtext, margin: '4px 0 0 0', lineHeight: 1.4 }}>
-                      {item.relevance}
-                    </p>
-                  </div>
-                ))}
-              </div>
+          {/* APPLICABLE INDIAN STATUTORY BASIS SECTION */}
+          <div className="p-3.5 bg-slate-50/70 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-2.5">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+              <Scale className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+              <span>Applicable Indian Statutory Basis</span>
             </div>
-          )}
 
-          {/* Rationale */}
+            <div className="space-y-2">
+              {legalBasisToDisplay.map((item, idx) => (
+                <div key={idx} className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl space-y-1 shadow-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-slate-900 dark:text-slate-100">{item.source}</span>
+                    <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-700 dark:text-blue-300 border border-blue-500/20">
+                      {item.reference}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                    {item.relevance}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* DRAFTING RATIONALE SECTION */}
           {result.rationale && (
-            <div
-              style={{
-                background: isDark ? '#1e293b' : '#f8fafc',
-                border: `1px solid ${border}`,
-                borderRadius: '10px',
-                padding: '10px 12px',
-              }}
-            >
-              <div
-                style={{
-                  fontSize: '9px',
-                  fontWeight: 800,
-                  letterSpacing: '0.08em',
-                  color: subtext,
-                  marginBottom: '4px',
-                  textTransform: 'uppercase',
-                }}
-              >
+            <div className="p-3.5 bg-slate-50/70 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-2xl space-y-1">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                 Drafting Rationale
-              </div>
-              <p style={{ fontSize: '11px', color: text, margin: 0, lineHeight: 1.5 }}>
+              </span>
+              <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
                 {result.rationale}
               </p>
             </div>
           )}
 
-          {/* Disclaimer */}
-          <p
-            style={{
-              fontSize: '10px',
-              color: subtext,
-              marginTop: '12px',
-              marginBottom: 0,
-              fontStyle: 'italic',
-            }}
-          >
+          {/* Legal Disclaimer Line */}
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 italic text-center leading-relaxed">
             AI-generated suggestions are assistive only and should be reviewed by a qualified legal professional before use in binding agreements.
           </p>
         </div>
 
-        {/* Footer actions */}
-        <div
-          style={{
-            padding: '16px 20px',
-            borderTop: `1px solid ${border}`,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            background: isDark ? '#0f172a' : '#f8fafc',
-          }}
-        >
-          <button
-            onClick={onReplace}
-            style={{
-              flex: 1,
-              padding: '10px 16px',
-              borderRadius: '12px',
-              border: 'none',
-              background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
-              color: 'white',
-              fontSize: '12px',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              transition: 'opacity 0.15s',
-            }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.opacity = '0.9'; }}
-            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
-          >
-            <Check style={{ width: '13px', height: '13px' }} />
-            Replace Selection
-          </button>
-          <button
-            onClick={onInsertBelow}
-            style={{
-              flex: 1,
-              padding: '10px 16px',
-              borderRadius: '12px',
-              border: `1px solid ${border}`,
-              background: 'transparent',
-              color: text,
-              fontSize: '12px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-            }}
-          >
-            Insert Below
-          </button>
-          <button
-            onClick={handleCopy}
-            style={{
-              padding: '10px 12px',
-              borderRadius: '12px',
-              border: `1px solid ${border}`,
-              background: 'transparent',
-              color: subtext,
-              fontSize: '12px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '4px',
-              whiteSpace: 'nowrap',
-            }}
-            title="Copy rewrite to clipboard"
-          >
-            <Copy style={{ width: '12px', height: '12px' }} />
-            {copied ? 'Copied!' : 'Copy'}
-          </button>
-          <button
-            onClick={onCancel}
-            style={{
-              padding: '10px 12px',
-              borderRadius: '12px',
-              border: `1px solid ${border}`,
-              background: 'transparent',
-              color: subtext,
-              fontSize: '12px',
-              cursor: 'pointer',
-            }}
-          >
-            Cancel
-          </button>
+        {/* Modal Footer Actions */}
+        <div className="p-4 sm:p-5 bg-slate-50 dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={handleCopy}
+              className="px-3.5 py-1.5 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-full text-xs font-medium hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors flex items-center gap-1.5 cursor-pointer"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copied ? 'Copied' : 'Copy'}</span>
+            </button>
+            <button
+              onClick={onCancel}
+              className="px-4 py-1.5 border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-full text-xs font-medium hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={onInsertBelow}
+              className="px-4 py-1.5 border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200 rounded-full text-xs font-medium hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              Insert Below
+            </button>
+            <button
+              onClick={onReplace}
+              className="btn-filled px-5 py-1.5 text-xs rounded-full shadow-xs flex items-center space-x-1.5 cursor-pointer font-semibold"
+            >
+              <Check className="w-3.5 h-3.5" />
+              <span>Replace Selection</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -65,6 +65,12 @@ export interface AIFinding {
   source?: 'AI' | 'RULE' | 'BOTH';
   needsLegalReview?: boolean;
   reason?: string;
+
+  // ── Grammar-Specific Actionable Fields ──────────────────────────────────────
+  incorrectText?: string;
+  problem?: string;
+  correctedText?: string;
+  explanation?: string;
 }
 
 export interface RiskScore {
@@ -83,6 +89,7 @@ export interface DocumentReviewResult {
   provider: string;
   model: string;
   summary: string;
+  fingerprint?: string;
   riskScore: RiskScore;
   findings: AIFinding[];
   categories: CategorySummary[];
@@ -105,6 +112,7 @@ export interface RewriteResult {
   rationale: string;
   legalBasis?: LegalBasisItem[];
   warnings?: string[];
+  fallbackUsed?: boolean;
   providerLabel: string;
   needsLegalReview: boolean;
 }

@@ -76,6 +76,12 @@ export interface AIFinding {
   source?: 'AI' | 'RULE' | 'BOTH';
   needsLegalReview?: boolean;
   reason?: string;
+
+  // ── Grammar-Specific Actionable Fields ──────────────────────────────────────
+  incorrectText?: string;
+  problem?: string;
+  correctedText?: string;
+  explanation?: string;
 }
 
 // ─── Risk Score ───────────────────────────────────────────────────────────────
@@ -114,6 +120,8 @@ export interface DocumentReviewRequest {
   title: string;
   /** Document type (e.g. "Rental Agreement", "Employment Contract") */
   documentType?: string;
+  /** Force rerun review even if cached version exists */
+  forceRerun?: boolean;
 }
 
 export interface DocumentReviewResponse {
@@ -124,6 +132,8 @@ export interface DocumentReviewResponse {
   status: AIProviderStatus;
   /** True if deterministic rule-based fallback was used */
   fallbackUsed: boolean;
+  /** SHA-256 fingerprint of the normalized document text */
+  fingerprint?: string;
   /** Executive summary of the overall document health */
   summary: string;
   riskScore: RiskScore;
