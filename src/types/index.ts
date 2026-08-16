@@ -88,6 +88,7 @@ export interface LegalTemplate {
 }
 
 export interface DocumentVersion {
+  id?: string; // UUID from DB — available when fetched from API
   versionNumber: number;
   timestamp: string;
   authorId: string;

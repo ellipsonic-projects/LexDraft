@@ -17,6 +17,7 @@ import activityRoutes from './routes/activity.routes';
 import analyticsRoutes from './routes/analytics.routes';
 import clientApprovalRoutes from './routes/client-approval.routes';
 import signatureRoutes from './routes/signature.routes';
+import aiRoutes from './routes/ai.routes';
 
 const app = express();
 
@@ -115,6 +116,7 @@ app.use('/api/activity-logs', activityRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/client-actions', clientApprovalRoutes);
 app.use('/api/signatures', signatureRoutes);
+app.use('/api/ai', aiRoutes);
 
 // 404 handler for unknown routes
 app.use((req, res) => {

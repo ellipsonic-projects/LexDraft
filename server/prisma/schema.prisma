@@ -154,6 +154,7 @@ model User {
   customizationRequests CustomizationRequest[]
   createdSignatureRequests SignatureRequest[]  @relation("CreatedSignatureRequests")
   documentSigners       DocumentSigner[]
+  documentReviews       DocumentReview[]
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
 }
@@ -288,6 +289,7 @@ model LegalDocument {
   tasks                       WorkflowTask[]
   clientApprovals             ClientAgreementApproval[]
   signatureRequests           SignatureRequest[]
+  aiReviews                   DocumentReview[]
   createdAt                   DateTime                  @default(now())
   updatedAt                   DateTime                  @updatedAt
 }
@@ -303,7 +305,29 @@ model DocumentVersion {
   authorId          String
   clientApprovals   ClientAgreementApproval[]
   signatureRequests SignatureRequest[]
+  aiReview          DocumentReview?
   createdAt         DateTime                  @default(now())
+}
+
+model DocumentReview {
+  id                String          @id @default(uuid())
+  documentId        String
+  document          LegalDocument   @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  documentVersionId String          @unique
+  documentVersion   DocumentVersion @relation(fields: [documentVersionId], references: [id], onDelete: Cascade)
+  riskScore         Int
+  riskLevel         String          // "LOW" | "MEDIUM" | "HIGH" | "CRITICAL"
+  summary           String
+  categoriesJson    Json
+  findingsJson      Json
+  provider          String          // "gemini" | "openai" | "rule_based"
+  model             String          // "gemini-1.5-flash" | "gpt-4o-mini" | "heuristic-v1"
+  createdById       String
+  createdBy         User            @relation(fields: [createdById], references: [id])
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@unique([documentId, documentVersionId])
 }
 
 model WorkflowTask {

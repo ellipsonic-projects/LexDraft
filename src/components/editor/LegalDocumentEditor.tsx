@@ -35,11 +35,19 @@ import {
   Outdent as OutdentIcon,
   Palette,
   ZoomIn,
-  ZoomOut
+  ZoomOut,
+  AlertTriangle,
+  CheckCircle2,
+  Filter,
+  Plus
 } from 'lucide-react';
 import { VersionHistoryModal } from './VersionHistoryModal';
+import { FloatingAiToolbar } from './FloatingAiToolbar';
+import { RewritePreviewModal } from './RewritePreviewModal';
+import { InsertClauseModal } from './InsertClauseModal';
 import { compileHouseAgreement, wrapDocument } from '../../utils/HouseAgreementCompiler';
 import { DEFAULT_HOUSE_WIZARD_STATE } from '../../types/houseWizardTypes';
+import { aiService, DocumentReviewResult, AIFinding, FindingCategory, RewriteAction, RewriteResult } from '../../services/ai';
 
 // Helper to extract editable body HTML from full HTML documents
 function extractEditableHtml(rawHtml?: string): string {
@@ -141,9 +149,20 @@ export const LegalDocumentEditor: React.FC = () => {
   // Zoom level: 75 | 100 | 125 | 150 | 175 | 200
   const [zoomLevel, setZoomLevel] = useState(100);
 
-  // AI State
-  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  // ── AI State (Module D: Review Engine + Module E: Rewrite Assistant) ─────────
   const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiReview, setAiReview] = useState<DocumentReviewResult | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiCategoryFilter, setAiCategoryFilter] = useState<FindingCategory | 'ALL'>('ALL');
+  // Rewrite state
+  const [floatingToolbarVisible, setFloatingToolbarVisible] = useState(false);
+  const [floatingSelectionRect, setFloatingSelectionRect] = useState<DOMRect | null>(null);
+  const [floatingSelectedText, setFloatingSelectedText] = useState('');
+  const [savedRange, setSavedRange] = useState<Range | null>(null);
+  const [isRewriteLoading, setIsRewriteLoading] = useState(false);
+  const [rewriteResult, setRewriteResult] = useState<RewriteResult | null>(null);
+  // Clause insertion state
+  const [insertClauseData, setInsertClauseData] = useState<{ clauseHtml: string; findingTitle: string; findingDescription: string } | null>(null);
 
   const editorRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -254,24 +273,141 @@ export const LegalDocumentEditor: React.FC = () => {
     }
   };
 
-  const handleRunAiAnalysis = () => {
+  // ── Module D: Real AI Review ─────────────────────────────────────────────────
+  const handleRunAiAnalysis = async () => {
+    if (!doc) return;
     setIsAiLoading(true);
-    setTimeout(() => {
-      setAiSuggestions([
-        'Notice period clause: Recommend adding a 30-day minimum advance written notice specification.',
-        'Jurisdiction & Arbitration: Ensure standard dispute escalation mechanism is explicitly defined.',
-        'Indemnification provision: Strongly recommend adding mutual liability exclusion for third-party damages.'
-      ]);
+    setAiError(null);
+    setAiReview(null);
+
+    try {
+      // Get the latest version ID from the document's versions array
+      const latestVersion = doc.versions?.[0]; // versions are ordered desc by versionNumber
+      const versionId = latestVersion?.id;
+
+      if (!versionId) {
+        setAiError('Document has no version history. Please save the document first.');
+        setIsAiLoading(false);
+        return;
+      }
+
+      const result = await aiService.reviewDocument(doc.id, versionId);
+      setAiReview(result);
+      setAiCategoryFilter('ALL');
+    } catch (err: any) {
+      setAiError(err.message || 'AI analysis failed. Please try again.');
+    } finally {
       setIsAiLoading(false);
-    }, 800);
+    }
   };
 
+  // ── Module D: Insert Clause ─────────────────────────────────────────────────
   const handleInsertClause = (clauseHtml: string) => {
     if (!editorRef.current) return;
     editorRef.current.focus();
     document.execCommand('insertHTML', false, clauseHtml);
     handleEditorInput();
-    setShowAIDrawer(false);
+    // Auto-save the document after insertion
+    if (doc) {
+      saveDocumentDraft(doc.id, editorRef.current.innerHTML || contentHtml, doc.variables || {}, 'AI recommended clause inserted');
+    }
+    setInsertClauseData(null);
+  };
+
+  // ── Module E: Floating Toolbar & Rewrite ──────────────────────────────────────
+  // Listen for selection changes inside the editor canvas
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || !sel.toString().trim()) {
+        // Only hide if not clicking inside the toolbar itself
+        setFloatingToolbarVisible(false);
+        return;
+      }
+
+      // Only show if selection is inside the editor
+      if (!editorRef.current) return;
+      const range = sel.getRangeAt(0);
+      const editorNode = editorRef.current;
+      if (!editorNode.contains(range.commonAncestorContainer)) return;
+
+      const text = sel.toString().trim();
+      if (text.length < 3) return;
+
+      const rect = range.getBoundingClientRect();
+      setFloatingSelectedText(text);
+      setFloatingSelectionRect(rect);
+      setFloatingToolbarVisible(true);
+
+      // Save range so we can restore it before executing rewrite replacement
+      setSavedRange(range.cloneRange());
+    };
+
+    document.addEventListener('selectionchange', handleSelectionChange);
+    return () => document.removeEventListener('selectionchange', handleSelectionChange);
+  }, []);
+
+  const handleRewriteAction = async (action: RewriteAction) => {
+    if (!doc || !floatingSelectedText) return;
+    const latestVersion = doc.versions?.[0];
+    const versionId = latestVersion?.id;
+    if (!versionId) return;
+
+    setFloatingToolbarVisible(false);
+    setIsRewriteLoading(true);
+
+    try {
+      // Grab ±300 chars of context around the selection from the editor
+      const fullText = editorRef.current?.innerText || '';
+      const idx = fullText.indexOf(floatingSelectedText);
+      const context = idx >= 0
+        ? fullText.slice(Math.max(0, idx - 200), idx + floatingSelectedText.length + 200)
+        : undefined;
+
+      const result = await aiService.rewriteText(doc.id, versionId, floatingSelectedText, action, context);
+      setRewriteResult(result);
+    } catch (err: any) {
+      alert('AI rewrite failed: ' + (err.message || 'Unknown error'));
+    } finally {
+      setIsRewriteLoading(false);
+    }
+  };
+
+  const applyRewrite = (text: string, mode: 'replace' | 'insertBelow') => {
+    if (!editorRef.current) return;
+    editorRef.current.focus();
+
+    if (savedRange && mode === 'replace') {
+      const sel = window.getSelection();
+      if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(savedRange);
+        document.execCommand('insertText', false, text);
+      }
+    } else {
+      // Insert below: collapse to end of saved range, then insert
+      if (savedRange) {
+        const sel = window.getSelection();
+        if (sel) {
+          const range = savedRange.cloneRange();
+          range.collapse(false); // move to end
+          sel.removeAllRanges();
+          sel.addRange(range);
+          document.execCommand('insertHTML', false, `<p>${text}</p>`);
+        }
+      }
+    }
+
+    handleEditorInput();
+    setRewriteResult(null);
+    setSavedRange(null);
+    setFloatingSelectedText('');
+
+    // Save version and log acceptance
+    if (doc) {
+      saveDocumentDraft(doc.id, editorRef.current.innerHTML || contentHtml, doc.variables || {}, `AI rewrite applied: ${rewriteResult?.action}`);
+      aiService.logRewriteAccepted(doc.id, rewriteResult!.action, doc.title).catch(() => {});
+    }
   };
 
   const insertTable = (rows = 2, cols = 2) => {
@@ -853,43 +989,202 @@ export const LegalDocumentEditor: React.FC = () => {
 
         {/* AI Assistant Drawer */}
         {showAIDrawer && (
-          <div className="w-80 sm:w-96 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 p-5 flex flex-col justify-between overflow-y-auto z-30 shadow-2xl animate-in slide-in-from-right duration-250">
-            <div className="space-y-6">
-              <div className="flex items-center justify-between border-b border-slate-150 dark:border-slate-800 pb-3">
+          <div className="w-80 sm:w-96 bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col overflow-y-auto z-30 shadow-2xl animate-in slide-in-from-right duration-250">
+            {/* Drawer Header */}
+            <div className="p-5 border-b border-slate-200 dark:border-slate-800 shrink-0">
+              <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center space-x-2">
-                  <Sparkles className="w-4 h-4 text-amber-500" />
-                  <h3 className="text-xs font-bold uppercase tracking-wider text-ink-black dark:text-paper-white">AI Legal Assistant</h3>
+                  <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center">
+                    <Sparkles className="w-3.5 h-3.5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xs font-bold text-ink-black dark:text-paper-white">AI Review Engine</h3>
+                    <p className="text-[9px] text-slate-400 font-mono">Module D — Risk Analysis</p>
+                  </div>
                 </div>
                 <button onClick={() => setShowAIDrawer(false)} className="text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer">
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              <div className="space-y-4">
-                <button
-                  onClick={handleRunAiAnalysis}
-                  disabled={isAiLoading}
-                  className="w-full py-2.5 bg-ink-black hover:opacity-90 dark:bg-paper-white dark:text-ink-black text-paper-white font-semibold text-xs rounded-full shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center space-x-1.5"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>{isAiLoading ? 'Analyzing Legal Provisions...' : 'Scan Clauses & Risks'}</span>
-                </button>
-
-                {aiSuggestions.map((s, idx) => (
-                  <div key={idx} className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 space-y-2.5">
-                    <p className="leading-relaxed font-light">{s}</p>
-                    <button
-                      onClick={() => handleInsertClause(`<h2>SEVERABILITY & ARBITRATION</h2><p>If any provision of this Lease is held to be invalid or unenforceable, such provision shall be severed and the remaining provisions shall continue in full force and effect. Any disputes arising hereunder shall be subject to arbitration in accordance with applicable laws.</p>`)}
-                      className="text-[10px] font-bold text-sienna-brown dark:text-blush-peach hover:underline block"
-                    >
-                      + Insert Recommended Protective Clause
-                    </button>
-                  </div>
-                ))}
-              </div>
+              <button
+                onClick={handleRunAiAnalysis}
+                disabled={isAiLoading}
+                className="w-full py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 text-white font-semibold text-xs rounded-full shadow-sm cursor-pointer disabled:opacity-50 flex items-center justify-center space-x-1.5 transition-opacity"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>{isAiLoading ? 'Analyzing Legal Provisions…' : 'Scan Clauses & Risks'}</span>
+              </button>
             </div>
+
+            {/* Error State */}
+            {aiError && (
+              <div className="mx-5 mt-4 p-3 bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 rounded-xl flex items-start gap-2">
+                <AlertCircle className="w-3.5 h-3.5 text-red-500 mt-0.5 shrink-0" />
+                <p className="text-[10px] text-red-700 dark:text-red-300">{aiError}</p>
+              </div>
+            )}
+
+            {/* Risk Score Dashboard */}
+            {aiReview && (
+              <div className="flex-1 overflow-y-auto p-5 space-y-4">
+                {/* Risk Score Gauge */}
+                <div className={`p-4 rounded-2xl border ${
+                  aiReview.riskScore.level === 'LOW' ? 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800' :
+                  aiReview.riskScore.level === 'MEDIUM' ? 'bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800' :
+                  aiReview.riskScore.level === 'HIGH' ? 'bg-orange-50 dark:bg-orange-950 border-orange-200 dark:border-orange-800' :
+                  'bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800'
+                }`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[9px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Risk Score</span>
+                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+                      aiReview.riskScore.level === 'LOW' ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300' :
+                      aiReview.riskScore.level === 'MEDIUM' ? 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300' :
+                      aiReview.riskScore.level === 'HIGH' ? 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300' :
+                      'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
+                    }`}>{aiReview.riskScore.level} RISK</span>
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <span className={`text-4xl font-black ${
+                      aiReview.riskScore.level === 'LOW' ? 'text-green-600 dark:text-green-400' :
+                      aiReview.riskScore.level === 'MEDIUM' ? 'text-amber-600 dark:text-amber-400' :
+                      aiReview.riskScore.level === 'HIGH' ? 'text-orange-600 dark:text-orange-400' :
+                      'text-red-600 dark:text-red-400'
+                    }`}>{aiReview.riskScore.score}</span>
+                    <span className="text-xs text-slate-400 mb-1">/100</span>
+                  </div>
+                  {/* Score bar */}
+                  <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full mt-2">
+                    <div
+                      className={`h-1.5 rounded-full transition-all duration-700 ${
+                        aiReview.riskScore.level === 'LOW' ? 'bg-green-500' :
+                        aiReview.riskScore.level === 'MEDIUM' ? 'bg-amber-500' :
+                        aiReview.riskScore.level === 'HIGH' ? 'bg-orange-500' :
+                        'bg-red-500'
+                      }`}
+                      style={{ width: `${aiReview.riskScore.score}%` }}
+                    />
+                  </div>
+                  {/* Breakdown pills */}
+                  <div className="flex flex-wrap gap-1.5 mt-3">
+                    {aiReview.riskScore.breakdown.critical > 0 && (
+                      <span className="text-[9px] px-1.5 py-0.5 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300 rounded font-bold">{aiReview.riskScore.breakdown.critical} Critical</span>
+                    )}
+                    {aiReview.riskScore.breakdown.high > 0 && (
+                      <span className="text-[9px] px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 rounded font-bold">{aiReview.riskScore.breakdown.high} High</span>
+                    )}
+                    {aiReview.riskScore.breakdown.medium > 0 && (
+                      <span className="text-[9px] px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 rounded font-bold">{aiReview.riskScore.breakdown.medium} Medium</span>
+                    )}
+                    {aiReview.riskScore.breakdown.low > 0 && (
+                      <span className="text-[9px] px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded font-bold">{aiReview.riskScore.breakdown.low} Low</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Summary */}
+                <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">{aiReview.summary}</p>
+
+                {/* Provider label */}
+                <p className="text-[9px] text-slate-400 italic">{aiReview.providerLabel}</p>
+
+                {/* Category Filter Tabs */}
+                {aiReview.findings.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {(['ALL', 'HIGH_RISK', 'MISSING_CLAUSE', 'COMPLIANCE', 'GRAMMAR', 'STRUCTURAL'] as const).map(cat => {
+                      const count = cat === 'ALL'
+                        ? aiReview.findings.length
+                        : aiReview.findings.filter(f => f.category === cat).length;
+                      if (count === 0 && cat !== 'ALL') return null;
+                      return (
+                        <button
+                          key={cat}
+                          onClick={() => setAiCategoryFilter(cat === 'ALL' ? 'ALL' : cat as FindingCategory)}
+                          className={`text-[9px] px-2 py-0.5 rounded-full font-bold transition-colors cursor-pointer ${
+                            aiCategoryFilter === cat
+                              ? 'bg-indigo-600 text-white'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                          }`}
+                        >
+                          {cat === 'ALL' ? 'All' : cat.replace(/_/g, ' ')} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Findings */}
+                <div className="space-y-2.5">
+                  {(aiCategoryFilter === 'ALL'
+                    ? aiReview.findings
+                    : aiReview.findings.filter(f => f.category === aiCategoryFilter)
+                  ).map((finding) => (
+                    <div
+                      key={finding.id}
+                      className={`p-3.5 rounded-xl border text-xs space-y-2 ${
+                        finding.severity === 'CRITICAL' ? 'bg-red-50 dark:bg-red-950 border-red-200 dark:border-red-800' :
+                        finding.severity === 'HIGH' ? 'bg-orange-50 dark:bg-orange-950 border-orange-200 dark:border-orange-800' :
+                        finding.severity === 'MEDIUM' ? 'bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800' :
+                        'bg-slate-50 dark:bg-slate-950 border-slate-200 dark:border-slate-800'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded mr-1 ${
+                            finding.severity === 'CRITICAL' ? 'bg-red-200 dark:bg-red-900 text-red-800 dark:text-red-200' :
+                            finding.severity === 'HIGH' ? 'bg-orange-200 dark:bg-orange-900 text-orange-800 dark:text-orange-200' :
+                            finding.severity === 'MEDIUM' ? 'bg-amber-200 dark:bg-amber-900 text-amber-800 dark:text-amber-200' :
+                            'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                          }`}>{finding.severity}</span>
+                          <span className="font-semibold text-slate-800 dark:text-slate-200">{finding.title}</span>
+                        </div>
+                      </div>
+                      <p className="text-[10px] text-slate-600 dark:text-slate-400 leading-relaxed">{finding.description}</p>
+                      {finding.textExcerpt && (
+                        <p className="text-[9px] font-mono italic text-slate-500 dark:text-slate-500 bg-white dark:bg-slate-900 rounded p-1.5 border border-slate-200 dark:border-slate-700">
+                          "{finding.textExcerpt.slice(0, 100)}{finding.textExcerpt.length > 100 ? '…' : ''}"
+                        </p>
+                      )}
+                      {finding.suggestedClause && (
+                        <button
+                          onClick={() => setInsertClauseData({
+                            clauseHtml: finding.suggestedClause!,
+                            findingTitle: finding.title,
+                            findingDescription: finding.description,
+                          })}
+                          className="flex items-center gap-1 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+                        >
+                          <Plus className="w-3 h-3" />
+                          Insert Recommended Clause
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Legal disclaimer */}
+                <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700">
+                  <p className="text-[9px] text-slate-500 dark:text-slate-400 leading-relaxed italic">
+                    AI-generated analysis is assistive only and should be reviewed by a qualified legal professional before use in binding agreements.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Empty state */}
+            {!aiReview && !aiError && !isAiLoading && (
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center mb-3">
+                  <ShieldCheck className="w-6 h-6 text-indigo-500" />
+                </div>
+                <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Ready to Analyze</p>
+                <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">Click "Scan Clauses & Risks" to run an AI legal review of this document and generate a Risk Score.</p>
+                <p className="text-[9px] text-indigo-500 dark:text-indigo-400 mt-3 font-medium">✦ Highlight text in the editor for AI rewrite options</p>
+              </div>
+            )}
           </div>
         )}
+
 
         {/* Comments Drawer */}
         {showCommentsDrawer && (
@@ -1104,6 +1399,41 @@ export const LegalDocumentEditor: React.FC = () => {
             restoreDocumentVersion(doc.id, vNum);
             setShowVersionModal(false);
           }}
+        />
+      )}
+
+      {/* ── Module E: Floating AI Rewrite Toolbar ───────────────────────────── */}
+      <FloatingAiToolbar
+        visible={floatingToolbarVisible || isRewriteLoading}
+        selectedText={floatingSelectedText}
+        selectionRect={floatingSelectionRect}
+        editorContainer={canvasRef.current}
+        isLoading={isRewriteLoading}
+        onAction={handleRewriteAction}
+        onClose={() => { setFloatingToolbarVisible(false); setSavedRange(null); }}
+        isDark={isDark}
+      />
+
+      {/* ── Module E: Rewrite Preview Modal ──────────────────────────────────── */}
+      {rewriteResult && (
+        <RewritePreviewModal
+          result={rewriteResult}
+          onReplace={() => applyRewrite(rewriteResult.rewrittenText, 'replace')}
+          onInsertBelow={() => applyRewrite(rewriteResult.rewrittenText, 'insertBelow')}
+          onCancel={() => { setRewriteResult(null); setSavedRange(null); }}
+          isDark={isDark}
+        />
+      )}
+
+      {/* ── Module D: Insert Clause Confirmation Modal ────────────────────────── */}
+      {insertClauseData && (
+        <InsertClauseModal
+          clauseHtml={insertClauseData.clauseHtml}
+          findingTitle={insertClauseData.findingTitle}
+          findingDescription={insertClauseData.findingDescription}
+          onConfirm={() => handleInsertClause(insertClauseData.clauseHtml)}
+          onCancel={() => setInsertClauseData(null)}
+          isDark={isDark}
         />
       )}
     </div>
