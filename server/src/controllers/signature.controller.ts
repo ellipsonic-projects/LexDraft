@@ -154,8 +154,8 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
     .tabs{display:flex;border-bottom:1px solid #e2e8f0;}
     .tab{flex:1;padding:12px;border:none;background:none;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;color:#64748b;font-weight:500;}
     .tab.active{border-bottom-color:#6366f1;color:#6366f1;font-weight:700;}
-    canvas{display:block;width:100%;height:150px;touch-action:none;cursor:crosshair;background:#fff;}
-    .canvas-wrap{border:2px solid #e2e8f0;border-radius:8px;overflow:hidden;}
+    canvas{display:block;touch-action:none;cursor:crosshair;background:#fff;}
+    .canvas-wrap{border:2px solid #e2e8f0;border-radius:8px;}
     .btn{display:block;width:100%;padding:13px;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;text-align:center;}
     .btn-sign{background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;}
     .btn-sign:disabled{background:#e2e8f0;color:#94a3b8;cursor:not-allowed;}
@@ -218,7 +218,7 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
       <p style="margin:0 0 16px;font-size:13px;color:#64748b;">Please draw your signature inside the box below using your mouse or touchscreen.</p>
 
       <div style="border:2px solid #cbd5e1;border-radius:12px;overflow:hidden;background:#ffffff;box-shadow:inset 0 2px 4px rgba(0,0,0,0.02);">
-        <canvas id="sig-canvas" width="600" height="200" style="display:block;max-width:100%;height:auto;cursor:crosshair;touch-action:none;"></canvas>
+        <canvas id="sig-canvas" width="600" height="200" style="display:block;width:600px;max-width:100%;touch-action:none;cursor:crosshair;background:#fff;"></canvas>
       </div>
 
       <div style="margin-top:10px;display:flex;justify-content:space-between;align-items:center;">
@@ -277,9 +277,12 @@ export async function getSigningPage(req: Request, res: Response, next: NextFunc
   ctx.lineJoin = 'round';
 
   canvas.addEventListener('mousedown', function(e) {
+    e.preventDefault();
     isDrawing = true;
-    lx = e.offsetX;
-    ly = e.offsetY;
+    // Use same coordinate system as mousemove (clientX - rect.left * scale)
+    var r = canvas.getBoundingClientRect();
+    lx = (e.clientX - r.left) * (canvas.width / r.width);
+    ly = (e.clientY - r.top) * (canvas.height / r.height);
     ctx.beginPath();
     ctx.moveTo(lx, ly);
   });
