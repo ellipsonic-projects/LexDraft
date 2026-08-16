@@ -63,19 +63,16 @@ export function injectSignaturesIntoHtml(
         })
       : '';
 
-    // Build signature overlay block
+    // Build signature overlay block - placed ABOVE the line
     const sigBlock = `
-<div style="position:relative; display:inline-block; width:100%;">
+<div style="margin-bottom: -15pt; text-align: left; position: relative; z-index: 2;">
   <img src="${signer.signatureData}" alt="Signature of ${signer.signerName}"
-       style="max-height:60px; max-width:200px; display:block; margin-bottom:2pt;"/>
-  <span style="font-size:7pt; color:#555; display:block; font-family:Arial,sans-serif;">
+       style="max-height:55px; max-width:200px; display:block; margin-bottom:2pt; mix-blend-mode: multiply;"/>
+  <span style="font-size:7pt; color:#555; display:block; font-family:Arial,sans-serif; margin-bottom:2pt;">
     Digitally signed by ${signer.signerName} · ${signedAt}
   </span>
 </div>`;
 
-    // Replace the first empty sig-line whose adjacent sig-name/role matches this signer
-    // Strategy: find <div class="sig-col">...<div class="sig-line"></div> blocks
-    // and inject the img after the sig-line for matching signers
     const nameEscaped = signer.signerName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const roleEscaped = signer.signerRole.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -94,16 +91,26 @@ export function injectSignaturesIntoHtml(
       `(<div class="sig-line"><\\/div>)(\\s*<p class="sig-name">.*?${nameEscaped}.*?<\\/p>)`,
       'i'
     );
+    // Strategy 4: Witness template placeholder match (e.g. Witness 1 — Name: ___)
+    const patternWitnessPlaceholder = new RegExp(
+      `(<div class="sig-line"><\\/div>)(\\s*<p class="sig-role">\\s*Witness(?:\\s*\\d+)?\\s*(?:&mdash;|-)?\\s*Name:.*?<\\/p>(?:\\s*<p class="sig-role">\\s*Address:.*?<\\/p>)?)`,
+      'i'
+    );
 
     if (patternBoth.test(result)) {
-      result = result.replace(patternBoth, `<div class="sig-line">${sigBlock}</div>$2`);
+      result = result.replace(patternBoth, `${sigBlock}$1$2`);
     } else if (patternRole.test(result)) {
-      result = result.replace(patternRole, `<div class="sig-line">${sigBlock}</div>$2`);
+      result = result.replace(patternRole, `${sigBlock}$1$2`);
     } else if (patternName.test(result)) {
-      result = result.replace(patternName, `<div class="sig-line">${sigBlock}</div>$2`);
+      result = result.replace(patternName, `${sigBlock}$1$2`);
+    } else if (patternWitnessPlaceholder.test(result)) {
+      result = result.replace(
+        patternWitnessPlaceholder,
+        `${sigBlock}$1<p class="sig-name">${signer.signerName}</p><p class="sig-role">${signer.signerRole}</p>`
+      );
     } else {
-      // Strategy 4: Fallback to first empty sig-line
-      result = result.replace('<div class="sig-line"></div>', `<div class="sig-line">${sigBlock}</div>`);
+      // Strategy 5: Fallback to first empty sig-line
+      result = result.replace('<div class="sig-line"></div>', `${sigBlock}<div class="sig-line"></div>`);
     }
   }
   return result;
