@@ -1,5 +1,6 @@
 import bcrypt from 'bcrypt';
 import { AppError } from '../middlewares/errorHandler';
+import { prisma } from '../lib/prisma';
 import {
   findUserByEmail,
   findUserById,
@@ -132,6 +133,19 @@ export const getCurrentUser = async (userId: string): Promise<Record<string, unk
   if (!user) {
     throw new AppError('User not found.', 404);
   }
+
+  const org = await prisma.organization.findUnique({
+    where: { id: user.organizationId }
+  });
+
+  if (!org) {
+    throw new AppError('Organization not found.', 404);
+  }
+
+  const actualMemberCount = await prisma.user.count({
+    where: { organizationId: user.organizationId }
+  });
+
   return {
     id: user.id,
     name: user.name,
@@ -140,7 +154,13 @@ export const getCurrentUser = async (userId: string): Promise<Record<string, unk
     title: user.title,
     avatarUrl: user.avatarUrl,
     status: user.status,
-    organizationId: user.organizationId
+    organizationId: user.organizationId,
+    organization: {
+      id: org.id,
+      name: org.name,
+      plan: org.plan,
+      totalMembers: actualMemberCount
+    }
   };
 };
 

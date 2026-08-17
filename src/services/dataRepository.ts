@@ -186,16 +186,18 @@ export const dataRepository = {
     // Read-only on live API
   },
 
-  // Organization
   getOrganization: async (): Promise<Organization> => {
     const res = await api.get('/auth/me');
     const u = res.data.user;
-    return {
-      id: u.organizationId || 'org_apex',
-      name: 'Apex Legal Advocates & Solicitors',
-      plan: 'Enterprise',
-      totalMembers: 2
-    };
+    if (u && u.organization) {
+      return {
+        id: u.organization.id,
+        name: u.organization.name,
+        plan: u.organization.plan,
+        totalMembers: u.organization.totalMembers
+      };
+    }
+    throw new Error('Organization profile details are unavailable.');
   },
 
   // Clients
@@ -255,12 +257,6 @@ export const dataRepository = {
   },
   saveDocuments: async (_documents: LegalDocument[]): Promise<void> => {
     // Read-only mock save documents
-  },
-  addDocument: async (document: LegalDocument): Promise<LegalDocument> => {
-    return document;
-  },
-  updateDocument: async (id: string, updates: Partial<LegalDocument>): Promise<LegalDocument> => {
-    return { id, ...updates } as LegalDocument;
   },
   getDocumentById: async (id: string): Promise<LegalDocument | null> => {
     try {
