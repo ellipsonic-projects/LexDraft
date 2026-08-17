@@ -47,9 +47,9 @@ interface AppContextType {
   setIsCommandPaletteOpen: (open: boolean) => void;
   toast: { message: string; type: 'success' | 'info' | 'warning' | 'error' } | null;
   showToast: (message: string, type?: 'success' | 'info' | 'warning' | 'error') => void;
-  login: (email: string, role: UserRole) => Promise<void>;
-  quickLogin: (role: UserRole) => Promise<void>;
+  login: (email: string, password?: string) => Promise<void>;
   logout: () => Promise<void>;
+  switchUser: (email: string, password?: string) => Promise<boolean>;
 
   // Domain State
   clients: Client[];
@@ -155,7 +155,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           email: user.email,
           role: user.role.toLowerCase() === 'boss' ? 'boss' : 'employee',
           title: user.title || 'Legal Professional',
-          avatar: user.avatarUrl || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200',
+          avatar: user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=0F172A&color=fff`,
           status: 'online'
         });
         setIsAuthenticated(true);
@@ -246,9 +246,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Auth Methods
-  const login = async (email: string, _role: UserRole) => {
+  const login = async (email: string, password?: string) => {
     try {
-      const res = await api.post('/auth/login', { email, password: 'password123' });
+      const res = await api.post('/auth/login', { email, password: password || 'password123' });
       const token = res.data.accessToken;
       setAccessToken(token);
 
@@ -259,7 +259,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         email: user.email,
         role: user.role.toLowerCase() === 'boss' ? 'boss' : 'employee',
         title: user.title || 'Legal Professional',
-        avatar: user.avatarUrl || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200',
+        avatar: user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=0F172A&color=fff`,
         status: 'online'
       };
 
@@ -271,11 +271,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const quickLogin = async (role: UserRole) => {
-    const targetEmail = role === 'boss' ? 'partner@apexlegal.in' : 'lawyer@apexlegal.in';
-    await login(targetEmail, role);
-  };
-
   const logout = async () => {
     try {
       await api.post('/auth/logout');
@@ -284,7 +279,48 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } finally {
       setAccessToken(null);
       setIsAuthenticated(false);
+      setCurrentUser(initialUsers[0]);
       showToast('Signed out successfully.', 'info');
+    }
+  };
+  const switchUser = async (email: string, password?: string): Promise<boolean> => {
+    try {
+      const res = await api.post('/auth/login', { email, password: password || 'password123', isSwitch: true });
+      const token = res.data.accessToken;
+      setAccessToken(token);
+
+      const user = res.data.user;
+      const mappedUser: User = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role.toLowerCase() === 'boss' ? 'boss' : 'employee',
+        title: user.title || 'Legal Professional',
+        avatar: user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&background=0F172A&color=fff`,
+        status: 'online'
+      };
+
+      // Clear selection states to prevent stale selected data rendering
+      setSelectedTemplateId(null);
+      setSelectedDocumentId(null);
+      setSelectedTaskId(null);
+
+      // Force state clean slate
+      setClients([]);
+      setMatters([]);
+      setTemplates([]);
+      setDocuments([]);
+      setTasks([]);
+      setActivityLogs([]);
+      setNotifications([]);
+
+      setCurrentUser(mappedUser);
+      setIsAuthenticated(true);
+
+      showToast(`Switched account to ${mappedUser.name}!`, 'success');
+      return true;
+    } catch (err: any) {
+      throw new Error(err.message || 'Authentication failed. Please verify credentials.');
     }
   };
 
@@ -782,8 +818,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       toast,
       showToast,
       login,
-      quickLogin,
       logout,
+      switchUser,
       clients,
       matters,
       templates,

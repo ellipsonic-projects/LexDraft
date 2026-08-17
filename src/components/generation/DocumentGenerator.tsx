@@ -226,7 +226,7 @@ export const DocumentGenerator: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {templates.map((tpl) => (
+            {templates.filter(t => t.status === 'active').map((tpl) => (
               <div
                 key={tpl.id}
                 onClick={() => {

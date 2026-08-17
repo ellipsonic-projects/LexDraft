@@ -254,3 +254,69 @@ export const rejectRequest = async (
 
   return repoReject(request, approverId, approverName, organizationId, data.rejectionNote);
 };
+
+/**
+ * Deletes a template from the database (or marks as inactive if used).
+ * Enforces organization validation and checks usage count.
+ */
+export const removeTemplate = async (
+  templateId: string,
+  userId: string,
+  organizationId: string
+): Promise<{ success: boolean; mode: 'hard' | 'soft' }> => {
+  const template = await prisma.legalTemplate.findFirst({
+    where: { id: templateId, organizationId },
+    include: {
+      _count: { select: { documents: true } }
+    }
+  });
+
+  if (!template) {
+    throw new AppError('Template not found or access denied.', 404);
+  }
+
+  const documentCount = template._count.documents;
+
+  if (documentCount === 0) {
+    // Unused template: perform a hard delete
+    await prisma.legalTemplate.delete({
+      where: { id: templateId }
+    });
+
+    // Log action to ActivityLog
+    await prisma.activityLog.create({
+      data: {
+        userId,
+        action: 'TEMPLATE_DELETED',
+        entityType: 'template',
+        entityId: templateId,
+        entityName: template.name,
+        details: `Master template "${template.name}" was permanently deleted.`,
+        organizationId
+      }
+    });
+
+    return { success: true, mode: 'hard' };
+  } else {
+    // Used template: perform a soft delete by marking status as inactive
+    await prisma.legalTemplate.update({
+      where: { id: templateId },
+      data: { status: 'inactive' }
+    });
+
+    // Log action to ActivityLog
+    await prisma.activityLog.create({
+      data: {
+        userId,
+        action: 'TEMPLATE_SOFT_DELETED',
+        entityType: 'template',
+        entityId: templateId,
+        entityName: template.name,
+        details: `Master template "${template.name}" was marked inactive (soft deleted) as it is referenced by ${documentCount} documents.`,
+        organizationId
+      }
+    });
+
+    return { success: true, mode: 'soft' };
+  }
+};

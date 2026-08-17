@@ -22,8 +22,8 @@ export const Header: React.FC = () => {
     notifications,
     theme,
     toggleTheme,
-    quickLogin,
     logout,
+    switchUser,
     setIsCommandPaletteOpen,
     setActiveTab,
     setSelectedDocumentId,
@@ -33,6 +33,29 @@ export const Header: React.FC = () => {
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+
+  const [switchingUser, setSwitchingUser] = useState<any | null>(null);
+  const [switchEmail, setSwitchEmail] = useState('');
+  const [switchPassword, setSwitchPassword] = useState('');
+  const [switchError, setSwitchError] = useState<string | null>(null);
+  const [switchLoading, setSwitchLoading] = useState(false);
+
+  const handleSwitchSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSwitchError(null);
+    setSwitchLoading(true);
+    try {
+      const success = await switchUser(switchEmail, switchPassword);
+      if (success) {
+        setSwitchingUser(null);
+        setSwitchPassword('');
+      }
+    } catch (err: any) {
+      setSwitchError(err.message || 'Invalid email or password.');
+    } finally {
+      setSwitchLoading(false);
+    }
+  };
 
   const unreadCount = notifications.filter(n => !n.read).length;
   const isDark = theme === 'dark';
@@ -96,22 +119,36 @@ export const Header: React.FC = () => {
           isDark ? 'bg-slate-900 border-slate-800' : 'bg-mist-gray/60 border-slate-200/60'
         }`}>
           <button
-            onClick={() => quickLogin('boss')}
+            onClick={() => {
+              if (currentUser.role === 'boss') return;
+              const target = users.find(u => u.role === 'boss') || { name: 'Senior Partner', email: 'partner@apexlegal.in', role: 'boss', avatar: 'https://ui-avatars.com/api/?name=Partner' };
+              setSwitchingUser(target);
+              setSwitchEmail(target.email);
+              setSwitchPassword('');
+              setSwitchError(null);
+            }}
             className={`px-3 py-1 rounded-full text-[11px] font-medium flex items-center space-x-1 transition-all ${
               currentUser.role === 'boss'
                 ? 'bg-ink-black text-paper-white dark:bg-paper-white dark:text-ink-black shadow-sm'
-                : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer'
             }`}
           >
             <ShieldCheck className="w-3 h-3" />
             <span>Partner</span>
           </button>
           <button
-            onClick={() => quickLogin('employee')}
+            onClick={() => {
+              if (currentUser.role === 'employee') return;
+              const target = users.find(u => u.role === 'employee') || { name: 'Associate Lawyer', email: 'lawyer@apexlegal.in', role: 'employee', avatar: 'https://ui-avatars.com/api/?name=Lawyer' };
+              setSwitchingUser(target);
+              setSwitchEmail(target.email);
+              setSwitchPassword('');
+              setSwitchError(null);
+            }}
             className={`px-3 py-1 rounded-full text-[11px] font-medium flex items-center space-x-1 transition-all ${
               currentUser.role === 'employee'
                 ? 'bg-ink-black text-paper-white dark:bg-paper-white dark:text-ink-black shadow-sm'
-                : 'text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                : 'text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer'
             }`}
           >
             <Briefcase className="w-3 h-3" />
@@ -246,7 +283,14 @@ export const Header: React.FC = () => {
                   <button
                     key={u.id}
                     onClick={() => {
-                      quickLogin(u.role);
+                      if (currentUser.id === u.id) {
+                        setShowUserDropdown(false);
+                        return;
+                      }
+                      setSwitchingUser(u);
+                      setSwitchEmail(u.email);
+                      setSwitchPassword('');
+                      setSwitchError(null);
                       setShowUserDropdown(false);
                     }}
                     className={`w-full text-left p-2 rounded-xl flex items-center justify-between transition-colors ${
@@ -282,6 +326,84 @@ export const Header: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Switch Account Auth Modal */}
+      {switchingUser && (
+        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md border border-slate-150 dark:border-slate-850 rounded-[24px] bg-white dark:bg-slate-900 shadow-2xl p-6 space-y-6 animate-page-fade">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center space-x-2">
+                <Scale className="w-4 h-4 text-slate-400" />
+                <h3 className="text-base font-semibold serif-heading text-ink-black dark:text-paper-white">
+                  Switch Account
+                </h3>
+              </div>
+              <button 
+                onClick={() => setSwitchingUser(null)} 
+                className="text-slate-450 hover:text-ink-black dark:hover:text-white p-1 cursor-pointer font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-mist-gray/40 dark:bg-slate-950/50 border border-slate-100 dark:border-slate-800 flex items-center space-x-3">
+              <img src={switchingUser.avatar} className="w-10 h-10 rounded-full object-cover" alt="" />
+              <div className="text-left">
+                <p className="text-sm font-semibold text-ink-black dark:text-white">{switchingUser.name}</p>
+                <p className="text-[10px] text-slate-400 capitalize">{switchingUser.role === 'boss' ? 'Senior Partner' : 'Associate Lawyer'}</p>
+              </div>
+            </div>
+
+            {switchError && (
+              <div className="p-3 bg-rose-500/10 text-rose-600 dark:text-rose-455 border border-rose-500/20 text-xs rounded-xl font-medium text-left">
+                {switchError}
+              </div>
+            )}
+
+            <form onSubmit={handleSwitchSubmit} className="space-y-4">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1 text-left">Firm Email Address</label>
+                <input
+                  type="email"
+                  required
+                  value={switchEmail}
+                  onChange={(e) => setSwitchEmail(e.target.value)}
+                  className="w-full input-composer text-xs font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1 text-left">Password</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Enter account password"
+                  value={switchPassword}
+                  onChange={(e) => setSwitchPassword(e.target.value)}
+                  className="w-full input-composer text-xs font-mono"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setSwitchingUser(null)}
+                  className="flex-1 py-3 border border-slate-200 dark:border-slate-850 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-850 dark:hover:text-white font-semibold text-xs rounded-full cursor-pointer text-center transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={switchLoading}
+                  className="flex-grow py-3 bg-ink-black hover:opacity-90 dark:bg-paper-white text-paper-white dark:text-ink-black font-semibold text-xs rounded-full shadow-sm cursor-pointer disabled:opacity-50 transition-transform active:scale-95"
+                >
+                  {switchLoading ? 'Authenticating...' : 'Sign In'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </header>
   );
 };

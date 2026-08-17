@@ -426,7 +426,7 @@ export const WorkflowKanban: React.FC = () => {
                   onChange={(e) => setTemplateId(e.target.value)}
                   className="w-full input-composer text-xs py-2"
                 >
-                  {templates.map(t => (
+                  {templates.filter(t => t.status === 'active').map(t => (
                     <option key={t.id} value={t.id}>{t.name} ({t.category})</option>
                   ))}
                 </select>

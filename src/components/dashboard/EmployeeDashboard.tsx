@@ -62,7 +62,7 @@ export const EmployeeDashboard: React.FC = () => {
             <span className="text-[10px] text-slate-350 dark:text-slate-550">• Workspace Tracker</span>
           </div>
           <h1 className="text-4xl serif-display font-light italic text-ink-black dark:text-paper-white mt-1">
-            Ananya Roy, <span className="font-normal font-sohne not-italic text-slate-400">Senior Associate Lawyer</span>
+            {currentUser.name}, <span className="font-normal font-sohne not-italic text-slate-400">{currentUser.title || (currentUser.role === 'boss' ? 'Senior Partner' : 'Associate Lawyer')}</span>
           </h1>
           <p className="text-xs text-slate-405 dark:text-slate-500 font-light max-w-xl">
             Currently working on <span className="font-medium text-ink-black dark:text-white">{myTasks.filter(t => t.status !== 'completed').length} active assigned cases</span>. Use our templates to draft legal agreements.

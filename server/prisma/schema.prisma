@@ -70,6 +70,8 @@ enum EntityType {
   template
   task
   customization
+  invitation
+  user
 }
 
 enum ClientApprovalStatus {
@@ -129,6 +131,7 @@ model Organization {
   documents    LegalDocument[]
   tasks        WorkflowTask[]
   activityLogs ActivityLog[]
+  invitations  WorkspaceInvitation[]
 }
 
 model User {
@@ -155,6 +158,8 @@ model User {
   createdSignatureRequests SignatureRequest[]  @relation("CreatedSignatureRequests")
   documentSigners       DocumentSigner[]
   documentReviews       DocumentReview[]
+  sentInvitations       WorkspaceInvitation[]  @relation("InvitedBy")
+  accountStatus         String                 @default("active") // "active" | "pending" | "suspended"
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
 }
@@ -391,6 +396,42 @@ model EmailLog {
   taskId         String?
   documentId     String?
   createdAt      DateTime            @default(now())
+}
+
+// ─── Workspace Invitation Model ───────────────────────────────────────────────
+
+model WorkspaceInvitation {
+  id              String       @id @default(uuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  invitedByUserId String
+  invitedByUser   User         @relation("InvitedBy", fields: [invitedByUserId], references: [id])
+  email           String
+  name            String
+  role            UserRole
+  tokenHash       String       @unique
+  expiresAt       DateTime
+  acceptedAt      DateTime?
+  revokedAt       DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([organizationId])
+  @@index([tokenHash])
+}
+
+// ─── Password Reset Model ─────────────────────────────────────────────────────
+
+model PasswordReset {
+  id        String    @id @default(uuid())
+  email     String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([email])
+  @@index([tokenHash])
 }
 
 model InlineComment {

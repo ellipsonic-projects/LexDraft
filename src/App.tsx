@@ -80,9 +80,34 @@ const MainContent: React.FC = () => {
   );
 };
 
+import { AcceptInvitationPage } from './pages/AcceptInvitationPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
+
 const AppShellContent: React.FC = () => {
   const { isAuthenticated, theme } = useApp();
   const isDark = theme === 'dark';
+
+  const path = window.location.pathname;
+  const isAcceptInvitation = path.startsWith('/accept-invitation/');
+  const isResetPassword = path.startsWith('/reset-password/');
+
+  if (isAcceptInvitation) {
+    const token = path.substring('/accept-invitation/'.length);
+    return (
+      <div className={isDark ? 'dark' : ''}>
+        <AcceptInvitationPage token={token} />
+      </div>
+    );
+  }
+
+  if (isResetPassword) {
+    const token = path.substring('/reset-password/'.length);
+    return (
+      <div className={isDark ? 'dark' : ''}>
+        <ResetPasswordPage token={token} />
+      </div>
+    );
+  }
 
   return (
     <div className={`h-screen flex flex-col selection:bg-blue-900/30 selection:text-blue-900 transition-colors ${

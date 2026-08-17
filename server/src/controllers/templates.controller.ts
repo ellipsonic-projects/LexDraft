@@ -8,7 +8,8 @@ import {
   listCustomizationRequests,
   submitCustomizationRequest,
   approveRequest,
-  rejectRequest
+  rejectRequest,
+  removeTemplate
 } from '../services/templates.service';
 
 // ─── Templates ────────────────────────────────────────────────────────────────
@@ -202,6 +203,27 @@ export const rejectCustomizationRequest = async (
       req.body
     );
     res.status(200).json({ status: 'success', data: { request } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * DELETE /api/templates/:id
+ * BOSS only. Deletes a template (or marks as inactive if historically used).
+ */
+export const deleteTemplateById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const result = await removeTemplate(
+      req.params.id,
+      req.user!.userId,
+      req.user!.organizationId
+    );
+    res.status(200).json({ status: 'success', data: result });
   } catch (err) {
     next(err);
   }

@@ -21,7 +21,7 @@ const mapUser = (u: any): User => ({
   email: u.email,
   role: mapUserRole(u.role),
   title: u.title || 'Legal Professional',
-  avatar: u.avatarUrl || 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200',
+  avatar: u.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}&background=0F172A&color=fff`,
   status: (u.status || 'online') as 'online' | 'offline'
 });
 
@@ -244,8 +244,8 @@ export const dataRepository = {
     const res = await api.patch(`/templates/${id}`, updates);
     return mapTemplate(res.data.template);
   },
-  deleteTemplate: async (_id: string): Promise<void> => {
-    // Read-only template listing
+  deleteTemplate: async (id: string): Promise<void> => {
+    await api.delete(`/templates/${id}`);
   },
 
   // Documents

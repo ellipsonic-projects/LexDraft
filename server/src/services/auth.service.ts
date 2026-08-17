@@ -60,7 +60,8 @@ export const loginUser = async (
       role: user.role,
       title: user.title,
       avatarUrl: user.avatarUrl,
-      status: user.status
+      status: user.status,
+      organizationId: user.organizationId
     }
   };
 };

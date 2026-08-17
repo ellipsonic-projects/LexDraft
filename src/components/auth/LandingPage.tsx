@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useApp } from '../../context/AppContext';
+import { api } from '../../services/api';
 import {
   Scale,
   ShieldCheck,
@@ -19,14 +20,18 @@ import {
 import { UserRole } from '../../types';
 
 export const LandingPage: React.FC = () => {
-  const { login, quickLogin, theme, toggleTheme } = useApp();
+  const { login, theme, toggleTheme, showToast } = useApp();
   const isDark = theme === 'dark';
 
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
   const [selectedRole, setSelectedRole] = useState<UserRole>('boss');
-  const [emailInput, setEmailInput] = useState('partner@apexlegal.in');
-  const [passwordInput, setPasswordInput] = useState('password123');
+  const [emailInput, setEmailInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('');
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
 
   const loginSectionRef = useRef<HTMLDivElement>(null);
   const [isRevealed, setIsRevealed] = useState(false);
@@ -59,7 +64,22 @@ export const LandingPage: React.FC = () => {
 
   const handleAuthSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    login(emailInput, selectedRole);
+    login(emailInput, passwordInput);
+  };
+
+  const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotPasswordLoading(true);
+    try {
+      const res = await api.post('/auth/forgot-password', { email: forgotPasswordEmail });
+      showToast(res.message || 'If an account exists with this email, a password reset link has been sent.', 'success');
+      setShowForgotPasswordModal(false);
+      setForgotPasswordEmail('');
+    } catch (err: any) {
+      showToast(err.message || 'Failed to send password reset email.', 'error');
+    } finally {
+      setForgotPasswordLoading(false);
+    }
   };
 
   return (
@@ -133,7 +153,7 @@ export const LandingPage: React.FC = () => {
           </div>
         </div>
 
-        {/* 1-Click Quick Demo Accounts Box - Full width expansion for normal scroll option */}
+        {/* generic role workspace portal card options */}
         <div 
           ref={loginSectionRef}
           className={`floating-artifact p-8 md:p-12 max-w-5xl w-full space-y-10 transition-all duration-[1200ms] ease-[cubic-bezier(0.16,1,0.3,1)] ${
@@ -145,10 +165,10 @@ export const LandingPage: React.FC = () => {
           <div className="text-center space-y-2">
             <h3 className="text-base md:text-lg font-semibold serif-heading text-ink-black dark:text-paper-white flex items-center justify-center space-x-2">
               <Lock className="w-4 h-4 text-slate-450" />
-              <span>Demarcated Role Access Demo Sign-In</span>
+              <span>Workspace Portal Entry</span>
             </h3>
             <p className="text-[11px] md:text-xs text-slate-400 dark:text-slate-550 font-light">
-              Test isolated senior partner reviewer vs associate lawyer workbench permissions
+              Select your firm workspace entry point to authenticate
             </p>
           </div>
 
@@ -165,29 +185,23 @@ export const LandingPage: React.FC = () => {
                   </span>
                 </div>
                 <div>
-                  <h4 className="text-sm md:text-base font-semibold text-ink-black dark:text-white">Rajesh Varma</h4>
-                  <p className="text-[11px] md:text-xs font-mono text-slate-400">partner@apexlegal.in</p>
-                </div>
-                <div className="space-y-2 border-t border-slate-50 dark:border-slate-800/60 pt-4 text-xs text-slate-450 dark:text-slate-500">
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#18A77A]" />
-                    <span>Admin Command Dashboard</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#18A77A]" />
-                    <span>Template Checker & Updater</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#18A77A]" />
-                    <span>Draft Review & Sign-Off</span>
-                  </div>
+                  <h4 className="text-sm md:text-base font-semibold text-ink-black dark:text-white">Partner Workspace</h4>
+                  <p className="text-[11px] md:text-xs text-slate-450 dark:text-slate-500 font-light mt-1">
+                    Manage firm workflows, templates, assignments, approvals and team settings.
+                  </p>
                 </div>
               </div>
               <button
-                onClick={() => quickLogin('boss')}
+                onClick={() => {
+                  setSelectedRole('boss');
+                  setEmailInput('');
+                  setPasswordInput('');
+                  setAuthMode('login');
+                  setShowAuthModal(true);
+                }}
                 className="w-full mt-6 py-3.5 bg-ink-black hover:opacity-90 dark:bg-paper-white text-paper-white dark:text-ink-black rounded-full text-xs font-semibold shadow-xs flex items-center justify-center space-x-1 transition-transform active:scale-95 cursor-pointer"
               >
-                <span>Partner Workspace</span>
+                <span>Partner Login</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -204,29 +218,23 @@ export const LandingPage: React.FC = () => {
                   </span>
                 </div>
                 <div>
-                  <h4 className="text-sm md:text-base font-semibold text-ink-black dark:text-white">Ananya Roy</h4>
-                  <p className="text-[11px] md:text-xs font-mono text-slate-400">lawyer@apexlegal.in</p>
-                </div>
-                <div className="space-y-2 border-t border-slate-50 dark:border-slate-800/60 pt-4 text-xs text-slate-450 dark:text-slate-500">
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#18A77A]" />
-                    <span>Draft Document Generator</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#18A77A]" />
-                    <span>Rich Layout Workspace Editor</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#18A77A]" />
-                    <span>Custom Variable Requests</span>
-                  </div>
+                  <h4 className="text-sm md:text-base font-semibold text-ink-black dark:text-white">Lawyer Workbench</h4>
+                  <p className="text-[11px] md:text-xs text-slate-450 dark:text-slate-500 font-light mt-1">
+                    Access assigned matters, drafting workspace and document workflows.
+                  </p>
                 </div>
               </div>
               <button
-                onClick={() => quickLogin('employee')}
+                onClick={() => {
+                  setSelectedRole('employee');
+                  setEmailInput('');
+                  setPasswordInput('');
+                  setAuthMode('login');
+                  setShowAuthModal(true);
+                }}
                 className="w-full mt-6 py-3.5 bg-ink-black hover:opacity-90 dark:bg-paper-white text-paper-white dark:text-ink-black rounded-full text-xs font-semibold shadow-xs flex items-center justify-center space-x-1 transition-transform active:scale-95 cursor-pointer"
               >
-                <span>Lawyer Workbench</span>
+                <span>Lawyer Login</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -274,12 +282,12 @@ export const LandingPage: React.FC = () => {
             <div className="flex items-center space-x-2">
               <Lock className="w-4 h-4 text-slate-400" />
               <h3 className="text-base md:text-lg font-semibold serif-heading text-ink-black dark:text-paper-white text-left">
-                Demarcated Role Access Demo Sign-In
+                Firm Workspace Portal Entry
               </h3>
             </div>
             <button
               onClick={() => setIsWorkspaceFocus(false)}
-              className="text-slate-400 hover:text-ink-black dark:hover:text-white px-3 py-1.5 border border-[#E2E7ED] dark:border-slate-800 rounded-full text-xs font-semibold cursor-pointer transition-colors"
+              className="text-slate-405 hover:text-ink-black dark:hover:text-white px-3 py-1.5 border border-[#E2E7ED] dark:border-slate-800 rounded-full text-xs font-semibold cursor-pointer transition-colors"
             >
               ✕ Close View
             </button>
@@ -298,29 +306,24 @@ export const LandingPage: React.FC = () => {
                   </span>
                 </div>
                 <div>
-                  <h4 className="text-sm md:text-base font-semibold text-ink-black dark:text-white">Rajesh Varma</h4>
-                  <p className="text-[11px] md:text-xs font-mono text-slate-400">partner@apexlegal.in</p>
-                </div>
-                <div className="space-y-2 border-t border-slate-50 dark:border-slate-800/60 pt-4 text-xs text-slate-450 dark:text-slate-500">
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#18A77A]" />
-                    <span>Admin Command Dashboard</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#18A77A]" />
-                    <span>Template Checker & Updater</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#18A77A]" />
-                    <span>Draft Review & Sign-Off</span>
-                  </div>
+                  <h4 className="text-sm md:text-base font-semibold text-ink-black dark:text-white">Partner Workspace</h4>
+                  <p className="text-[11px] md:text-xs text-slate-455 dark:text-slate-500 font-light mt-1">
+                    Manage firm workflows, templates, assignments, approvals and team settings.
+                  </p>
                 </div>
               </div>
               <button
-                onClick={() => quickLogin('boss')}
+                onClick={() => {
+                  setIsWorkspaceFocus(false);
+                  setSelectedRole('boss');
+                  setEmailInput('');
+                  setPasswordInput('');
+                  setAuthMode('login');
+                  setShowAuthModal(true);
+                }}
                 className="w-full mt-6 py-3.5 bg-ink-black hover:opacity-90 dark:bg-paper-white text-paper-white dark:text-ink-black rounded-full text-xs font-semibold shadow-xs flex items-center justify-center space-x-1 transition-transform active:scale-95 cursor-pointer"
               >
-                <span>Partner Workspace</span>
+                <span>Partner Login</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -337,29 +340,24 @@ export const LandingPage: React.FC = () => {
                   </span>
                 </div>
                 <div>
-                  <h4 className="text-sm md:text-base font-semibold text-[#172033] dark:text-white">Ananya Roy</h4>
-                  <p className="text-[11px] md:text-xs font-mono text-slate-400">lawyer@apexlegal.in</p>
-                </div>
-                <div className="space-y-2 border-t border-slate-50 dark:border-slate-800/60 pt-4 text-xs text-slate-450 dark:text-slate-500">
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#18A77A]" />
-                    <span>Draft Document Generator</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#18A77A]" />
-                    <span>Rich Layout Workspace Editor</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-[#18A77A]" />
-                    <span>Custom Variable Requests</span>
-                  </div>
+                  <h4 className="text-sm md:text-base font-semibold text-ink-black dark:text-white">Lawyer Workbench</h4>
+                  <p className="text-[11px] md:text-xs text-slate-455 dark:text-slate-500 font-light mt-1">
+                    Access assigned matters, drafting workspace and document workflows.
+                  </p>
                 </div>
               </div>
               <button
-                onClick={() => quickLogin('employee')}
+                onClick={() => {
+                  setIsWorkspaceFocus(false);
+                  setSelectedRole('employee');
+                  setEmailInput('');
+                  setPasswordInput('');
+                  setAuthMode('login');
+                  setShowAuthModal(true);
+                }}
                 className="w-full mt-6 py-3.5 bg-ink-black hover:opacity-90 dark:bg-paper-white text-paper-white dark:text-ink-black rounded-full text-xs font-semibold shadow-xs flex items-center justify-center space-x-1 transition-transform active:scale-95 cursor-pointer"
               >
-                <span>Lawyer Workbench</span>
+                <span>Lawyer Login</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </button>
             </div>
@@ -390,7 +388,6 @@ export const LandingPage: React.FC = () => {
                     type="button"
                     onClick={() => {
                       setSelectedRole('boss');
-                      setEmailInput('partner@apexlegal.in');
                     }}
                     className={`py-2 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
                       selectedRole === 'boss' ? 'bg-ink-black text-paper-white dark:bg-paper-white dark:text-ink-black' : 'bg-mist-gray dark:bg-slate-800 text-slate-500'
@@ -402,7 +399,6 @@ export const LandingPage: React.FC = () => {
                     type="button"
                     onClick={() => {
                       setSelectedRole('employee');
-                      setEmailInput('lawyer@apexlegal.in');
                     }}
                     className={`py-2 rounded-full text-xs font-semibold border transition-all cursor-pointer ${
                       selectedRole === 'employee' ? 'bg-ink-black text-paper-white dark:bg-paper-white dark:text-ink-black' : 'bg-mist-gray dark:bg-slate-800 text-slate-500'
@@ -435,6 +431,19 @@ export const LandingPage: React.FC = () => {
                 />
               </div>
 
+              <div className="flex justify-end mt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAuthModal(false);
+                    setShowForgotPasswordModal(true);
+                  }}
+                  className="text-xs text-sienna-brown dark:text-blush-peach hover:underline cursor-pointer font-medium"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+
               <button
                 type="submit"
                 className="w-full py-3 bg-ink-black hover:opacity-90 dark:bg-paper-white text-paper-white dark:text-ink-black font-semibold text-xs rounded-full shadow-sm cursor-pointer"
@@ -442,6 +451,62 @@ export const LandingPage: React.FC = () => {
                 Sign In to LexDraft
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Forgot Password Modal Overlay */}
+      {showForgotPasswordModal && (
+        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md border border-slate-150 dark:border-slate-850 rounded-[24px] bg-white dark:bg-slate-900 shadow-2xl p-6 space-y-6 animate-page-fade">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center space-x-2">
+                <Lock className="w-4 h-4 text-slate-400" />
+                <h3 className="text-base font-semibold serif-heading text-ink-black dark:text-paper-white">
+                  Reset Password Request
+                </h3>
+              </div>
+              <button onClick={() => setShowForgotPasswordModal(false)} className="text-slate-450 hover:text-ink-black dark:hover:text-white p-1 cursor-pointer">✕</button>
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Enter your workspace email address below. If an account is registered with this email, we will send you a password reset link.
+            </p>
+
+            <form onSubmit={handleForgotPasswordSubmit} className="space-y-4">
+              <div>
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Firm Email Address</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="name@firm.com"
+                  value={forgotPasswordEmail}
+                  onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                  className="w-full input-composer text-xs font-mono"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={forgotPasswordLoading}
+                className="w-full py-3 bg-ink-black hover:opacity-90 dark:bg-paper-white text-paper-white dark:text-ink-black font-semibold text-xs rounded-full shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                {forgotPasswordLoading ? 'Sending link...' : 'Send Password Reset Link'}
+              </button>
+            </form>
+
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForgotPasswordModal(false);
+                  setShowAuthModal(true);
+                }}
+                className="text-xs text-slate-450 hover:text-ink-black dark:hover:text-white cursor-pointer"
+              >
+                ← Back to Sign In
+              </button>
+            </div>
           </div>
         </div>
       )}

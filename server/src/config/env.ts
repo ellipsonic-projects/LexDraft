@@ -14,7 +14,8 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   TRUST_PROXY: z.string().optional().default('false'),
   RATE_LIMIT_MAX: z.string().transform((val) => parseInt(val, 10)).default('500'),
-  RATE_LIMIT_WINDOW_MS: z.string().transform((val) => parseInt(val, 10)).default('900000') // 15 mins
+  RATE_LIMIT_WINDOW_MS: z.string().transform((val) => parseInt(val, 10)).default('900000'), // 15 mins
+  FRONTEND_URL: z.string().optional(),
 });
 
 const parseEnv = () => {

@@ -4,7 +4,8 @@ import {
   getTemplateById,
   postTemplate,
   patchTemplate,
-  getVersionHistory
+  getVersionHistory,
+  deleteTemplateById
 } from '../controllers/templates.controller';
 import { authenticate } from '../middlewares/authenticate';
 import { authorize } from '../middlewares/authorize';
@@ -51,5 +52,11 @@ router.patch('/:id', authorize('BOSS'), validate(updateTemplateSchema), patchTem
  * Both roles can view full version history.
  */
 router.get('/:id/versions', getVersionHistory);
+
+/**
+ * DELETE /api/templates/:id
+ * BOSS only. Deletes a template (or marks as inactive if historically used).
+ */
+router.delete('/:id', authorize('BOSS'), deleteTemplateById);
 
 export default router;

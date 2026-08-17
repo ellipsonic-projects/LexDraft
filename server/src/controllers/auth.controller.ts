@@ -7,6 +7,7 @@ import {
   listOrganizationUsers
 } from '../services/auth.service';
 import { env } from '../config/env';
+import { prisma } from '../lib/prisma';
 
 const COOKIE_NAME = 'lexdraft_refresh_token';
 
@@ -30,10 +31,24 @@ export const login = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { email, password } = req.body;
+    const { email, password, isSwitch } = req.body;
     const { accessToken, refreshToken, user } = await loginUser(email, password);
 
     res.cookie(COOKIE_NAME, refreshToken, COOKIE_OPTIONS);
+
+    if (isSwitch) {
+      await prisma.activityLog.create({
+        data: {
+          userId: (user as any).id,
+          action: 'ACCOUNT_SWITCH_LOGIN',
+          entityType: 'user',
+          entityId: (user as any).id,
+          entityName: (user as any).name,
+          details: `Account switch successful: switched to ${(user as any).email}`,
+          organizationId: (user as any).organizationId,
+        }
+      });
+    }
 
     res.status(200).json({
       status: 'success',

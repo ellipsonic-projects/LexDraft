@@ -128,7 +128,7 @@ export const TemplateStudio: React.FC = () => {
     c.requestedByLawyerId === currentUser.id || c.requestedByLawyerName === currentUser.name
   );
 
-  const filteredTemplates = templates.filter(t => {
+  const filteredTemplates = templates.filter(t => t.status === 'active').filter(t => {
     const matchesCategory = selectedCategory === 'All' || t.category === selectedCategory;
     const matchesSearch =
       t.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
@@ -417,7 +417,11 @@ export const TemplateStudio: React.FC = () => {
                       {/* Partner deletion option */}
                       {isBoss && (
                         <button
-                          onClick={() => deleteTemplate(tpl.id)}
+                          onClick={() => {
+                            if (window.confirm(`Are you sure you want to delete template "${tpl.name}"?`)) {
+                              deleteTemplate(tpl.id);
+                            }
+                          }}
                           className="p-2 rounded-full hover:bg-rose-500/10 text-slate-405 hover:text-rose-600 transition-colors cursor-pointer"
                           title="Delete Template"
                         >

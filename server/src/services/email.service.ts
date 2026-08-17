@@ -995,3 +995,137 @@ export async function sendSignatureDeclinedEmail(params: {
   });
 }
 
+// ─── Workspace Invitation Email ───────────────────────────────────────────────
+
+export async function sendInvitationEmail(
+  recipientEmail: string,
+  recipientName: string,
+  inviteLink: string,
+  expiryHours: number
+) {
+  const subject = 'You have been invited to join a LexDraft workspace';
+
+  const text = `Hello ${recipientName},
+
+You have been invited to join a LexDraft workspace as a lawyer.
+
+Click the link below to set up your account and get started:
+${inviteLink}
+
+This invitation link will expire in ${expiryHours} hours.
+
+If you did not expect this invitation, you can safely ignore this email.
+
+Regards,
+LexDraft Legal Workflow System`;
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+  <div style="max-width:600px;margin:32px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+    <div style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);padding:32px;text-align:center;">
+      <div style="font-size:28px;font-weight:700;color:#ffffff;letter-spacing:1px;">LexDraft</div>
+      <div style="font-size:13px;color:#94a3b8;margin-top:4px;">Workspace Invitation</div>
+    </div>
+    <div style="padding:32px;">
+      <p style="font-size:16px;color:#1e293b;font-weight:600;margin:0 0 8px 0;">Hello ${recipientName},</p>
+      <p style="font-size:14px;color:#475569;line-height:1.6;margin:0 0 24px 0;">
+        You have been invited to join a <strong>LexDraft</strong> workspace. Click the button below to set up your account and start collaborating.
+      </p>
+      <div style="text-align:center;margin:28px 0;">
+        <a href="${inviteLink}" style="display:inline-block;padding:14px 32px;background:#1e293b;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;border-radius:8px;letter-spacing:0.3px;">
+          Accept Invitation &amp; Set Password
+        </a>
+      </div>
+      <p style="font-size:13px;color:#94a3b8;text-align:center;margin:16px 0 0 0;">
+        This link expires in <strong>${expiryHours} hours</strong>. If you did not expect this, safely ignore this email.
+      </p>
+      <div style="margin-top:24px;padding-top:20px;border-top:1px solid #e2e8f0;">
+        <p style="font-size:12px;color:#94a3b8;margin:0;">Or copy this link into your browser:</p>
+        <p style="font-size:11px;color:#64748b;word-break:break-all;margin:4px 0 0 0;">${inviteLink}</p>
+      </div>
+    </div>
+    <div style="padding:20px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;">
+      <p style="font-size:12px;color:#94a3b8;margin:0;">LexDraft Legal Workflow System</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  return sendEmail({
+    to: recipientEmail,
+    subject,
+    text,
+    html,
+    emailType: 'WORKSPACE_INVITATION',
+  });
+}
+
+// ─── Password Reset Email ─────────────────────────────────────────────────────
+
+export async function sendPasswordResetEmail(
+  recipientEmail: string,
+  recipientName: string,
+  resetLink: string,
+  expiryMinutes: number
+) {
+  const subject = 'LexDraft — Reset Your Password';
+
+  const text = `Hello ${recipientName},
+
+We received a request to reset your LexDraft password.
+
+Click the link below to choose a new password:
+${resetLink}
+
+This link expires in ${expiryMinutes} minutes.
+
+If you did not request a password reset, you can safely ignore this email — your password will not change.
+
+Regards,
+LexDraft Legal Workflow System`;
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head>
+<body style="margin:0;padding:0;background:#f1f5f9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;">
+  <div style="max-width:600px;margin:32px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
+    <div style="background:linear-gradient(135deg,#1e293b 0%,#0f172a 100%);padding:32px;text-align:center;">
+      <div style="font-size:28px;font-weight:700;color:#ffffff;letter-spacing:1px;">LexDraft</div>
+      <div style="font-size:13px;color:#94a3b8;margin-top:4px;">Password Reset</div>
+    </div>
+    <div style="padding:32px;">
+      <p style="font-size:16px;color:#1e293b;font-weight:600;margin:0 0 8px 0;">Hello ${recipientName},</p>
+      <p style="font-size:14px;color:#475569;line-height:1.6;margin:0 0 24px 0;">
+        We received a request to reset your <strong>LexDraft</strong> password. Click the button below to choose a new password.
+      </p>
+      <div style="text-align:center;margin:28px 0;">
+        <a href="${resetLink}" style="display:inline-block;padding:14px 32px;background:#1e293b;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;border-radius:8px;letter-spacing:0.3px;">
+          Reset My Password
+        </a>
+      </div>
+      <p style="font-size:13px;color:#94a3b8;text-align:center;margin:16px 0 0 0;">
+        This link expires in <strong>${expiryMinutes} minutes</strong>. If you did not request this, safely ignore this email.
+      </p>
+      <div style="margin-top:24px;padding-top:20px;border-top:1px solid #e2e8f0;">
+        <p style="font-size:12px;color:#94a3b8;margin:0;">Or copy this link into your browser:</p>
+        <p style="font-size:11px;color:#64748b;word-break:break-all;margin:4px 0 0 0;">${resetLink}</p>
+      </div>
+    </div>
+    <div style="padding:20px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;text-align:center;">
+      <p style="font-size:12px;color:#94a3b8;margin:0;">LexDraft Legal Workflow System</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  return sendEmail({
+    to: recipientEmail,
+    subject,
+    text,
+    html,
+    emailType: 'PASSWORD_RESET',
+  });
+}
+
