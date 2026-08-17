@@ -315,5 +315,21 @@ export const dataRepository = {
     } catch {
       return [];
     }
+  },
+  getSignatureStatusForDocument: async (documentId: string): Promise<any> => {
+    try {
+      const res = await api.get(`/signatures/status/document/${documentId}`);
+      return res.data.data;
+    } catch {
+      return null;
+    }
+  },
+  getSignatureStatusForTask: async (taskId: string): Promise<any> => {
+    try {
+      const res = await api.get(`/signatures/status/task/${taskId}`);
+      return res.data.data;
+    } catch {
+      return null;
+    }
   }
 };

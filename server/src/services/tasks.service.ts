@@ -170,6 +170,28 @@ export const updateTaskStatus = async (
     );
   }
 
+  // Enforce Signature Completion Guard when attempting to complete task
+  if (requestedStatus === TaskStatus.completed) {
+    const signatureReq = await prisma.signatureRequest.findFirst({
+      where: {
+        OR: [
+          { taskId: task.id },
+          ...(task.documentId ? [{ documentId: task.documentId }] : [])
+        ]
+      },
+      include: { signers: true },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (signatureReq) {
+      const totalSigners = signatureReq.signers.length;
+      const signedCount = signatureReq.signers.filter((s) => s.status === 'SIGNED').length;
+      if (signatureReq.status !== 'COMPLETED' || signedCount < totalSigners) {
+        throw new AppError('Document cannot be completed until all required signers have signed.', 400);
+      }
+    }
+  }
+
   const updatedTask = await repoUpdateTaskStatus(taskId, requestedStatus);
 
   // If genuine transition from assigned -> in_progress, notify client

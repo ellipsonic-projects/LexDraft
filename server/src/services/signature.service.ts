@@ -6,7 +6,9 @@ import {
   SignerStatus,
   SignerType,
   SignatureType,
-  EntityType
+  EntityType,
+  TaskStatus,
+  DocumentStatus
 } from '@prisma/client';
 import {
   sendSignatureRequestEmail,
@@ -528,7 +530,7 @@ export async function declineSignature(params: {
 /**
  * Called when all signers have signed. Builds the final signed PDF and notifies all parties.
  */
-async function completeSignatureRequest(
+export async function completeSignatureRequest(
   signatureRequestId: string,
   organizationId: string,
   triggeredByUserId: string,
@@ -556,28 +558,48 @@ async function completeSignatureRequest(
   let pdfBuffer: Buffer;
   try {
     pdfBuffer = await buildPdfBufferFromVersion(finalHtml, doc.title);
-  } catch (e) {
+  } catch (e: any) {
     console.error('Failed to build signed PDF:', e);
-    pdfBuffer = Buffer.alloc(0);
+    throw new AppError(`Failed to generate final signed PDF: ${e.message}`, 500);
   }
 
-  // Mark request as COMPLETED
-  await prisma.signatureRequest.update({
-    where: { id: signatureRequestId },
-    data: { status: SignatureRequestStatus.COMPLETED }
-  });
+  if (!pdfBuffer || pdfBuffer.length === 0) {
+    throw new AppError('Final signed PDF generation produced an empty buffer.', 500);
+  }
 
-  // Log completion
-  await prisma.activityLog.create({
-    data: {
-      userId: triggeredByUserId,
-      action: 'SIGNATURE_COMPLETED',
-      entityType: EntityType.document,
-      entityId: doc.id,
-      entityName: doc.title,
-      details: `All ${req.signers.length} signer(s) completed. Document v${docVersion.versionNumber} fully signed.`,
-      organizationId
+  // Atomically transition SignatureRequest, WorkflowTask, and LegalDocument to completed state
+  await prisma.$transaction(async (tx) => {
+    await tx.signatureRequest.update({
+      where: { id: signatureRequestId },
+      data: { status: SignatureRequestStatus.COMPLETED }
+    });
+
+    if (req.taskId) {
+      await tx.workflowTask.updateMany({
+        where: { id: req.taskId },
+        data: { status: TaskStatus.completed }
+      });
     }
+
+    await tx.legalDocument.update({
+      where: { id: doc.id },
+      data: {
+        status: DocumentStatus.approved,
+        pdfExportUrl: `/api/documents/${doc.id}/pdf`
+      }
+    });
+
+    await tx.activityLog.create({
+      data: {
+        userId: triggeredByUserId,
+        action: 'SIGNATURE_COMPLETED',
+        entityType: EntityType.document,
+        entityId: doc.id,
+        entityName: doc.title,
+        details: `All ${req.signers.length} signer(s) completed. Document v${docVersion.versionNumber} fully signed.`,
+        organizationId
+      }
+    });
   });
 
   // Send final signed PDF to all parties
@@ -614,4 +636,125 @@ export async function getSignatureRequestsForTask(taskId: string) {
     include: { signers: { orderBy: { signingOrder: 'asc' } } },
     orderBy: { createdAt: 'desc' }
   });
+}
+
+/**
+ * Returns sanitized read-only signature status for a document with tenant isolation.
+ */
+export async function getSignatureStatusForDocument(documentId: string, organizationId: string) {
+  const doc = await prisma.legalDocument.findFirst({
+    where: { id: documentId, organizationId }
+  });
+  if (!doc) {
+    throw new AppError('Document not found or access denied.', 404);
+  }
+
+  const req = await prisma.signatureRequest.findFirst({
+    where: { documentId },
+    include: { signers: { orderBy: { signingOrder: 'asc' } } },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  if (!req) {
+    return {
+      hasRequest: false,
+      requestStatus: null,
+      totalSigners: 0,
+      signedCount: 0,
+      pendingCount: 0,
+      activeSigner: null,
+      signers: []
+    };
+  }
+
+  const totalSigners = req.signers.length;
+  const signedCount = req.signers.filter((s) => s.status === 'SIGNED').length;
+  const pendingCount = req.signers.filter((s) => s.status === 'PENDING' || s.status === 'ACTIVE').length;
+  const activeSigner = req.signers.find((s) => s.status === 'ACTIVE') || null;
+
+  return {
+    hasRequest: true,
+    signatureRequestId: req.id,
+    requestStatus: req.status,
+    totalSigners,
+    signedCount,
+    pendingCount,
+    activeSigner: activeSigner ? { name: activeSigner.signerName, email: activeSigner.signerEmail, role: activeSigner.signerRole } : null,
+    signers: req.signers.map((s) => ({
+      id: s.id,
+      signerName: s.signerName,
+      signerEmail: s.signerEmail,
+      signerRole: s.signerRole,
+      signerType: s.signerType,
+      signingOrder: s.signingOrder,
+      status: s.status,
+      signedAt: s.signedAt,
+      declinedAt: s.declinedAt,
+      declineReason: s.declineReason,
+      expiresAt: s.expiresAt
+    }))
+  };
+}
+
+/**
+ * Returns sanitized read-only signature status for a task with tenant isolation.
+ */
+export async function getSignatureStatusForTask(taskId: string, organizationId: string) {
+  const task = await prisma.workflowTask.findFirst({
+    where: { id: taskId, organizationId }
+  });
+  if (!task) {
+    throw new AppError('Task not found or access denied.', 404);
+  }
+
+  const req = await prisma.signatureRequest.findFirst({
+    where: {
+      OR: [
+        { taskId },
+        ...(task.documentId ? [{ documentId: task.documentId }] : [])
+      ]
+    },
+    include: { signers: { orderBy: { signingOrder: 'asc' } } },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  if (!req) {
+    return {
+      hasRequest: false,
+      requestStatus: null,
+      totalSigners: 0,
+      signedCount: 0,
+      pendingCount: 0,
+      activeSigner: null,
+      signers: []
+    };
+  }
+
+  const totalSigners = req.signers.length;
+  const signedCount = req.signers.filter((s) => s.status === 'SIGNED').length;
+  const pendingCount = req.signers.filter((s) => s.status === 'PENDING' || s.status === 'ACTIVE').length;
+  const activeSigner = req.signers.find((s) => s.status === 'ACTIVE') || null;
+
+  return {
+    hasRequest: true,
+    signatureRequestId: req.id,
+    requestStatus: req.status,
+    totalSigners,
+    signedCount,
+    pendingCount,
+    activeSigner: activeSigner ? { name: activeSigner.signerName, email: activeSigner.signerEmail, role: activeSigner.signerRole } : null,
+    signers: req.signers.map((s) => ({
+      id: s.id,
+      signerName: s.signerName,
+      signerEmail: s.signerEmail,
+      signerRole: s.signerRole,
+      signerType: s.signerType,
+      signingOrder: s.signingOrder,
+      status: s.status,
+      signedAt: s.signedAt,
+      declinedAt: s.declinedAt,
+      declineReason: s.declineReason,
+      expiresAt: s.expiresAt
+    }))
+  };
 }

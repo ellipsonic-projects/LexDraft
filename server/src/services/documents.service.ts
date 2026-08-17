@@ -117,19 +117,56 @@ export const generateDocument = async (
     }
   }
 
-  // 5. Validate required template variables
+  // 5. Validate required template variables and typed input fields
   const missingVariables: string[] = [];
+  const invalidTypeVariables: string[] = [];
+
   for (const v of template.variables) {
+    const val = data.variables[v.key];
     if (v.required) {
-      const val = data.variables[v.key];
       if (val === undefined || val === null || String(val).trim() === '') {
         missingVariables.push(`${v.label} (${v.key})`);
+        continue;
+      }
+    }
+
+    if (val !== undefined && val !== null && String(val).trim() !== '') {
+      const strVal = String(val).trim();
+      if (v.type === 'number' || v.type === 'currency') {
+        const num = Number(strVal);
+        if (isNaN(num) || num <= 0) {
+          invalidTypeVariables.push(`${v.label} (${v.key}) must be a valid positive number`);
+        }
+      } else if (v.type === 'date') {
+        if (isNaN(Date.parse(strVal))) {
+          invalidTypeVariables.push(`${v.label} (${v.key}) must be a valid date`);
+        }
       }
     }
   }
-  if (missingVariables.length > 0) {
+
+  // If this is a house rental template, enforce required wizard fields as well
+  if (template.id === 'tpl_house_rental') {
+    const tenantsVal = data.variables.tenants || data.variables.Tenant_Name || data.variables.tenantName;
+    if (!tenantsVal || (Array.isArray(tenantsVal) && (tenantsVal.length === 0 || tenantsVal.every((t: any) => !String(t).trim()))) || (!Array.isArray(tenantsVal) && !String(tenantsVal).trim())) {
+      missingVariables.push('Tenant Name');
+    }
+
+    const landlordsVal = data.variables.landlords || data.variables.Landlord_Name || data.variables.landlordName;
+    if (!landlordsVal || (Array.isArray(landlordsVal) && (landlordsVal.length === 0 || landlordsVal.every((l: any) => !String(l).trim()))) || (!Array.isArray(landlordsVal) && !String(landlordsVal).trim())) {
+      missingVariables.push('Landlord Name');
+    }
+
+    const addressVal = data.variables.propertyAddress || data.variables.Property_Address;
+    if (!addressVal || !String(addressVal).trim()) {
+      missingVariables.push('Property Address');
+    }
+  }
+
+  const errors: string[] = [...missingVariables, ...invalidTypeVariables];
+  if (errors.length > 0) {
     throw new AppError(
-      `Validation error: The following required variables are missing: ${missingVariables.join(', ')}.`,
+      `Validation error: The following required fields/variables are missing or invalid: ${errors.join(', ')}.`,
       400
     );
   }
@@ -317,6 +354,21 @@ export const deliverDocument = async (
 
   if (doc.status !== DocumentStatus.approved) {
     throw new AppError('Only approved and sealed documents can be marked as delivered.', 422);
+  }
+
+  // Signature Completion Guard
+  const signatureReq = await prisma.signatureRequest.findFirst({
+    where: { documentId: doc.id },
+    include: { signers: true },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  if (signatureReq) {
+    const totalSigners = signatureReq.signers.length;
+    const signedCount = signatureReq.signers.filter((s) => s.status === 'SIGNED').length;
+    if (signatureReq.status !== 'COMPLETED' || signedCount < totalSigners) {
+      throw new AppError('Document cannot be completed until all required signers have signed.', 400);
+    }
   }
 
   return deliverDocumentTx({

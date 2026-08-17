@@ -41,17 +41,38 @@ export const SettingsView: React.FC = () => {
 
   const handleCreateClient = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!clientName.trim()) {
-      showToast('Client name is required', 'warning');
+    const trimmedName = clientName.trim();
+    const trimmedEmail = clientEmail.trim();
+    const trimmedPhone = clientPhone.trim();
+
+    if (!trimmedName || trimmedName.length < 2) {
+      showToast('Client name is required (min 2 characters).', 'warning');
       return;
     }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail) {
+      showToast('Contact email is required.', 'warning');
+      return;
+    } else if (!emailRegex.test(trimmedEmail)) {
+      showToast('Please enter a valid email address.', 'warning');
+      return;
+    }
+
+    const phoneRegex = /^[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\./0-9]{5,20}$/;
+    if (!trimmedPhone) {
+      showToast('Contact phone is required.', 'warning');
+      return;
+    } else if (trimmedPhone.length < 5 || !phoneRegex.test(trimmedPhone)) {
+      showToast('Please enter a valid phone number (min 5 digits).', 'warning');
+      return;
+    }
+
     setIsSubmittingClient(true);
     try {
-      const email = clientEmail.trim() || `${clientName.toLowerCase().replace(/[^a-z0-9]/g, '')}@client.com`;
-      const phone = clientPhone.trim() || '+91 9800000000';
-      const created = await createClient(clientName.trim(), email, phone);
+      const created = await createClient(trimmedName, trimmedEmail, trimmedPhone);
       if (created) {
-        const mTitle = initialMatter.trim() || `${clientName.trim()} - General Legal Matter`;
+        const mTitle = initialMatter.trim() || `${trimmedName} - General Legal Matter`;
         const mCode = `MAT-${Date.now().toString().slice(-4)}`;
         await createMatter(created.id, mTitle, mCode);
         setShowAddClient(false);
@@ -398,26 +419,28 @@ export const SettingsView: React.FC = () => {
 
                   <div>
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                      Contact Email
+                      Contact Email <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="email"
+                      required
                       value={clientEmail}
                       onChange={(e) => setClientEmail(e.target.value)}
-                      placeholder="contact@ramesh.in"
+                      placeholder="contact@ramesh.in *"
                       className="w-full input-composer text-xs"
                     />
                   </div>
 
                   <div>
                     <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                      Contact Phone
+                      Contact Phone <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="tel"
+                      required
                       value={clientPhone}
                       onChange={(e) => setClientPhone(e.target.value)}
-                      placeholder="+91 9876543210"
+                      placeholder="+91 9876543210 *"
                       className="w-full input-composer text-xs"
                     />
                   </div>

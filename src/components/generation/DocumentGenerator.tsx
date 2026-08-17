@@ -67,8 +67,54 @@ export const DocumentGenerator: React.FC = () => {
     }
   }, [activeTemplateId, selectedTemplate]);
 
+  const [varErrors, setVarErrors] = useState<Record<string, string>>({});
+
+  const validateDynamicVariables = (): boolean => {
+    if (!selectedTemplate) return true;
+    const errors: Record<string, string> = {};
+
+    for (const v of selectedTemplate.extractedVariables) {
+      const val = formValues[v.key];
+      if (v.required) {
+        if (val === undefined || val === null || String(val).trim() === '') {
+          errors[v.key] = `${v.label} is required.`;
+          continue;
+        }
+      }
+
+      if (val !== undefined && val !== null && String(val).trim() !== '') {
+        const strVal = String(val).trim();
+        if (v.type === 'number' || v.type === 'currency') {
+          const num = Number(strVal);
+          if (isNaN(num) || num <= 0) {
+            errors[v.key] = `${v.label} must be a valid positive number.`;
+          }
+        } else if (v.type === 'date') {
+          if (isNaN(Date.parse(strVal))) {
+            errors[v.key] = `${v.label} must be a valid date.`;
+          }
+        }
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setVarErrors(errors);
+      const firstMsg = Object.values(errors)[0];
+      showToast(`Validation error: ${firstMsg}`, 'warning');
+      return false;
+    }
+
+    setVarErrors({});
+    return true;
+  };
+
   const handleInputChange = (key: string, value: any) => {
     setFormValues(prev => ({ ...prev, [key]: value }));
+    setVarErrors(prev => {
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
   };
 
   const handleAutofillPreset = () => {
@@ -110,6 +156,8 @@ export const DocumentGenerator: React.FC = () => {
       showToast('Please select a client and matter.', 'warning');
       return;
     }
+    if (!validateDynamicVariables()) return;
+
     const finalValues = { ...formValues };
     if (selectedTemplate.id === 'tpl_house_rental' && !finalValues.__content__) {
       const state = { ...DEFAULT_HOUSE_WIZARD_STATE };
@@ -349,7 +397,10 @@ export const DocumentGenerator: React.FC = () => {
                 {selectedTemplate.extractedVariables.map((v) => (
                   <div key={v.id} className={v.type === 'multiline' || v.type === 'address' ? 'sm:col-span-2' : ''}>
                     <label className="text-xs font-semibold flex items-center justify-between mb-1 text-slate-650 dark:text-slate-350">
-                      <span>{v.label}</span>
+                      <span>
+                        {v.label}
+                        {v.required && <span className="text-red-500 ml-1">*</span>}
+                      </span>
                       <span className="text-[10px] font-mono text-slate-400 font-light">&#123;&#123;{v.key}&#125;&#125;</span>
                     </label>
 
@@ -358,13 +409,13 @@ export const DocumentGenerator: React.FC = () => {
                         rows={3}
                         value={formValues[v.key] || ''}
                         onChange={(e) => handleInputChange(v.key, e.target.value)}
-                        className="w-full input-composer text-xs h-16 resize-none"
+                        className={`w-full input-composer text-xs h-16 resize-none ${varErrors[v.key] ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                       />
                     ) : v.type === 'select' ? (
                       <select
                         value={formValues[v.key] || ''}
                         onChange={(e) => handleInputChange(v.key, e.target.value)}
-                        className="w-full input-composer text-xs py-2"
+                        className={`w-full input-composer text-xs py-2 ${varErrors[v.key] ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                       >
                         {v.options?.map(opt => (
                           <option key={opt} value={opt}>{opt}</option>
@@ -376,8 +427,11 @@ export const DocumentGenerator: React.FC = () => {
                         value={formValues[v.key] || ''}
                         onChange={(e) => handleInputChange(v.key, e.target.value)}
                         placeholder={v.label}
-                        className="w-full input-composer text-xs"
+                        className={`w-full input-composer text-xs ${varErrors[v.key] ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                       />
+                    )}
+                    {varErrors[v.key] && (
+                      <p className="text-[10px] text-red-500 font-medium mt-0.5">{varErrors[v.key]}</p>
                     )}
                   </div>
                 ))}
@@ -393,7 +447,9 @@ export const DocumentGenerator: React.FC = () => {
               </button>
 
               <button
-                onClick={() => setStep(3)}
+                onClick={() => {
+                  if (validateDynamicVariables()) setStep(3);
+                }}
                 className="btn-filled text-xs rounded-full flex items-center space-x-1.5 cursor-pointer"
               >
                 <span>Preview Draft</span>

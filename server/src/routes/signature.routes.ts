@@ -7,7 +7,9 @@ import {
   postSubmitSignature,
   postDeclineSignature,
   getDocumentSignatureRequest,
-  getTaskSignatureRequests
+  getTaskSignatureRequests,
+  getDocumentSignatureStatusController,
+  getTaskSignatureStatusController
 } from '../controllers/signature.controller';
 
 const router = Router();
@@ -22,6 +24,12 @@ router.get('/document/:documentId', authenticate, getDocumentSignatureRequest);
 
 /** GET /api/signatures/task/:taskId — Returns all signature requests for a task. */
 router.get('/task/:taskId', authenticate, getTaskSignatureRequests);
+
+/** GET /api/signatures/status/document/:documentId — Returns read-only signature status. */
+router.get('/status/document/:documentId', authenticate, getDocumentSignatureStatusController);
+
+/** GET /api/signatures/status/task/:taskId — Returns read-only signature status. */
+router.get('/status/task/:taskId', authenticate, getTaskSignatureStatusController);
 
 // ─── Zero-Login Public Routes (token-secured) ─────────────────────────────────
 // The signing page is a standalone HTML page that uses inline <script> and onclick handlers.

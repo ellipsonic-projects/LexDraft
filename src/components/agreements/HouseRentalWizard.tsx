@@ -422,27 +422,42 @@ export const HouseRentalWizard: React.FC = () => {
   const [selectedClientId, setSelectedClientId] = useState(clients[0]?.id || '');
   const [selectedMatterId, setSelectedMatterId] = useState('');
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [stepErrors, setStepErrors] = useState<Record<string, string>>({});
+  const lastPrefilledClientRef = useRef<string>('');
+  const hasUserEditedTenantsRef = useRef<boolean>(false);
 
   useEffect(() => {
+    let targetClientId = selectedClientId;
     if (selectedTaskId) {
       const activeTask = tasks.find(t => t.id === selectedTaskId);
       if (activeTask) {
         if (activeTask.clientId) {
+          targetClientId = activeTask.clientId;
           setSelectedClientId(activeTask.clientId);
         }
         if (activeTask.matterId) {
           setSelectedMatterId(activeTask.matterId);
         }
-        const client = clients.find(c => c.id === activeTask.clientId);
-        if (client) {
-          setState(prev => ({
-            ...prev,
-            tenants: [client.name]
-          }));
-        }
       }
     }
-  }, [selectedTaskId, tasks, clients]);
+
+    if (targetClientId) {
+      const client = clients.find(c => c.id === targetClientId);
+      if (client && !hasUserEditedTenantsRef.current) {
+        setState(prev => {
+          const currentTenants = prev.tenants || [];
+          const isEmpty = currentTenants.length === 0 || (currentTenants.length === 1 && (!currentTenants[0] || !currentTenants[0].trim()));
+          const matchesLastPrefill = currentTenants.length === 1 && currentTenants[0] === lastPrefilledClientRef.current;
+
+          if (isEmpty || matchesLastPrefill) {
+            lastPrefilledClientRef.current = client.name;
+            return { ...prev, tenants: [client.name] };
+          }
+          return prev;
+        });
+      }
+    }
+  }, [selectedTaskId, selectedClientId, tasks, clients]);
 
   const previewIframeRef = useRef<HTMLIFrameElement>(null);
   const lastFocusedFieldRef = useRef<string | null>(null);
@@ -455,7 +470,16 @@ export const HouseRentalWizard: React.FC = () => {
   const compiledHtml = useMemo(() => compileHouseAgreement(state), [state]);
 
   const updateState = useCallback((updates: Partial<HouseWizardState>) => {
+    if ('tenants' in updates) {
+      hasUserEditedTenantsRef.current = true;
+    }
     setState(prev => ({ ...prev, ...updates }));
+    // Clear errors for keys being updated
+    setStepErrors(prev => {
+      const next = { ...prev };
+      Object.keys(updates).forEach(k => delete next[k]);
+      return next;
+    });
   }, []);
 
   // Map field key to agreement section for auto-scroll
@@ -541,7 +565,52 @@ export const HouseRentalWizard: React.FC = () => {
     }
   }, []);
 
+  const validateCurrentStep = (stepIdx: number): boolean => {
+    const errors: Record<string, string> = {};
+    const tab = tabs[stepIdx];
+    if (!tab) return true;
+
+    for (const group of tab.groups) {
+      for (const question of group.questions) {
+        if (question.showIf && !question.showIf(state)) continue;
+
+        if (question.required) {
+          const fieldKey = question.id as keyof HouseWizardState;
+          const val = state[fieldKey];
+          if (question.type === 'repeater') {
+            const arr = val as string[] | undefined;
+            if (!arr || arr.length === 0 || arr.every(item => !item || !item.trim())) {
+              errors[fieldKey] = `${question.label} is required.`;
+            }
+          } else if (question.type === 'number') {
+            const num = Number(val);
+            if (val === undefined || val === null || isNaN(num) || num <= 0) {
+              errors[fieldKey] = `${question.label} must be a valid positive number.`;
+            }
+          } else {
+            if (val === undefined || val === null || String(val).trim() === '') {
+              errors[fieldKey] = `${question.label} is required.`;
+            }
+          }
+        }
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setStepErrors(errors);
+      const firstErrorMsg = Object.values(errors)[0];
+      showToast(`Validation error: ${firstErrorMsg}`, 'warning');
+      const firstErrorKey = Object.keys(errors)[0];
+      scrollToFieldInPreview(firstErrorKey);
+      return false;
+    }
+
+    setStepErrors({});
+    return true;
+  };
+
   const goNext = () => {
+    if (!validateCurrentStep(currentTabIndex)) return;
     if (currentTabIndex < tabs.length - 1) setCurrentTabIndex(i => i + 1);
   };
   const goBack = () => {
@@ -730,6 +799,9 @@ export const HouseRentalWizard: React.FC = () => {
                           onUpdate={updateState}
                           onFocusField={scrollToFieldInPreview}
                         />
+                        {stepErrors[question.id] && (
+                          <p className="text-xs text-rose-500 font-medium mt-1">{stepErrors[question.id]}</p>
+                        )}
                         {question.helpText && (
                           <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{question.helpText}</p>
                         )}

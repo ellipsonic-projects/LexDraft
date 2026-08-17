@@ -5,7 +5,9 @@ import {
   submitSignature,
   declineSignature,
   getSignatureRequestForDocument,
-  getSignatureRequestsForTask
+  getSignatureRequestsForTask,
+  getSignatureStatusForDocument,
+  getSignatureStatusForTask
 } from '../services/signature.service';
 
 // ─── Internal API Endpoints (require JWT auth) ────────────────────────────────
@@ -66,6 +68,36 @@ export async function getTaskSignatureRequests(req: Request, res: Response, next
     const { taskId } = req.params;
     const result = await getSignatureRequestsForTask(taskId);
     return res.status(200).json({ status: 'success', data: { signatureRequests: result } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/signatures/status/document/:documentId
+ * Returns sanitized read-only signature status for a document.
+ */
+export async function getDocumentSignatureStatusController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const user = req.user!;
+    const { documentId } = req.params;
+    const result = await getSignatureStatusForDocument(documentId, user.organizationId);
+    return res.status(200).json({ status: 'success', data: result });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * GET /api/signatures/status/task/:taskId
+ * Returns sanitized read-only signature status for a task.
+ */
+export async function getTaskSignatureStatusController(req: Request, res: Response, next: NextFunction) {
+  try {
+    const user = req.user!;
+    const { taskId } = req.params;
+    const result = await getSignatureStatusForTask(taskId, user.organizationId);
+    return res.status(200).json({ status: 'success', data: result });
   } catch (err) {
     next(err);
   }

@@ -262,31 +262,53 @@ export const BossDashboard: React.FC = () => {
             </div>
 
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
-              {recentKanbanUpdates.map((t) => (
-                <div key={t.id} className="py-4 first:pt-0 last:pb-0 flex items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                      <span className="text-xs font-semibold text-ink-black dark:text-paper-white">{t.title}</span>
-                      <span className="px-2 py-0.5 text-[9px] font-medium bg-mist-gray dark:bg-slate-800 text-slate-500 rounded-full capitalize">
-                        {t.priority}
-                      </span>
+              {recentKanbanUpdates.map((t) => {
+                const isCompleted = t.status === 'completed' || t.status === 'approved';
+                return (
+                  <div key={t.id} className="py-4 first:pt-0 last:pb-0 flex items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                        <span className="text-xs font-semibold text-ink-black dark:text-paper-white">{t.title}</span>
+                        <span className="px-2 py-0.5 text-[9px] font-medium bg-mist-gray dark:bg-slate-800 text-slate-500 rounded-full capitalize">
+                          {t.priority}
+                        </span>
+                        {isCompleted && (
+                          <span className="px-2 py-0.5 text-[9px] font-semibold bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 rounded-full">
+                            FINAL SIGNED AGREEMENT
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-light">
+                        Matter: <span className="font-normal text-slate-650 dark:text-slate-300">{t.title}</span> • Assigned: <span className="font-normal text-slate-650 dark:text-slate-300">{t.assigneeName}</span>
+                      </p>
                     </div>
-                    <p className="text-[10px] text-slate-400 font-light">
-                      Matter: <span className="font-normal text-slate-650 dark:text-slate-300">{t.title}</span> • Assigned: <span className="font-normal text-slate-650 dark:text-slate-300">{t.assigneeName}</span>
-                    </p>
-                  </div>
 
-                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
-                    t.status === 'approved' || t.status === 'completed'
-                      ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
-                      : t.status === 'under_review'
-                      ? 'bg-blush-peach text-sienna-brown border border-sienna-brown/10'
-                      : 'bg-mist-gray text-slate-500 border border-slate-200'
-                  }`}>
-                    {t.status.replace('_', ' ')}
-                  </span>
-                </div>
-              ))}
+                    <div className="flex items-center space-x-3">
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
+                        isCompleted
+                          ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
+                          : t.status === 'under_review'
+                          ? 'bg-blush-peach text-sienna-brown border border-sienna-brown/10'
+                          : 'bg-mist-gray text-slate-500 border border-slate-200'
+                      }`}>
+                        {isCompleted ? 'COMPLETED' : t.status.replace('_', ' ')}
+                      </span>
+
+                      {isCompleted && t.documentId && (
+                        <button
+                          onClick={() => {
+                            if (setSelectedDocumentId) setSelectedDocumentId(t.documentId);
+                            setActiveTab('documents');
+                          }}
+                          className="px-3 py-1 bg-ink-black dark:bg-paper-white text-paper-white dark:text-ink-black text-[10px] font-semibold rounded-lg hover:opacity-90 transition-opacity"
+                        >
+                          View Completed
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

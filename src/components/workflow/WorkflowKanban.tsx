@@ -92,19 +92,46 @@ export const WorkflowKanban: React.FC = () => {
     { id: 'completed', label: 'Completed', color: isDark ? 'bg-slate-900 border-slate-800' : 'bg-[#EEF1F4] border-[#E2E7ED]' }
   ];
 
+  const [clientErrors, setClientErrors] = useState<{ name?: string; email?: string; phone?: string }>({});
+
   const handleQuickCreateClient = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newClientName.trim()) {
-      showToast('Client name is required', 'warning');
+    const errors: { name?: string; email?: string; phone?: string } = {};
+
+    const trimmedName = newClientName.trim();
+    const trimmedEmail = newClientEmail.trim();
+    const trimmedPhone = newClientPhone.trim();
+
+    if (!trimmedName || trimmedName.length < 2) {
+      errors.name = 'Client name is required (min 2 characters).';
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!trimmedEmail) {
+      errors.email = 'Contact email is required.';
+    } else if (!emailRegex.test(trimmedEmail)) {
+      errors.email = 'Please enter a valid email address.';
+    }
+
+    const phoneRegex = /^[+]*[(]{0,1}[0-9]{1,4}[)]{0,1}[-\s\./0-9]{5,20}$/;
+    if (!trimmedPhone) {
+      errors.phone = 'Contact phone is required.';
+    } else if (trimmedPhone.length < 5 || !phoneRegex.test(trimmedPhone)) {
+      errors.phone = 'Please enter a valid phone number (min 5 digits).';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setClientErrors(errors);
+      showToast('Please fix required client fields before submitting.', 'warning');
       return;
     }
+
+    setClientErrors({});
     setIsCreatingClient(true);
     try {
-      const email = newClientEmail.trim() || `${newClientName.toLowerCase().replace(/[^a-z0-9]/g, '')}@client.com`;
-      const phone = newClientPhone.trim() || '+91 9800000000';
-      const created = await createClient(newClientName.trim(), email, phone);
+      const created = await createClient(trimmedName, trimmedEmail, trimmedPhone);
       if (created) {
-        const mTitle = newMatterTitle.trim() || `${newClientName.trim()} - General Legal Retainer`;
+        const mTitle = newMatterTitle.trim() || `${trimmedName} - General Legal Retainer`;
         const mCode = `MAT-${Date.now().toString().slice(-4)}`;
         const createdMatter = await createMatter(created.id, mTitle, mCode);
 
@@ -451,29 +478,51 @@ export const WorkflowKanban: React.FC = () => {
                       Quick Add Client & Retainer Matter
                     </div>
                     <div>
+                      <label className="block text-[10px] font-semibold text-slate-700 dark:text-slate-300 mb-0.5">
+                        Client Full Name / Entity <span className="text-red-500">*</span>
+                      </label>
                       <input
                         type="text"
                         placeholder="Client Full Name / Entity *"
                         value={newClientName}
                         onChange={(e) => setNewClientName(e.target.value)}
-                        className="w-full input-composer text-xs py-1.5"
+                        className={`w-full input-composer text-xs py-1.5 ${clientErrors.name ? 'border-red-500 ring-1 ring-red-500' : ''}`}
                       />
+                      {clientErrors.name && (
+                        <p className="text-[10px] text-red-500 mt-0.5 font-medium">{clientErrors.name}</p>
+                      )}
                     </div>
                     <div className="grid grid-cols-2 gap-2">
-                      <input
-                        type="email"
-                        placeholder="Contact Email (Optional)"
-                        value={newClientEmail}
-                        onChange={(e) => setNewClientEmail(e.target.value)}
-                        className="w-full input-composer text-xs py-1.5"
-                      />
-                      <input
-                        type="tel"
-                        placeholder="Contact Phone (Optional)"
-                        value={newClientPhone}
-                        onChange={(e) => setNewClientPhone(e.target.value)}
-                        className="w-full input-composer text-xs py-1.5"
-                      />
+                      <div>
+                        <label className="block text-[10px] font-semibold text-slate-700 dark:text-slate-300 mb-0.5">
+                          Contact Email <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="email"
+                          placeholder="Contact Email *"
+                          value={newClientEmail}
+                          onChange={(e) => setNewClientEmail(e.target.value)}
+                          className={`w-full input-composer text-xs py-1.5 ${clientErrors.email ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                        />
+                        {clientErrors.email && (
+                          <p className="text-[10px] text-red-500 mt-0.5 font-medium">{clientErrors.email}</p>
+                        )}
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-semibold text-slate-700 dark:text-slate-300 mb-0.5">
+                          Contact Phone <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="tel"
+                          placeholder="Contact Phone *"
+                          value={newClientPhone}
+                          onChange={(e) => setNewClientPhone(e.target.value)}
+                          className={`w-full input-composer text-xs py-1.5 ${clientErrors.phone ? 'border-red-500 ring-1 ring-red-500' : ''}`}
+                        />
+                        {clientErrors.phone && (
+                          <p className="text-[10px] text-red-500 mt-0.5 font-medium">{clientErrors.phone}</p>
+                        )}
+                      </div>
                     </div>
                     <div>
                       <input
