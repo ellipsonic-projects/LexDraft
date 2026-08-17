@@ -182,9 +182,6 @@ export const dataRepository = {
     const res = await api.get('/auth/users');
     return (res.data.users || []).map(mapUser);
   },
-  saveUsers: async (_users: User[]): Promise<void> => {
-    // Read-only on live API
-  },
 
   getOrganization: async (): Promise<Organization> => {
     const res = await api.get('/auth/me');
@@ -205,9 +202,6 @@ export const dataRepository = {
     const res = await api.get('/clients');
     return res.data.clients || [];
   },
-  saveClients: async (_clients: Client[]): Promise<void> => {
-    // Managed via API create
-  },
   addClient: async (client: Omit<Client, 'id' | 'createdAt'>): Promise<Client> => {
     const res = await api.post('/clients', client);
     return res.data.client;
@@ -217,9 +211,6 @@ export const dataRepository = {
   getMatters: async (): Promise<Matter[]> => {
     const res = await api.get('/matters');
     return res.data.matters || [];
-  },
-  saveMatters: async (_matters: Matter[]): Promise<void> => {
-    // Managed via API create
   },
   addMatter: async (matter: Omit<Matter, 'id' | 'status' | 'createdAt' | 'documentIds'>): Promise<Matter> => {
     const res = await api.post('/matters', matter);
@@ -234,9 +225,6 @@ export const dataRepository = {
   getTemplates: async (): Promise<LegalTemplate[]> => {
     const res = await api.get('/templates');
     return (res.data.templates || []).map(mapTemplate);
-  },
-  saveTemplates: async (_templates: LegalTemplate[]): Promise<void> => {
-    // Handled via backend migrations/create
   },
   addTemplate: async (template: LegalTemplate): Promise<LegalTemplate> => {
     const res = await api.post('/templates', template);
@@ -254,9 +242,6 @@ export const dataRepository = {
   getDocuments: async (): Promise<LegalDocument[]> => {
     const res = await api.get('/documents');
     return (res.data.documents || []).map(mapDocument);
-  },
-  saveDocuments: async (_documents: LegalDocument[]): Promise<void> => {
-    // Read-only mock save documents
   },
   getDocumentById: async (id: string): Promise<LegalDocument | null> => {
     try {
@@ -299,19 +284,11 @@ export const dataRepository = {
     const res = await api.get('/activity-logs');
     return (res.data.logs || []).map(mapActivityLog);
   },
-  saveActivityLogs: async (_logs: ActivityLog[]): Promise<void> => {},
-  addActivityLog: async (log: ActivityLog): Promise<ActivityLog> => {
-    return log;
-  },
 
   // Notifications
   getNotifications: async (): Promise<NotificationItem[]> => {
     const res = await api.get('/notifications');
     return (res.data.notifications || []).map(mapNotification);
-  },
-  saveNotifications: async (_notifications: NotificationItem[]): Promise<void> => {},
-  addNotification: async (notification: NotificationItem): Promise<NotificationItem> => {
-    return notification;
   },
 
   // Signatures
