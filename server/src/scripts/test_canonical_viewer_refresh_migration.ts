@@ -282,6 +282,34 @@ async function runTests() {
   }
   console.log('✅ Test 4 Passed.\n');
 
+  // Test 5: Verify backend blocks duplicate SignatureRequests on completed documents
+  console.log('🧪 Test 5: Backend blocks duplicate SignatureRequests on completed documents...');
+  const { createSignatureRequest } = require('../services/signature.service');
+  try {
+    await createSignatureRequest({
+      taskId: taskId,
+      documentId: docId,
+      requestingUserId: refDoc.authorId,
+      requestingUserRole: 'BOSS',
+      organizationId: refDoc.organizationId,
+      signers: [
+        {
+          signerName: 'Test Signer',
+          signerEmail: 'test@example.com',
+          signerRole: 'Witness',
+          signerType: 'EXTERNAL'
+        }
+      ]
+    });
+    throw new Error('❌ Test 5 Failed: Should have rejected signature request creation on a completed document');
+  } catch (err: any) {
+    if (err.message.includes('fully signed and completed') || err.message.includes('sealed')) {
+      console.log('✅ Test 5 Passed: Successfully blocked duplicate signature request on sealed document.\n');
+    } else {
+      throw err;
+    }
+  }
+
   // Clean up test documents
   console.log('🧹 Cleaning up test database records...');
   await prisma.documentSigner.deleteMany({ where: { signatureRequestId: { in: [sigReqId, badSigReqId] } } });

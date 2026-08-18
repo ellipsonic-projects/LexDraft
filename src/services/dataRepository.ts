@@ -303,7 +303,7 @@ export const dataRepository = {
   getSignatureRequestForDocument: async (documentId: string): Promise<any> => {
     try {
       const res = await api.get(`/signatures/document/${documentId}`);
-      return res.data.data.signatureRequest;
+      return res.data.signatureRequest;
     } catch {
       return null;
     }
@@ -311,7 +311,7 @@ export const dataRepository = {
   getSignatureRequestsForTask: async (taskId: string): Promise<any[]> => {
     try {
       const res = await api.get(`/signatures/task/${taskId}`);
-      return res.data.data.signatureRequests || [];
+      return res.data.signatureRequests || [];
     } catch {
       return [];
     }

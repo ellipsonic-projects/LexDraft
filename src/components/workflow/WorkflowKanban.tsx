@@ -37,7 +37,8 @@ export const WorkflowKanban: React.FC = () => {
     createClient,
     createMatter,
     selectDocument,
-    setActiveTab
+    setActiveTab,
+    documents
   } = useApp();
 
   const isBoss = currentUser.role === 'boss';
@@ -225,6 +226,10 @@ export const WorkflowKanban: React.FC = () => {
                   const isAssignedToMe = t.assigneeId === currentUser.id;
                   const canAdvance = isBoss || (isAssignedToMe && t.status !== 'under_review' && t.status !== 'approved' && t.status !== 'completed');
                   
+                  const doc = documents.find(d => d.id === t.documentId);
+                  const isCompletedSigned = signatureMap[t.id]?.status === 'COMPLETED' && doc && !!doc.pdfExportUrl;
+                  const isSigningActive = signatureMap[t.id] && signatureMap[t.id]?.status !== 'CANCELLED' && signatureMap[t.id]?.status !== 'COMPLETED';
+                  
                   return (
                     <div 
                       key={t.id}
@@ -302,7 +307,7 @@ export const WorkflowKanban: React.FC = () => {
                       {/* Start Signing Process / Check Status / View Signed Document (Task with document) */}
                       {t.documentId && (
                         <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
-                          {signatureMap[t.id]?.status === 'COMPLETED' ? (
+                          {isCompletedSigned ? (
                             <div className="space-y-2">
                               <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center space-x-1.5 justify-center uppercase tracking-wider bg-emerald-500/10 py-1.5 rounded-md border border-emerald-500/20">
                                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
@@ -315,10 +320,10 @@ export const WorkflowKanban: React.FC = () => {
                                 }}
                                 className="w-full py-1.5 px-3 bg-emerald-600 hover:bg-emerald-755 text-white rounded-md text-[11px] font-semibold flex items-center justify-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
                               >
-                                <span>View Signed Document</span>
+                                <span>View Document</span>
                               </button>
                             </div>
-                          ) : (signatureMap[t.id] && signatureMap[t.id]?.status !== 'CANCELLED') ? (
+                          ) : isSigningActive ? (
                             <div className="space-y-2">
                               <button
                                 onClick={() => setExpandedStatusTaskId(expandedStatusTaskId === t.id ? null : t.id)}
@@ -339,7 +344,7 @@ export const WorkflowKanban: React.FC = () => {
                                 </div>
                               )}
                             </div>
-                          ) : (isBoss && (t.status === 'approved' || t.latestClientApproval?.status === 'ACCEPTED')) ? (
+                          ) : (isBoss && t.status !== 'completed' && (t.status === 'approved' || t.latestClientApproval?.status === 'ACCEPTED') && !signatureMap[t.id]) ? (
                             <button
                               onClick={() => {
                                 setSigningTaskId(t.id);
