@@ -51,69 +51,97 @@ export function injectSignaturesIntoHtml(
     signerRole: string;
     signatureData: string | null;
     signedAt: Date | null;
+    signingOrder?: number;
   }>
 ): string {
-  let result = html;
-  for (const signer of signers) {
-    if (!signer.signatureData) continue;
-    const signedAt = signer.signedAt
+  // 1. Sort signers by signingOrder
+  const sortedSigners = [...signers].sort((a, b) => {
+    return (a.signingOrder || 0) - (b.signingOrder || 0);
+  });
+
+  // 2. Generate the dynamic signature blocks HTML
+  const signerBlocksHtml = sortedSigners.map((signer) => {
+    const signedAtStr = signer.signedAt
       ? new Date(signer.signedAt).toLocaleString('en-IN', {
           day: 'numeric', month: 'long', year: 'numeric',
           hour: '2-digit', minute: '2-digit', hour12: true
         })
       : '';
 
-    // Build signature overlay block - placed ABOVE the line
-    const sigBlock = `
-<div style="margin-bottom: -15pt; text-align: left; position: relative; z-index: 2;">
-  <img src="${signer.signatureData}" alt="Signature of ${signer.signerName}"
-       style="max-height:55px; max-width:200px; display:block; margin-bottom:2pt; mix-blend-mode: multiply;"/>
-  <span style="font-size:7pt; color:#555; display:block; font-family:Arial,sans-serif; margin-bottom:2pt;">
-    Digitally signed by ${signer.signerName} · ${signedAt}
-  </span>
-</div>`;
+    return `
+    <div class="sig-col" style="flex: 1 1 200pt; max-width: calc(50% - 20pt); min-width: 180pt; margin-bottom: 20pt; page-break-inside: avoid; break-inside: avoid; display: flex; flex-direction: column;">
+      <div style="height: 55px; margin-bottom: 4px; display: flex; flex-direction: column; justify-content: flex-end;">
+        ${signer.signatureData ? `
+          <img src="${signer.signatureData}" alt="Signature of ${signer.signerName}" style="max-height: 48px; max-width: 180px; display: block; mix-blend-mode: multiply;" />
+          <span style="font-size: 7.5pt; color: #555; display: block; font-family: Arial, sans-serif; margin-top: 2px;">
+            Digitally signed by ${signer.signerName} · ${signedAtStr}
+          </span>
+        ` : ''}
+      </div>
+      <div class="sig-line" style="border-top: 1px solid #000; margin-top: 4px; margin-bottom: 5px; width: 100%;"></div>
+      <p class="sig-name" style="font-weight: bold; font-size: 12pt; margin: 0 0 2px 0; font-family: 'Times New Roman', Times, serif;">${signer.signerName}</p>
+      <p class="sig-role" style="font-size: 11pt; margin: 0; font-family: 'Times New Roman', Times, serif;">${signer.signerRole}</p>
+    </div>`;
+  }).join('\n');
 
-    const nameEscaped = signer.signerName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const roleEscaped = signer.signerRole.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const signatureSectionHtml = `
+    <div class="sig-grid" style="display: flex; flex-wrap: wrap; row-gap: 30pt; column-gap: 40pt; width: 100%; margin-top: 20pt;">
+      ${signerBlocksHtml}
+    </div>`;
 
-    // Strategy 1: Exact role & name match
-    const patternBoth = new RegExp(
-      `(<div class="sig-line"><\\/div>)(\\s*(?:<p class="sig-name">.*?${nameEscaped}.*?<\\/p>)?\\s*<p class="sig-role">.*?${roleEscaped}.*?<\\/p>)`,
-      'i'
-    );
-    // Strategy 2: Role match only
-    const patternRole = new RegExp(
-      `(<div class="sig-line"><\\/div>)(\\s*<p class="sig-name">.*?<\\/p>\\s*<p class="sig-role">.*?${roleEscaped}.*?<\\/p>)`,
-      'i'
-    );
-    // Strategy 3: Name match only
-    const patternName = new RegExp(
-      `(<div class="sig-line"><\\/div>)(\\s*<p class="sig-name">.*?${nameEscaped}.*?<\\/p>)`,
-      'i'
-    );
-    // Strategy 4: Witness template placeholder match (e.g. Witness 1 — Name: ___)
-    const patternWitnessPlaceholder = new RegExp(
-      `(<div class="sig-line"><\\/div>)(\\s*<p class="sig-role">\\s*Witness(?:\\s*\\d+)?\\s*(?:&mdash;|-)?\\s*Name:.*?<\\/p>(?:\\s*<p class="sig-role">\\s*Address:.*?<\\/p>)?)`,
-      'i'
-    );
+  // 3. Strip out the hardcoded signature section and replace it!
+  const witnessWhereofRegex = /(?:<p[^>]*>)?\s*<strong>\s*IN WITNESS WHEREOF<\/strong>[\s\S]*?<\/p>/i;
+  const whereofMatch = html.match(witnessWhereofRegex);
 
-    if (patternBoth.test(result)) {
-      result = result.replace(patternBoth, `${sigBlock}$1$2`);
-    } else if (patternRole.test(result)) {
-      result = result.replace(patternRole, `${sigBlock}$1$2`);
-    } else if (patternName.test(result)) {
-      result = result.replace(patternName, `${sigBlock}$1$2`);
-    } else if (patternWitnessPlaceholder.test(result)) {
-      result = result.replace(
-        patternWitnessPlaceholder,
-        `${sigBlock}$1<p class="sig-name">${signer.signerName}</p><p class="sig-role">${signer.signerRole}</p>`
-      );
+  let bodyBeforeExecution = html;
+  let execHeadingHtml = `<p class="exec-heading"><strong>IN WITNESS WHEREOF</strong>, the Parties have executed this Agreement by affixing their signatures below.</p>`;
+
+  if (whereofMatch) {
+    execHeadingHtml = whereofMatch[0];
+    const index = html.indexOf(whereofMatch[0]);
+    bodyBeforeExecution = html.substring(0, index);
+  } else {
+    const executionDivIndex = html.indexOf('<div class="execution">');
+    if (executionDivIndex !== -1) {
+      bodyBeforeExecution = html.substring(0, executionDivIndex);
     } else {
-      // Strategy 5: Fallback to first empty sig-line
-      result = result.replace('<div class="sig-line"></div>', `${sigBlock}<div class="sig-line"></div>`);
+      const hrIndex = html.indexOf('<hr style="margin: 40px 0; border: 1px solid #000;"/>');
+      if (hrIndex !== -1) {
+        bodyBeforeExecution = html.substring(0, hrIndex);
+      } else {
+        const sigRowIndex = html.indexOf('<div class="sig-row">');
+        if (sigRowIndex !== -1) {
+          bodyBeforeExecution = html.substring(0, sigRowIndex);
+        }
+      }
     }
   }
-  return result;
+
+  // Clean up any stray open tags at the end of bodyBeforeExecution
+  bodyBeforeExecution = bodyBeforeExecution.trim().replace(/<div class="execution">\s*$/i, '');
+  bodyBeforeExecution = bodyBeforeExecution.trim().replace(/<hr[^>]*>\s*$/i, '');
+
+  // 4. Extract trailing tags of the HTML document
+  let trailingHtml = '</div>\n</body>\n</html>';
+  const scriptMatch = html.match(/(<\/div>\s*)*<script[\s\S]*<\/html>\s*$/i);
+  if (scriptMatch) {
+    trailingHtml = scriptMatch[0];
+  } else {
+    const bodyHtmlMatch = html.match(/(<\/div>\s*)*<\/body>\s*<\/html>\s*$/i);
+    if (bodyHtmlMatch) {
+      trailingHtml = bodyHtmlMatch[0];
+    }
+  }
+
+  // Return the reconstructed HTML with the new dynamic signature section!
+  return `
+${bodyBeforeExecution}
+<div class="execution" style="margin-top: 28pt; padding-top: 14pt; border-top: 2px solid #000; page-break-inside: avoid; break-inside: avoid; width: 100%;">
+  ${execHeadingHtml}
+  ${signatureSectionHtml}
+</div>
+${trailingHtml}
+  `.trim();
 }
 
 // ─── Service Functions ────────────────────────────────────────────────────────
@@ -549,7 +577,8 @@ async function completeSignatureRequest(
       signerName: s.signerName,
       signerRole: s.signerRole,
       signatureData: s.signatureData,
-      signedAt: s.signedAt
+      signedAt: s.signedAt,
+      signingOrder: s.signingOrder
     }))
   );
 
@@ -614,4 +643,44 @@ export async function getSignatureRequestsForTask(taskId: string) {
     include: { signers: { orderBy: { signingOrder: 'asc' } } },
     orderBy: { createdAt: 'desc' }
   });
+}
+
+/**
+ * Returns read-only signature status for a task, safe for client consumption.
+ */
+export async function getSignatureStatusForTask(taskId: string, organizationId?: string) {
+  const req = await prisma.signatureRequest.findFirst({
+    where: { taskId, ...(organizationId ? { document: { organizationId } } : {}) },
+    include: { signers: { orderBy: { signingOrder: 'asc' } } },
+    orderBy: { createdAt: 'desc' }
+  });
+
+  if (!req) {
+    return { hasRequest: false, requestStatus: null, totalSigners: 0, signedCount: 0, pendingCount: 0, activeSigner: null, signers: [] };
+  }
+
+  const signers = req.signers.map((s) => ({
+    id: s.id,
+    signerName: s.signerName,
+    signerEmail: s.signerEmail,
+    signerRole: s.signerRole,
+    signingOrder: s.signingOrder,
+    status: s.status,
+    signedAt: s.signedAt,
+    declinedAt: s.declinedAt
+  }));
+
+  const signedCount = signers.filter((s) => s.status === SignerStatus.SIGNED).length;
+  const activeSigner = signers.find((s) => s.status === SignerStatus.ACTIVE) || null;
+
+  return {
+    hasRequest: true,
+    requestId: req.id,
+    requestStatus: req.status,
+    totalSigners: signers.length,
+    signedCount,
+    pendingCount: signers.length - signedCount,
+    activeSigner,
+    signers
+  };
 }

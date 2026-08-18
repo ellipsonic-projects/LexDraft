@@ -723,21 +723,6 @@ export function compileHouseAgreement(state: HouseWizardState): string {
     </div>
     <div class="sig-col"></div>
   </div>` : ''}
-  <div class="witness-block">
-    <p class="witness-label">WITNESSES:</p>
-    <div class="sig-row">
-      <div class="sig-col">
-        <div class="sig-line"></div>
-        <p class="sig-role">Witness 1 &mdash; Name: _______________________</p>
-        <p class="sig-role">Address: ________________________________</p>
-      </div>
-      <div class="sig-col">
-        <div class="sig-line"></div>
-        <p class="sig-role">Witness 2 &mdash; Name: _______________________</p>
-        <p class="sig-role">Address: ________________________________</p>
-      </div>
-    </div>
-  </div>
 </div>`);
 
   return wrapDocument(html.join('\n'));

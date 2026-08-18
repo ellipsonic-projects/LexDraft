@@ -51,6 +51,7 @@ export const WorkflowKanban: React.FC = () => {
   const [signingClientId, setSigningClientId] = useState<string | null>(null);
   // signatureMap: taskId -> SignatureRequest
   const [signatureMap, setSignatureMap] = useState<Record<string, SignatureRequest | null>>({});
+  const [expandedStatusTaskId, setExpandedStatusTaskId] = useState<string | null>(null);
 
   const [templateId, setTemplateId] = useState(templates[0]?.id || '');
   const [clientId, setClientId] = useState('');
@@ -63,16 +64,15 @@ export const WorkflowKanban: React.FC = () => {
   // Load signature requests for all tasks that have an associated document
   useEffect(() => {
     const fetchSignatures = async () => {
-      const tasksWithDocs = tasks.filter((t) => t.documentId && (t.status === 'approved' || t.status === 'completed'));
+      const tasksWithDocs = tasks.filter((t) => Boolean(t.documentId));
       for (const t of tasksWithDocs) {
-        if (t.documentId && !(t.id in signatureMap)) {
+        if (t.documentId) {
           const req = await dataRepository.getSignatureRequestForDocument(t.documentId);
           setSignatureMap((prev) => ({ ...prev, [t.id]: req }));
         }
       }
     };
     fetchSignatures();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks]);
 
   // Quick Client Creation Modal State
@@ -297,9 +297,9 @@ export const WorkflowKanban: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Start Signing Process Button (Boss only, task with document) */}
+                      {/* Start Signing Process / Check Status Button (Boss only, task with document) */}
                       {isBoss && t.documentId && (t.status === 'approved' || t.status === 'under_review' || t.status === 'draft_ready' || t.status === 'completed' || t.latestClientApproval?.status === 'ACCEPTED') && (
-                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                        <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
                           {(!signatureMap[t.id] || signatureMap[t.id]?.status === 'CANCELLED') ? (
                             <button
                               onClick={() => {
@@ -313,8 +313,29 @@ export const WorkflowKanban: React.FC = () => {
                               <CheckCircle2 className="w-3 h-3" />
                               <span>✍️ Start Signing Process</span>
                             </button>
-                          ) : (
+                          ) : signatureMap[t.id]?.status === 'COMPLETED' ? (
                             <SignatureStatusBadge signatureRequest={signatureMap[t.id]} compact />
+                          ) : (
+                            <div className="space-y-2">
+                              <button
+                                onClick={() => setExpandedStatusTaskId(expandedStatusTaskId === t.id ? null : t.id)}
+                                className="w-full py-1.5 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-[11px] font-semibold flex items-center justify-between transition-colors cursor-pointer shadow-xs"
+                              >
+                                <span className="flex items-center gap-1.5">
+                                  <Clock className="w-3.5 h-3.5" />
+                                  <span>Check Status</span>
+                                </span>
+                                <span className="text-[10px] bg-blue-700/60 px-1.5 py-0.5 rounded font-mono font-bold">
+                                  {signatureMap[t.id]?.signers.filter((s) => s.status === 'SIGNED').length}/{signatureMap[t.id]?.signers.length} Signed
+                                </span>
+                              </button>
+
+                              {expandedStatusTaskId === t.id && (
+                                <div className="mt-2">
+                                  <SignatureStatusBadge signatureRequest={signatureMap[t.id]} compact={false} />
+                                </div>
+                              )}
+                            </div>
                           )}
                         </div>
                       )}
@@ -377,13 +398,14 @@ export const WorkflowKanban: React.FC = () => {
           users={users}
           client={clients.find((c) => c.id === signingClientId) || null}
           onClose={() => { setSigningTaskId(null); setSigningDocumentId(null); }}
-          onSuccess={() => {
-            // Refresh signature status for this task
-            if (signingDocumentId && signingTaskId) {
-              const tid = signingTaskId;
-              const did = signingDocumentId;
-              dataRepository.getSignatureRequestForDocument(did).then((req) => {
-                setSignatureMap((prev) => ({ ...prev, [tid]: req }));
+          onSuccess={(tid?: string, did?: string) => {
+            const targetTaskId = tid || signingTaskId;
+            const targetDocId = did || signingDocumentId;
+            if (targetDocId && targetTaskId) {
+              dataRepository.getSignatureRequestForDocument(targetDocId).then((req) => {
+                if (req) {
+                  setSignatureMap((prev) => ({ ...prev, [targetTaskId]: req }));
+                }
               });
             }
           }}

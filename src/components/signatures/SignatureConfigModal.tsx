@@ -9,7 +9,7 @@ interface SignatureConfigModalProps {
   users: User[];
   client: Client | null;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (taskId?: string, documentId?: string) => void;
   showToast: (message: string, type?: 'success' | 'info' | 'warning' | 'error') => void;
 }
 
@@ -238,7 +238,7 @@ export const SignatureConfigModal: React.FC<SignatureConfigModalProps> = ({
     try {
       await dataRepository.createSignatureRequest({ taskId, documentId, signers });
       showToast('Signing process started! First signer has been notified by email.', 'success');
-      onSuccess();
+      onSuccess(taskId, documentId);
       onClose();
     } catch (err: any) {
       showToast(err?.data?.message || err?.message || 'Failed to start signing process.', 'error');

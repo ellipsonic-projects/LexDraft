@@ -1204,16 +1204,6 @@ export const HOUSE_DOCUMENT_CLAUSES: DocumentClause[] = [
         <p style="margin-top:20px;">Date: ___________</p>`;
         html += `</td></tr>`;
       }
-
-      // Witness blocks
-      html += `<tr><td colspan="2" style="padding-top:40px;">`;
-      html += `<p><strong>WITNESSES:</strong></p>`;
-      html += `<table style="width:100%; margin-top:20px;"><tr>`;
-      html += `<td style="width:50%;padding-right:20px;"><p style="margin-top:40px; border-top:1px solid #000; padding-top:4px;">Witness 1</p><p>Name: ___________</p><p>Address: ___________</p></td>`;
-      html += `<td style="width:50%;padding-left:20px;"><p style="margin-top:40px; border-top:1px solid #000; padding-top:4px;">Witness 2</p><p>Name: ___________</p><p>Address: ___________</p></td>`;
-      html += `</tr></table>`;
-      html += `</td></tr>`;
-
       html += `</table>`;
       return html;
     },

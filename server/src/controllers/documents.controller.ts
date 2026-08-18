@@ -10,6 +10,7 @@ import {
 import { AppError } from '../middlewares/errorHandler';
 import { prisma } from '../lib/prisma';
 import { generatePdfFromHtml } from '../services/pdf.service';
+import { injectSignaturesIntoHtml } from '../services/signature.service';
 
 /**
  * GET /api/documents
@@ -172,7 +173,25 @@ export const getDocumentPdf = async (
     }
 
     // 2. Select HTML content (latest version content if available, fallback to current content)
-    const htmlContent = doc.versions[0]?.content || doc.content;
+    let htmlContent = doc.versions[0]?.content || doc.content;
+
+    const sigReq = await prisma.signatureRequest.findFirst({
+      where: { documentId: doc.id, status: 'COMPLETED' },
+      include: { signers: { orderBy: { signingOrder: 'asc' } } }
+    });
+
+    if (sigReq) {
+      htmlContent = injectSignaturesIntoHtml(
+        htmlContent,
+        sigReq.signers.map((s) => ({
+          signerName: s.signerName,
+          signerRole: s.signerRole,
+          signatureData: s.signatureData,
+          signedAt: s.signedAt,
+          signingOrder: s.signingOrder
+        }))
+      );
+    }
 
     // 3. Generate PDF buffer using Puppeteer shared service
     const pdfBuffer = await generatePdfFromHtml(htmlContent);
