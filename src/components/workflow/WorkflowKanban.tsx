@@ -35,7 +35,9 @@ export const WorkflowKanban: React.FC = () => {
     clients,
     matters,
     createClient,
-    createMatter
+    createMatter,
+    selectDocument,
+    setActiveTab
   } = useApp();
 
   const isBoss = currentUser.role === 'boss';
@@ -297,25 +299,26 @@ export const WorkflowKanban: React.FC = () => {
                         </div>
                       )}
 
-                      {/* Start Signing Process / Check Status Button (Boss only, task with document) */}
-                      {isBoss && t.documentId && (t.status === 'approved' || t.status === 'under_review' || t.status === 'draft_ready' || t.status === 'completed' || t.latestClientApproval?.status === 'ACCEPTED') && (
+                      {/* Start Signing Process / Check Status / View Signed Document (Task with document) */}
+                      {t.documentId && (
                         <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-2">
-                          {(!signatureMap[t.id] || signatureMap[t.id]?.status === 'CANCELLED') ? (
-                            <button
-                              onClick={() => {
-                                setSigningTaskId(t.id);
-                                setSigningDocumentId(t.documentId || null);
-                                setSigningDocumentTitle(t.title);
-                                setSigningClientId(t.clientId);
-                              }}
-                              className="w-full py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-[11px] font-semibold flex items-center justify-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
-                            >
-                              <CheckCircle2 className="w-3 h-3" />
-                              <span>✍️ Start Signing Process</span>
-                            </button>
-                          ) : signatureMap[t.id]?.status === 'COMPLETED' ? (
-                            <SignatureStatusBadge signatureRequest={signatureMap[t.id]} compact />
-                          ) : (
+                          {signatureMap[t.id]?.status === 'COMPLETED' ? (
+                            <div className="space-y-2">
+                              <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 flex items-center space-x-1.5 justify-center uppercase tracking-wider bg-emerald-500/10 py-1.5 rounded-md border border-emerald-500/20">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>FINAL SIGNED AGREEMENT</span>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  selectDocument(t.documentId || null);
+                                  setActiveTab('documents');
+                                }}
+                                className="w-full py-1.5 px-3 bg-emerald-600 hover:bg-emerald-755 text-white rounded-md text-[11px] font-semibold flex items-center justify-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
+                              >
+                                <span>View Signed Document</span>
+                              </button>
+                            </div>
+                          ) : (signatureMap[t.id] && signatureMap[t.id]?.status !== 'CANCELLED') ? (
                             <div className="space-y-2">
                               <button
                                 onClick={() => setExpandedStatusTaskId(expandedStatusTaskId === t.id ? null : t.id)}
@@ -336,7 +339,20 @@ export const WorkflowKanban: React.FC = () => {
                                 </div>
                               )}
                             </div>
-                          )}
+                          ) : (isBoss && (t.status === 'approved' || t.latestClientApproval?.status === 'ACCEPTED')) ? (
+                            <button
+                              onClick={() => {
+                                setSigningTaskId(t.id);
+                                setSigningDocumentId(t.documentId || null);
+                                setSigningDocumentTitle(t.title);
+                                setSigningClientId(t.clientId);
+                              }}
+                              className="w-full py-1.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-[11px] font-semibold flex items-center justify-center space-x-1.5 transition-colors cursor-pointer shadow-xs"
+                            >
+                              <CheckCircle2 className="w-3 h-3" />
+                              <span>Start Signing Process</span>
+                            </button>
+                          ) : null}
                         </div>
                       )}
 

@@ -1242,32 +1242,54 @@ export const LegalDocumentEditor: React.FC = () => {
             }}
           >
             {/* Paper with CSS transform zoom — origin top-center so it anchors correctly */}
-            <div
-              style={{
-                transformOrigin: 'top center',
-                transform: `scale(${zoomLevel / 100})`,
-                // Width stays A4 page width; scale handles the rest
-                width: '820px',
-                flexShrink: 0,
-                alignSelf: 'flex-start',
-              }}
-            >
+            {doc.pdfExportUrl ? (
               <div
-                ref={editorRef}
-                contentEditable={!isApproved}
-                suppressContentEditableWarning
-                onMouseUp={handleSelection}
-                onKeyUp={handleSelection}
-                onInput={() => handleEditorInput(true)}
-                className="legal-document-paper focus:outline-none focus:ring-2 focus:ring-blue-400/30 transition-shadow"
                 style={{
-                  cursor: isApproved ? 'default' : 'text',
                   width: '820px',
-                  minHeight: '1056px',
+                  height: '1056px',
                   margin: '0 auto',
+                  background: '#fff',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+                  borderRadius: '8px',
+                  overflow: 'hidden'
                 }}
-              />
-            </div>
+              >
+                <iframe
+                  src={`${(import.meta.env.VITE_API_URL || 'http://localhost:5000/api').replace(/\/api$/, '')}${doc.pdfExportUrl}`}
+                  width="100%"
+                  height="100%"
+                  style={{ border: 'none' }}
+                  title="Canonical Signed PDF Document"
+                />
+              </div>
+            ) : (
+              <div
+                style={{
+                  transformOrigin: 'top center',
+                  transform: `scale(${zoomLevel / 100})`,
+                  // Width stays A4 page width; scale handles the rest
+                  width: '820px',
+                  flexShrink: 0,
+                  alignSelf: 'flex-start',
+                }}
+              >
+                <div
+                  ref={editorRef}
+                  contentEditable={!isApproved}
+                  suppressContentEditableWarning
+                  onMouseUp={handleSelection}
+                  onKeyUp={handleSelection}
+                  onInput={() => handleEditorInput(true)}
+                  className="legal-document-paper focus:outline-none focus:ring-2 focus:ring-blue-400/30 transition-shadow"
+                  style={{
+                    cursor: isApproved ? 'default' : 'text',
+                    width: '820px',
+                    minHeight: '1056px',
+                    margin: '0 auto',
+                  }}
+                />
+              </div>
+            )}
           </div>
         </div>
 

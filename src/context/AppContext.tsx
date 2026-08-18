@@ -65,6 +65,7 @@ interface AppContextType {
   setSelectedTemplateId: (id: string | null) => void;
   selectedDocumentId: string | null;
   setSelectedDocumentId: (id: string | null) => void;
+  selectDocument: (id: string | null) => Promise<void>;
   selectedTaskId: string | null;
   setSelectedTaskId: (id: string | null) => void;
 
@@ -132,6 +133,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
+  const selectDocument = async (id: string | null) => {
+    setSelectedDocumentId(id);
+    if (id) {
+      try {
+        const freshDoc = await dataRepository.getDocumentById(id);
+        if (freshDoc) {
+          setDocuments(prev => prev.map(d => d.id === id ? freshDoc : d));
+        }
+      } catch (e) {
+        console.error('Failed to fetch latest document state:', e);
+      }
+    }
+  };
 
   // Sync theme
   useEffect(() => {
@@ -833,6 +848,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSelectedTemplateId,
       selectedDocumentId,
       setSelectedDocumentId,
+      selectDocument,
       selectedTaskId,
       setSelectedTaskId,
       createClient,

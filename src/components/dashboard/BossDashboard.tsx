@@ -16,6 +16,9 @@ import {
   Kanban,
   RefreshCw
 } from 'lucide-react';
+import { SignatureConfigModal } from '../signatures/SignatureConfigModal';
+import { SignatureStatusBadge } from '../signatures/SignatureStatusBadge';
+import { dataRepository } from '../../services/dataRepository';
 
 export const BossDashboard: React.FC = () => {
   const {
@@ -25,11 +28,19 @@ export const BossDashboard: React.FC = () => {
     users,
     activityLogs,
     setActiveTab,
-    setSelectedDocumentId,
+    selectDocument,
     theme,
     clients,
-    renewDocument
+    renewDocument,
+    showToast
   } = useApp();
+
+  const [signingTaskId, setSigningTaskId] = React.useState<string | null>(null);
+  const [signingDocumentId, setSigningDocumentId] = React.useState<string | null>(null);
+  const [signingDocumentTitle, setSigningDocumentTitle] = React.useState<string>('');
+  const [signingClientId, setSigningClientId] = React.useState<string | null>(null);
+  const [signatureMap, setSignatureMap] = React.useState<Record<string, any>>({});
+  const [expandedStatusTaskId, setExpandedStatusTaskId] = React.useState<string | null>(null);
 
   const isDark = theme === 'dark';
   const expiringDocs = documents.filter(d => {
@@ -46,6 +57,22 @@ export const BossDashboard: React.FC = () => {
   }, 0);
 
   const recentKanbanUpdates = tasks.slice(0, 4);
+
+  React.useEffect(() => {
+    const fetchSignatures = async () => {
+      for (const t of recentKanbanUpdates) {
+        if (t.documentId) {
+          try {
+            const req = await dataRepository.getSignatureRequestForDocument(t.documentId);
+            setSignatureMap((prev) => ({ ...prev, [t.id]: req }));
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      }
+    };
+    fetchSignatures();
+  }, [tasks]);
 
   const weeklyData = [
     { day: 'Mon', count: 8 },
@@ -228,7 +255,7 @@ export const BossDashboard: React.FC = () => {
 
                       <button
                         onClick={() => {
-                          setSelectedDocumentId(doc.id);
+                          selectDocument(doc.id);
                           setActiveTab('documents');
                         }}
                         className="px-4 py-2 bg-ink-black hover:opacity-90 dark:bg-paper-white text-paper-white dark:text-ink-black rounded-full text-xs font-medium transition-transform active:scale-95 shrink-0 flex items-center space-x-1"
@@ -262,31 +289,93 @@ export const BossDashboard: React.FC = () => {
             </div>
 
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
-              {recentKanbanUpdates.map((t) => (
-                <div key={t.id} className="py-4 first:pt-0 last:pb-0 flex items-center justify-between gap-4">
-                  <div className="space-y-1">
-                    <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                      <span className="text-xs font-semibold text-ink-black dark:text-paper-white">{t.title}</span>
-                      <span className="px-2 py-0.5 text-[9px] font-medium bg-mist-gray dark:bg-slate-800 text-slate-500 rounded-full capitalize">
-                        {t.priority}
-                      </span>
-                    </div>
-                    <p className="text-[10px] text-slate-400 font-light">
-                      Matter: <span className="font-normal text-slate-650 dark:text-slate-300">{t.title}</span> • Assigned: <span className="font-normal text-slate-650 dark:text-slate-300">{t.assigneeName}</span>
-                    </p>
-                  </div>
+              {recentKanbanUpdates.map((t) => {
+                const sigReq = signatureMap[t.id];
+                const isCompleted = sigReq?.status === 'COMPLETED' || t.status === 'completed';
+                const isProgress = sigReq && sigReq.status !== 'CANCELLED' && sigReq.status !== 'COMPLETED';
 
-                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
-                    t.status === 'approved' || t.status === 'completed'
-                      ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/20'
-                      : t.status === 'under_review'
-                      ? 'bg-blush-peach text-sienna-brown border border-sienna-brown/10'
-                      : 'bg-mist-gray text-slate-500 border border-slate-200'
-                  }`}>
-                    {t.status.replace('_', ' ')}
-                  </span>
-                </div>
-              ))}
+                return (
+                  <div key={t.id} className="py-4 first:pt-0 last:pb-0 border-b border-slate-100 dark:border-slate-800 last:border-0">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                          <span className="text-xs font-semibold text-ink-black dark:text-paper-white">{t.title}</span>
+                          <span className="px-2 py-0.5 text-[9px] font-medium bg-mist-gray dark:bg-slate-800 text-slate-500 rounded-full capitalize">
+                            {t.priority}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-light">
+                          Matter: <span className="font-normal text-slate-650 dark:text-slate-300">{t.title}</span> • Assigned: <span className="font-normal text-slate-650 dark:text-slate-300">{t.assigneeName}</span>
+                        </p>
+                        {isProgress && (
+                          <p className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">
+                            {sigReq.signers.filter((s: any) => s.status === 'SIGNED').length} / {sigReq.signers.length} SIGNED
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center space-x-2 shrink-0">
+                        {isCompleted ? (
+                          <div className="flex flex-col items-end space-y-1">
+                            <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 uppercase tracking-wider">
+                              FINAL SIGNED AGREEMENT
+                            </span>
+                            <button
+                              onClick={() => {
+                                selectDocument(t.documentId);
+                                setActiveTab('documents');
+                              }}
+                              className="px-3 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-full text-[10px] font-semibold transition-transform active:scale-95 cursor-pointer shadow-xs"
+                            >
+                              View Document
+                            </button>
+                          </div>
+                        ) : isProgress ? (
+                          <div className="flex flex-col items-end space-y-1">
+                            <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-blue-500/10 text-blue-600 border border-blue-500/20 uppercase tracking-wider">
+                              SIGNING IN PROGRESS
+                            </span>
+                            <button
+                              onClick={() => setExpandedStatusTaskId(expandedStatusTaskId === t.id ? null : t.id)}
+                              className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-full text-[10px] font-semibold transition-transform active:scale-95 cursor-pointer shadow-xs"
+                            >
+                              Check Status
+                            </button>
+                          </div>
+                        ) : (t.status === 'approved' || t.latestClientApproval?.status === 'ACCEPTED') && t.documentId ? (
+                          <div className="flex flex-col items-end space-y-1">
+                            <span className="px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/20 uppercase tracking-wider">
+                              APPROVED
+                            </span>
+                            <button
+                              onClick={() => {
+                                setSigningTaskId(t.id);
+                                setSigningDocumentId(t.documentId);
+                                setSigningDocumentTitle(t.title);
+                                setSigningClientId(t.clientId);
+                              }}
+                              className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full text-[10px] font-semibold transition-transform active:scale-95 cursor-pointer shadow-xs"
+                            >
+                              Start Signing Process
+                            </button>
+                          </div>
+                        ) : (
+                          <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-mist-gray text-slate-500 border border-slate-200`}>
+                            {t.status.replace('_', ' ')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {expandedStatusTaskId === t.id && sigReq && (
+                      <div className="mt-3 p-3 bg-slate-50 dark:bg-slate-900/60 rounded-xl border border-slate-100 dark:border-slate-800 animate-slide-down">
+                        <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">SIGNATURE STATUS</div>
+                        <SignatureStatusBadge signatureRequest={sigReq} compact={false} />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
@@ -350,6 +439,29 @@ export const BossDashboard: React.FC = () => {
             </div>
           </div>
         </div>
+      {/* Signature Config Modal */}
+      {signingTaskId && signingDocumentId && (
+        <SignatureConfigModal
+          taskId={signingTaskId}
+          documentId={signingDocumentId}
+          documentTitle={signingDocumentTitle}
+          users={users}
+          client={clients.find((c) => c.id === signingClientId) || null}
+          onClose={() => { setSigningTaskId(null); setSigningDocumentId(null); }}
+          onSuccess={(tid?: string, did?: string) => {
+            const targetTaskId = tid || signingTaskId;
+            const targetDocId = did || signingDocumentId;
+            if (targetDocId && targetTaskId) {
+              dataRepository.getSignatureRequestForDocument(targetDocId).then((req) => {
+                if (req) {
+                  setSignatureMap((prev) => ({ ...prev, [targetTaskId]: req }));
+                }
+              });
+            }
+          }}
+          showToast={showToast}
+        />
+      )}
       </div>
     </div>
   );

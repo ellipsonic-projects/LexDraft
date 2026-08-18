@@ -1,4 +1,6 @@
 import crypto from 'crypto';
+import fs from 'fs';
+import path from 'path';
 import { prisma } from '../lib/prisma';
 import { AppError } from '../middlewares/errorHandler';
 import {
@@ -6,7 +8,8 @@ import {
   SignerStatus,
   SignerType,
   SignatureType,
-  EntityType
+  EntityType,
+  DocumentStatus
 } from '@prisma/client';
 import {
   sendSignatureRequestEmail,
@@ -205,15 +208,23 @@ export async function createSignatureRequest(params: {
     });
   }
 
-  // 5. Prevent duplicate active signing requests
-  const existingActive = await prisma.signatureRequest.findFirst({
+  // 5. Prevent duplicate active/completed signing requests or sealed documents
+  if (doc.lockedAt !== null) {
+    throw new AppError('This document is sealed and cannot start a signing process.', 409);
+  }
+
+  const existingRequest = await prisma.signatureRequest.findFirst({
     where: {
       documentId,
-      status: { in: ['PENDING', 'IN_PROGRESS'] }
+      status: { in: ['PENDING', 'IN_PROGRESS', 'COMPLETED'] }
     }
   });
-  if (existingActive) {
-    throw new AppError('An active signing process already exists for this document.', 409);
+  if (existingRequest) {
+    if (existingRequest.status === 'COMPLETED') {
+      throw new AppError('This document has already been fully signed and completed.', 409);
+    } else {
+      throw new AppError('An active signing process already exists for this document.', 409);
+    }
   }
 
   // 6. Validate signer inputs: INTERNAL_USER must have userId, EXISTING_CLIENT must have clientId
@@ -563,13 +574,29 @@ async function completeSignatureRequest(
   doc: any,
   docVersion: any
 ) {
+  // 1. Backend Verification: reload request to prevent duplicate/race conditions
   const req = await prisma.signatureRequest.findUnique({
     where: { id: signatureRequestId },
     include: { signers: { orderBy: { signingOrder: 'asc' } } }
   });
   if (!req) return;
 
-  // Build final signed PDF using the exact DocumentVersion content
+  if (req.status === SignatureRequestStatus.COMPLETED) {
+    return; // Already completed, exit early
+  }
+
+  // Verify all required signers are signed
+  const unsigned = req.signers.filter((s) => s.status !== SignerStatus.SIGNED);
+  if (unsigned.length > 0) {
+    throw new AppError(`Cannot complete signature request. The following signers are still pending: ${unsigned.map(u => u.signerName).join(', ')}`, 400);
+  }
+
+  const missingSig = req.signers.filter((s) => !s.signatureData);
+  if (missingSig.length > 0) {
+    throw new AppError(`Cannot complete signature request. The following signers are missing signature data: ${missingSig.map(m => m.signerName).join(', ')}`, 400);
+  }
+
+  // 2. Build final HTML and compile to PDF buffer
   let finalHtml = docVersion.content;
   finalHtml = injectSignaturesIntoHtml(
     finalHtml,
@@ -587,16 +614,63 @@ async function completeSignatureRequest(
     pdfBuffer = await buildPdfBufferFromVersion(finalHtml, doc.title);
   } catch (e) {
     console.error('Failed to build signed PDF:', e);
-    pdfBuffer = Buffer.alloc(0);
+    throw new AppError('Failed to generate final signed PDF document.', 500);
   }
 
-  // Mark request as COMPLETED
-  await prisma.signatureRequest.update({
-    where: { id: signatureRequestId },
-    data: { status: SignatureRequestStatus.COMPLETED }
+  if (!pdfBuffer || pdfBuffer.length === 0) {
+    throw new AppError('Generated PDF is empty or invalid.', 500);
+  }
+
+  // 3. Store the final signed PDF using file system exports mechanism
+  const exportsDir = path.join(__dirname, '..', '..', 'exports');
+  try {
+    if (!fs.existsSync(exportsDir)) {
+      fs.mkdirSync(exportsDir, { recursive: true });
+    }
+    const pdfPath = path.join(exportsDir, `doc_${doc.id}_sealed.pdf`);
+    fs.writeFileSync(pdfPath, pdfBuffer);
+  } catch (e) {
+    console.error('Failed to save signed PDF to disk:', e);
+    throw new AppError('Failed to store final signed PDF document.', 500);
+  }
+
+  const pdfUrl = `/exports/doc_${doc.id}_sealed.pdf`;
+
+  // 4. Update Database States inside an atomic transaction
+  await prisma.$transaction(async (tx) => {
+    // Update LegalDocument status, locked timestamp, and export URL
+    await tx.legalDocument.update({
+      where: { id: doc.id },
+      data: {
+        status: DocumentStatus.approved, // appropriate final state
+        lockedAt: new Date(),
+        pdfExportUrl: pdfUrl,
+        content: finalHtml
+      }
+    });
+
+    // Update DocumentVersion content
+    await tx.documentVersion.update({
+      where: { id: docVersion.id },
+      data: {
+        content: finalHtml
+      }
+    });
+
+    // Mark SignatureRequest = COMPLETED
+    await tx.signatureRequest.update({
+      where: { id: signatureRequestId },
+      data: { status: SignatureRequestStatus.COMPLETED }
+    });
+
+    // Mark WorkflowTask = completed
+    await tx.workflowTask.updateMany({
+      where: { documentId: doc.id },
+      data: { status: 'completed' }
+    });
   });
 
-  // Log completion
+  // 5. Activity Logging
   await prisma.activityLog.create({
     data: {
       userId: triggeredByUserId,
@@ -609,9 +683,33 @@ async function completeSignatureRequest(
     }
   });
 
-  // Send final signed PDF to all parties
+  await prisma.activityLog.create({
+    data: {
+      userId: triggeredByUserId,
+      action: 'FINAL_SIGNED_PDF_CREATED',
+      entityType: EntityType.document,
+      entityId: doc.id,
+      entityName: doc.title,
+      details: `Final signed PDF successfully generated for document "${doc.title}".`,
+      organizationId
+    }
+  });
+
+  await prisma.activityLog.create({
+    data: {
+      userId: triggeredByUserId,
+      action: 'FINAL_SIGNED_DOCUMENT_STORED',
+      entityType: EntityType.document,
+      entityId: doc.id,
+      entityName: doc.title,
+      details: `Final signed PDF successfully stored at ${pdfUrl}.`,
+      organizationId
+    }
+  });
+
+  // 6. Send final completed signed PDF to all parties
   const recipientEmails = Array.from(new Set(req.signers.map((s) => s.signerEmail)));
-  if (pdfBuffer.length > 0) {
+  try {
     await sendSignatureCompletedEmail({
       recipientEmails,
       documentTitle: doc.title,
@@ -619,7 +717,21 @@ async function completeSignatureRequest(
       signers: req.signers.map((s) => ({ name: s.signerName, role: s.signerRole })),
       pdfBuffer,
       documentId: doc.id
-    }).catch((e) => console.error('Failed to send signature completed email:', e));
+    });
+
+    await prisma.activityLog.create({
+      data: {
+        userId: triggeredByUserId,
+        action: 'FINAL_SIGNED_DOCUMENT_EMAILED',
+        entityType: EntityType.document,
+        entityId: doc.id,
+        entityName: doc.title,
+        details: `Final signed document emailed to all participants: ${recipientEmails.join(', ')}.`,
+        organizationId
+      }
+    });
+  } catch (e) {
+    console.error('Failed to send signature completed email:', e);
   }
 }
 
