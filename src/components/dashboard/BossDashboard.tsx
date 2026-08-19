@@ -180,7 +180,18 @@ export const BossDashboard: React.FC = () => {
           return (
             <div 
               key={idx} 
-              className={`p-5 rounded-2xl border transition-all duration-200 shadow-[0_4px_20px_rgba(15,23,42,0.06)] hover:shadow-[0_8px_30px_rgba(15,23,42,0.09)] ${
+              onClick={() => {
+                if (kpi.label === 'Total Vault Documents' || kpi.label === 'Pending Reviews') {
+                  setActiveTab('documents');
+                } else if (kpi.label === 'Active Associate Lawyers') {
+                  setActiveTab('settings');
+                } else if (kpi.label === 'Legal Templates' || kpi.label === 'Customization Requests') {
+                  setActiveTab('template_studio');
+                } else if (kpi.label === 'Sign-off Approval Rate') {
+                  setActiveTab('analytics');
+                }
+              }}
+              className={`p-5 rounded-2xl border transition-all duration-200 shadow-[0_4px_20px_rgba(15,23,42,0.06)] hover:shadow-[0_8px_30px_rgba(15,23,42,0.09)] cursor-pointer hover:border-slate-350 dark:hover:border-slate-600 ${
                 kpi.highlight 
                   ? 'bg-[#EEF4FA] border-[#E2E7ED] dark:bg-slate-900 dark:border-slate-800' 
                   : 'bg-white border-[#E2E7ED] dark:bg-slate-900/40 dark:border-slate-900/60'

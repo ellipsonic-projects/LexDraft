@@ -145,7 +145,7 @@ export const EmployeeDashboard: React.FC = () => {
                 if (kpi.id !== 'assigned') {
                   setActiveKpi(kpi.id as any);
                 } else {
-                  setActiveKpi('draft');
+                  setActiveTab('workflow');
                 }
               }}
               className={`p-5 bg-white dark:bg-slate-900 rounded-2xl border shadow-[0_4px_20px_rgba(15,23,42,0.06)] hover:shadow-[0_8px_30px_rgba(15,23,42,0.09)] transition-all duration-200 cursor-pointer ${
