@@ -181,6 +181,18 @@ export function compileHouseAgreement(state: HouseWizardState): string {
     `The Landlord agrees to rent to the Tenant the house, municipally described as ${safe(state.propertyAddress)} (the &ldquo;Property&rdquo;), for use as residential premises only.`
   ));
 
+  if (state.propertyPhoto === 'yes') {
+    html.push(clause(n(),
+      `Photographs of the Property are attached to this Lease as Schedule A and form part of this Lease.`
+    ));
+  }
+
+  if (state.furtherDescribe === 'yes' && state.describeProperty.trim()) {
+    html.push(clause(n(),
+      `The Property is further described as follows: ${state.describeProperty.trim()}.`
+    ));
+  }
+
   // Clause 2 — Occupants (conditional)
   if (state.otherOccupants === 'yes' && state.otherOccupantsList.trim()) {
     html.push(clause(n(),
@@ -556,8 +568,11 @@ export function compileHouseAgreement(state: HouseWizardState): string {
   // ══════════════════════════════════════════════════════════════════════════
   if (state.inspectionReport === 'yes') {
     html.push(heading('Inspection Report'));
+    const basisText = state.securityDeposit === 'yes'
+      ? 'serve as the basis for any deductions from the Security Deposit at termination.'
+      : 'serve as the basis for determining the condition of the Property at termination.';
     html.push(clause(n(),
-      `An inspection report recording the condition of the Property and its furnishings shall be completed and signed by both Parties at the commencement of the tenancy and again at the end of the tenancy. The inspection report shall form part of this Lease and shall serve as the basis for any deductions from the Security Deposit at termination.`
+      `An inspection report recording the condition of the Property and its furnishings shall be completed and signed by both Parties at the commencement of the tenancy and again at the end of the tenancy. The inspection report shall form part of this Lease and shall ${basisText}`
     ));
   }
 
@@ -699,9 +714,10 @@ export function compileHouseAgreement(state: HouseWizardState): string {
   // ══════════════════════════════════════════════════════════════════════════
   // ── EXECUTION / SIGNATURES
   // ══════════════════════════════════════════════════════════════════════════
+  const cityStr = state.signingCity.trim() ? ` at ${state.signingCity.trim()}` : '';
   html.push(`
 <div class="execution">
-  <p class="exec-heading"><strong>IN WITNESS WHEREOF</strong>&ensp;${tenantStr} and ${landlordStr} have duly affixed their signatures on this ${sigDate}.</p>
+  <p class="exec-heading"><strong>IN WITNESS WHEREOF</strong>&ensp;${tenantStr} and ${landlordStr} have duly affixed their signatures on this ${sigDate}${cityStr}.</p>
   <div class="sig-row">
     <div class="sig-col">
       <div class="sig-line"></div>
