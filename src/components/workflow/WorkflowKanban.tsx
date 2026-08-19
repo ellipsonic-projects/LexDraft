@@ -55,6 +55,7 @@ export const WorkflowKanban: React.FC = () => {
   // signatureMap: taskId -> SignatureRequest
   const [signatureMap, setSignatureMap] = useState<Record<string, SignatureRequest | null>>({});
   const [expandedStatusTaskId, setExpandedStatusTaskId] = useState<string | null>(null);
+  const [statusModalRequest, setStatusModalRequest] = useState<SignatureRequest | null>(null);
 
   const [templateId, setTemplateId] = useState(templates[0]?.id || '');
   const [clientId, setClientId] = useState('');
@@ -326,7 +327,7 @@ export const WorkflowKanban: React.FC = () => {
                           ) : isSigningActive ? (
                             <div className="space-y-2">
                               <button
-                                onClick={() => setExpandedStatusTaskId(expandedStatusTaskId === t.id ? null : t.id)}
+                                onClick={() => setStatusModalRequest(signatureMap[t.id])}
                                 className="w-full py-1.5 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-[11px] font-semibold flex items-center justify-between transition-colors cursor-pointer shadow-xs"
                               >
                                 <span className="flex items-center gap-1.5">
@@ -337,12 +338,6 @@ export const WorkflowKanban: React.FC = () => {
                                   {signatureMap[t.id]?.signers.filter((s) => s.status === 'SIGNED').length}/{signatureMap[t.id]?.signers.length} Signed
                                 </span>
                               </button>
-
-                              {expandedStatusTaskId === t.id && (
-                                <div className="mt-2">
-                                  <SignatureStatusBadge signatureRequest={signatureMap[t.id]} compact={false} />
-                                </div>
-                              )}
                             </div>
                           ) : (isBoss && t.status !== 'completed' && (t.status === 'approved' || t.latestClientApproval?.status === 'ACCEPTED') && !signatureMap[t.id]) ? (
                             <button
@@ -642,6 +637,46 @@ export const WorkflowKanban: React.FC = () => {
                 className="btn-filled text-xs rounded-full flex-1 cursor-pointer"
               >
                 Assign Task
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Center Modal for Check Status Details */}
+      {statusModalRequest && (
+        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="w-full max-w-md border border-slate-150 dark:border-slate-850 rounded-[24px] bg-white dark:bg-slate-900 shadow-2xl p-6 space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div>
+                <h3 className="text-base font-semibold serif-heading text-ink-black dark:text-paper-white">
+                  Signature Tracker
+                </h3>
+                <p className="text-[10px] text-slate-400 font-medium">
+                  {(() => {
+                    const docForModal = documents.find(d => d.id === statusModalRequest.documentId);
+                    return docForModal ? docForModal.title : 'Document signing status';
+                  })()}
+                </p>
+              </div>
+              <button 
+                onClick={() => setStatusModalRequest(null)} 
+                className="text-slate-400 hover:text-ink-black dark:hover:text-white p-1 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="max-h-[60vh] overflow-y-auto pr-1">
+              <SignatureStatusBadge signatureRequest={statusModalRequest} compact={false} />
+            </div>
+
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+              <button
+                onClick={() => setStatusModalRequest(null)}
+                className="w-full py-2 px-4 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold transition-colors cursor-pointer"
+              >
+                Dismiss
               </button>
             </div>
           </div>
