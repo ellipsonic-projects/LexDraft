@@ -535,6 +535,7 @@ export const HouseRentalWizard: React.FC = () => {
         type: 'lexdraft-scroll-to',
         targetId: target.targetId,
         targetText: target.targetText,
+        fieldKey,
         smooth,
         flash,
       }, '*');

@@ -72,6 +72,11 @@ function safe(s: string | undefined | null, fallback = '___________'): string {
   return s.trim();
 }
 
+/** Wraps dynamic user values in a span for auto-scroll preview highlighting */
+function v(field: string, content: string): string {
+  return `<span data-field="${field}" class="draft-var">${content}</span>`;
+}
+
 // ─── Continuous numbering generators ─────────────────────────────────────────
 
 /** Auto-incrementing clause number: 1., 2., 3., … */
@@ -162,10 +167,10 @@ export function compileHouseAgreement(state: HouseWizardState): string {
   html.push(`<p class="preamble-this"><strong>THIS LEASE</strong>&ensp;(the &ldquo;Lease&rdquo;) dated this ${sigDate}</p>`);
 
   html.push(`<p class="preamble-between"><strong>BETWEEN:</strong></p>`);
-  html.push(`<p class="party-name">${landlordStr}</p>`);
+  html.push(`<p class="party-name">${v('landlords', landlordStr)}</p>`);
   html.push(`<p class="party-role">(the &ldquo;Landlord&rdquo;)</p>`);
   html.push(`<p class="party-sep">&#8212; AND &#8212;</p>`);
-  html.push(`<p class="party-name">${tenantStr}</p>`);
+  html.push(`<p class="party-name">${v('tenants', tenantStr)}</p>`);
   html.push(`<p class="party-role">(the &ldquo;Tenant&rdquo;)</p>`);
   html.push(`<p class="party-role">(individually the &ldquo;Party&rdquo; and collectively the &ldquo;Parties&rdquo;)</p>`);
 
@@ -178,7 +183,7 @@ export function compileHouseAgreement(state: HouseWizardState): string {
 
   // Clause 1 — Property description (always present)
   html.push(clause(n(),
-    `The Landlord agrees to rent to the Tenant the house, municipally described as ${safe(state.propertyAddress)} (the &ldquo;Property&rdquo;), for use as residential premises only.`
+    `The Landlord agrees to rent to the Tenant the house, municipally described as ${v('propertyAddress', `<strong>${safe(state.propertyAddress)}</strong>`)} (the &ldquo;Property&rdquo;), for use as residential premises only.`
   ));
 
   if (state.propertyPhoto === 'yes') {
@@ -189,7 +194,7 @@ export function compileHouseAgreement(state: HouseWizardState): string {
 
   if (state.furtherDescribe === 'yes' && state.describeProperty.trim()) {
     html.push(clause(n(),
-      `The Property is further described as follows: ${state.describeProperty.trim()}.`
+      `The Property is further described as follows: ${v('describeProperty', `<strong>${state.describeProperty.trim()}</strong>`)}.`
     ));
   }
 
@@ -243,7 +248,7 @@ export function compileHouseAgreement(state: HouseWizardState): string {
       ? state.furnishedList.trim()
       : '(as agreed between the Parties prior to possession)';
     html.push(clause(n(),
-      `The Property is let on a ${level} basis. The Landlord agrees to supply and the Tenant agrees to use and maintain in reasonable condition, normal wear and tear excepted, the following furnishings: ${list}.`
+      `The Property is let on a ${level} basis. The Landlord agrees to supply and the Tenant agrees to use and maintain in reasonable condition, normal wear and tear excepted, the following furnishings: ${v('furnishedList', `<strong>${list}</strong>`)}.`
     ));
   }
 
@@ -255,7 +260,7 @@ export function compileHouseAgreement(state: HouseWizardState): string {
   // Clause 7 — Lease dates (conditional: fixed or periodic)
   if (state.leaseTermType === 'fixedTerm') {
     html.push(clause(n(),
-      `The term of the Lease commences at 12:00 noon on ${fmtDateShort(state.leaseStartDate)} and ends at 12:00 noon on ${fmtDateShort(state.fixedEndDateEnd)}.`
+      `The term of the Lease commences at 12:00 noon on ${v('leaseStartDate', `<strong>${fmtDateShort(state.leaseStartDate)}</strong>`)} and ends at 12:00 noon on ${v('fixedEndDateEnd', `<strong>${fmtDateShort(state.fixedEndDateEnd)}</strong>`)}.`
     ));
   } else {
     const renewLabels: Record<string, string> = {
@@ -266,7 +271,7 @@ export function compileHouseAgreement(state: HouseWizardState): string {
       ? safe(state.renewalTermOther)
       : (renewLabels[state.renewalTermType] || '___________');
     html.push(clause(n(),
-      `The Lease commences at 12:00 noon on ${fmtDateShort(state.leaseStartDate)} and shall continue on a periodic tenancy, renewing automatically every ${renewLabel}, until terminated by either Party in accordance with the terms of this Lease.`
+      `The Lease commences at 12:00 noon on ${v('leaseStartDate', `<strong>${fmtDateShort(state.leaseStartDate)}</strong>`)} and shall continue on a periodic tenancy, renewing automatically every ${v('renewalTermOther', `<strong>${renewLabel}</strong>`)}, until terminated by either Party in accordance with the terms of this Lease.`
     ));
   }
 
@@ -314,10 +319,10 @@ export function compileHouseAgreement(state: HouseWizardState): string {
   if (state.rentPaidByOnline) methods.push('online / UPI');
   if (state.rentPaidByOther && state.rentPaidByOtherDescription.trim())
     methods.push(state.rentPaidByOtherDescription.trim());
-  const methodStr = methods.length ? ` by ${methods.join(', ')}` : '';
+  const methodStr = methods.length ? ` by ${v('rentPaidByOtherDescription', `<strong>${methods.join(', ')}</strong>`)}` : '';
 
   html.push(clause(n(),
-    `The Tenant will pay the Rent on or before the <strong>${payDayOrdinal(state.rentPayDay)}</strong> of each and every ${periodWord} of the term of this Lease${methodStr} to the Landlord at ${payAddress}.`
+    `The Tenant will pay the Rent on or before the <strong>${payDayOrdinal(state.rentPayDay)}</strong> of each and every ${periodWord} of the term of this Lease${methodStr} to the Landlord at ${v('rentAddress', `<strong>${payAddress}</strong>`)}.`
   ));
 
   // Clause — Bank transfer details (only if bank transfer selected)
@@ -527,19 +532,19 @@ export function compileHouseAgreement(state: HouseWizardState): string {
   // ══════════════════════════════════════════════════════════════════════════
   // ── ADDITIONAL CHARGES / UTILITIES (conditional — only if any not 'dns')
   // ══════════════════════════════════════════════════════════════════════════
-  const utilEntries: { label: string; who: string }[] = [];
-  const addUtil = (label: string, val: string) => {
-    if (val !== 'dns') utilEntries.push({ label, who: val === 'landlord' ? 'Landlord' : 'Tenant' });
+  const utilEntries: { label: string; who: string; field: string }[] = [];
+  const addUtil = (label: string, val: string, field: string) => {
+    if (val !== 'dns') utilEntries.push({ label, who: val === 'landlord' ? 'Landlord' : 'Tenant', field });
   };
-  addUtil('Electricity', state.utilElectricity);
-  addUtil('Water',       state.utilWater);
-  addUtil('Sanitation',  state.utilSanitation);
-  addUtil('Drainage',    state.utilDrainage);
-  addUtil('Air Conditioning', state.utilAC);
-  addUtil('Property Tax', state.utilPropertyTax);
-  addUtil('Storage',     state.utilStorage);
+  addUtil('Electricity', state.utilElectricity, 'utilElectricity');
+  addUtil('Water',       state.utilWater,       'utilWater');
+  addUtil('Sanitation',  state.utilSanitation,  'utilSanitation');
+  addUtil('Drainage',    state.utilDrainage,    'utilDrainage');
+  addUtil('Air Conditioning', state.utilAC,      'utilAC');
+  addUtil('Property Tax', state.utilPropertyTax, 'utilPropertyTax');
+  addUtil('Storage',     state.utilStorage,     'utilStorage');
   if (state.utilOther !== 'dns' && state.listUtilOther.trim()) {
-    addUtil(state.listUtilOther.trim(), state.utilOther);
+    addUtil(state.listUtilOther.trim(), state.utilOther, 'utilOther');
   }
 
   if (utilEntries.length > 0) {
@@ -549,7 +554,7 @@ export function compileHouseAgreement(state: HouseWizardState): string {
       `In addition to the Rent, the following charges and utilities shall be the responsibility of the Party specified herein:`
     ));
     utilEntries.forEach(u => {
-      html.push(sub(ul(), `${u.label}: to be paid by the <strong>${u.who}</strong>.`));
+      html.push(sub(ul(), `${v(u.field, `<strong>${u.label}</strong>: to be paid by the <strong>${u.who}</strong>.`)}`));
     });
   }
 
@@ -559,7 +564,7 @@ export function compileHouseAgreement(state: HouseWizardState): string {
   if (state.propertyManager === 'yes' && state.propertyManagerName.trim()) {
     html.push(heading('Property Manager'));
     html.push(clause(n(),
-      `<strong>${state.propertyManagerName.trim()}</strong> is hereby appointed as Property Manager and is authorised to act as the agent of the Landlord for the purposes of managing the Property and liaising with the Tenant on behalf of the Landlord during the term of this Lease.`
+      `${v('propertyManagerName', `<strong>${state.propertyManagerName.trim()}</strong>`)} is hereby appointed as Property Manager and is authorised to act as the agent of the Landlord for the purposes of managing the Property and liaising with the Tenant on behalf of the Landlord during the term of this Lease.`
     ));
   }
 
@@ -582,10 +587,10 @@ export function compileHouseAgreement(state: HouseWizardState): string {
   if (state.guarantorRequired === 'yes' && state.guarantorName.trim()) {
     html.push(heading('Guarantor'));
     const gAddr = state.guarantorAddress.trim()
-      ? `, of <strong>${state.guarantorAddress.trim()}</strong>,`
+      ? `, of ${v('guarantorAddress', `<strong>${state.guarantorAddress.trim()}</strong>`)},`
       : '';
     html.push(clause(n(),
-      `<strong>${state.guarantorName.trim()}</strong>${gAddr} (the &ldquo;Guarantor&rdquo;) hereby unconditionally and irrevocably guarantees to the Landlord the due and punctual performance by the Tenant of all the obligations, covenants and conditions contained in this Lease, including without limitation the payment of all amounts payable hereunder. The Guarantor shall be jointly and severally liable with the Tenant for any breach of this Lease. This guarantee shall remain in force for the duration of this Lease and any renewals thereof.`
+      `${v('guarantorName', `<strong>${state.guarantorName.trim()}</strong>`)}${gAddr} (the &ldquo;Guarantor&rdquo;) hereby unconditionally and irrevocably guarantees to the Landlord the due and punctual performance by the Tenant of all the obligations, covenants and conditions contained in this Lease, including without limitation the payment of all amounts payable hereunder. The Guarantor shall be jointly and severally liable with the Tenant for any breach of this Lease. This guarantee shall remain in force for the duration of this Lease and any renewals thereof.`
     ));
   }
 
@@ -603,14 +608,14 @@ export function compileHouseAgreement(state: HouseWizardState): string {
     html.push(clause(n(),
       `For any matter relating to this tenancy, the Tenant may be contacted at the Property or through the phone number below. After this tenancy has been terminated, the contact information of the Tenant is:`
     ));
-    html.push(sub(tl(), `Name: ${tenantStr}.`));
+    html.push(sub(tl(), `Name: ${v('tenants', `<strong>${tenantStr}</strong>`)}.`));
     if (state.tenantPhone.trim()) {
-      html.push(sub(tl(), `Phone: ${state.tenantPhone.trim()}.`));
+      html.push(sub(tl(), `Phone: ${v('tenantPhone', `<strong>${state.tenantPhone.trim()}</strong>`)}.`));
     }
     if (state.tenantEmail.trim()) {
-      html.push(sub(tl(), `Email: ${state.tenantEmail.trim()}.`));
+      html.push(sub(tl(), `Email: ${v('tenantEmail', `<strong>${state.tenantEmail.trim()}</strong>`)}.`));
     }
-    html.push(sub(tl(), `Post termination notice address: ${postTermAddr}.`));
+    html.push(sub(tl(), `Post termination notice address: ${v('tenantNoticeAddress', `<strong>${postTermAddr}</strong>`)}.`));
   }
 
   // Landlord notice address
@@ -622,13 +627,13 @@ export function compileHouseAgreement(state: HouseWizardState): string {
     html.push(clause(n(),
       `For any matter relating to this tenancy, whether during or after this tenancy has been terminated, the Landlord&apos;s address for notice is:`
     ));
-    html.push(sub(ll(), `Name: ${landlordStr}.`));
-    html.push(sub(ll(), `Address: ${lAddr}.`));
+    html.push(sub(ll(), `Name: ${v('landlords', `<strong>${landlordStr}</strong>`)}.`));
+    html.push(sub(ll(), `Address: ${v('landlordNoticeAddress', `<strong>${lAddr}</strong>`)}.`));
     if (state.landlordPhone.trim()) {
-      html.push(sub(ll(), `Phone: ${state.landlordPhone.trim()}.`));
+      html.push(sub(ll(), `Phone: ${v('landlordPhone', `<strong>${state.landlordPhone.trim()}</strong>`)}.`));
     }
     if (state.landlordEmail.trim()) {
-      html.push(sub(ll(), `Email: ${state.landlordEmail.trim()}.`));
+      html.push(sub(ll(), `Email: ${v('landlordEmail', `<strong>${state.landlordEmail.trim()}</strong>`)}.`));
     }
   }
 
@@ -714,7 +719,7 @@ export function compileHouseAgreement(state: HouseWizardState): string {
   // ══════════════════════════════════════════════════════════════════════════
   // ── EXECUTION / SIGNATURES
   // ══════════════════════════════════════════════════════════════════════════
-  const cityStr = state.signingCity.trim() ? ` at ${state.signingCity.trim()}` : '';
+  const cityStr = state.signingCity.trim() ? ` at ${v('signingCity', `<strong>${state.signingCity.trim()}</strong>`)}` : '';
   html.push(`
 <div class="execution">
   <p class="exec-heading"><strong>IN WITNESS WHEREOF</strong>&ensp;${tenantStr} and ${landlordStr} have duly affixed their signatures on this ${sigDate}${cityStr}.</p>
@@ -1007,6 +1012,14 @@ body { background: transparent; margin: 0; padding: 0; }
   margin-bottom: 6pt;
 }
 
+/* Active variables highlight styling */
+.draft-var-active {
+  background-color: rgba(251, 191, 36, 0.25) !important;
+  border: 1px dashed rgba(245, 158, 11, 0.5) !important;
+  border-radius: 3px;
+  padding: 1px 3px;
+}
+
 /* Issue 5: Page X of Y footer ─────────────────────────────────────────────── */
 .page-footer {
   display: none; /* hidden on screen — shown only in @media print via counter */
@@ -1088,16 +1101,19 @@ ${body}
     }, 40);
   }, { passive: true });
 
-  function scrollToTarget(targetId, targetText, smooth, flash) {
+  function scrollToTarget(targetId, targetText, fieldKey, smooth, flash) {
     var el = null;
-    if (targetId) {
+    if (fieldKey) {
+      el = document.querySelector('[data-field="' + fieldKey + '"]');
+    }
+    if (!el && targetId) {
       el = document.getElementById(targetId) ||
            document.querySelector('[data-section="' + targetId + '"]') ||
            document.getElementById('sec-' + targetId) ||
            document.getElementById('clause-' + targetId);
     }
     if (!el && targetText) {
-      var elements = document.querySelectorAll('.section-heading, .clause, .preamble-this, .party-name');
+      var elements = document.querySelectorAll('.section-heading, .clause, .preamble-this, .party-name, .draft-var');
       for (var i = 0; i < elements.length; i++) {
         if (elements[i].textContent && elements[i].textContent.toLowerCase().indexOf(targetText.toLowerCase()) !== -1) {
           el = elements[i];
@@ -1106,6 +1122,18 @@ ${body}
       }
     }
     if (el) {
+      // Clear previous active highlights
+      var prevActive = document.querySelectorAll('.draft-var-active');
+      for (var j = 0; j < prevActive.length; j++) {
+        prevActive[j].classList.remove('draft-var-active');
+      }
+
+      // Add highlight to currently active element
+      var highlightEl = el.classList.contains('draft-var') ? el : el.querySelector('.draft-var');
+      if (highlightEl) {
+        highlightEl.classList.add('draft-var-active');
+      }
+
       /* Use window.scrollTo instead of el.scrollIntoView — this keeps the scroll
          contained inside the iframe and prevents the parent page (left editing panel)
          from jumping to the top. scrollIntoView bubbles out of iframes in Chromium. */
@@ -1118,12 +1146,12 @@ ${body}
         top: targetY,
         behavior: smooth ? 'smooth' : 'instant'
       });
-      if (flash !== false) {
-        el.style.transition = 'background-color 0.4s ease';
-        var oldBg = el.style.backgroundColor;
-        el.style.backgroundColor = 'rgba(59, 130, 246, 0.15)';
+      if (flash !== false && highlightEl) {
+        highlightEl.style.transition = 'background-color 0.4s ease';
+        var oldBg = highlightEl.style.backgroundColor;
+        highlightEl.style.backgroundColor = 'rgba(59, 130, 246, 0.15)';
         setTimeout(function() {
-          el.style.backgroundColor = oldBg || '';
+          highlightEl.style.backgroundColor = oldBg || '';
         }, 1200);
       }
     }
@@ -1135,8 +1163,8 @@ ${body}
       var savedTarget = sessionStorage.getItem('lexdraft_active_target');
       if (savedTarget) {
         var parsed = JSON.parse(savedTarget);
-        if (parsed && (parsed.targetId || parsed.targetText)) {
-          scrollToTarget(parsed.targetId, parsed.targetText, false, false);
+        if (parsed && (parsed.fieldKey || parsed.targetId || parsed.targetText)) {
+          scrollToTarget(parsed.targetId, parsed.targetText, parsed.fieldKey, false, false);
           return;
         }
       }
@@ -1158,10 +1186,11 @@ ${body}
     if (event.data.type === 'lexdraft-scroll-to') {
       var targetId = event.data.targetId;
       var targetText = event.data.targetText;
+      var fieldKey = event.data.fieldKey;
       try {
-        sessionStorage.setItem('lexdraft_active_target', JSON.stringify({ targetId: targetId, targetText: targetText }));
+        sessionStorage.setItem('lexdraft_active_target', JSON.stringify({ targetId: targetId, targetText: targetText, fieldKey: fieldKey }));
       } catch (e) {}
-      scrollToTarget(targetId, targetText, event.data.smooth !== false, event.data.flash !== false);
+      scrollToTarget(targetId, targetText, fieldKey, event.data.smooth !== false, event.data.flash !== false);
     }
   });
 })();
