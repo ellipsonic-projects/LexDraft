@@ -7,7 +7,8 @@ import {
   postSubmitSignature,
   postDeclineSignature,
   getDocumentSignatureRequest,
-  getTaskSignatureRequests
+  getTaskSignatureRequests,
+  putUpdateSignerEmail
 } from '../controllers/signature.controller';
 
 const router = Router();
@@ -22,6 +23,9 @@ router.get('/document/:documentId', authenticate, getDocumentSignatureRequest);
 
 /** GET /api/signatures/task/:taskId — Returns all signature requests for a task. */
 router.get('/task/:taskId', authenticate, getTaskSignatureRequests);
+
+/** PUT /api/signatures/signer/:signerId/email — Edits a signer's email. */
+router.put('/signer/:signerId/email', authenticate, putUpdateSignerEmail);
 
 // ─── Zero-Login Public Routes (token-secured) ─────────────────────────────────
 // The signing page is a standalone HTML page that uses inline <script> and onclick handlers.

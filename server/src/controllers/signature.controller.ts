@@ -5,7 +5,8 @@ import {
   submitSignature,
   declineSignature,
   getSignatureRequestForDocument,
-  getSignatureRequestsForTask
+  getSignatureRequestsForTask,
+  updateSignerEmail
 } from '../services/signature.service';
 
 // ─── Internal API Endpoints (require JWT auth) ────────────────────────────────
@@ -522,6 +523,39 @@ export async function postDeclineSignature(req: Request, res: Response, next: Ne
       status: result.success ? 'success' : 'error',
       message: result.message,
       code: result.code
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * PUT /api/signatures/signer/:signerId/email
+ * Edits the email address of a signer.
+ * Body: { email }
+ */
+export async function putUpdateSignerEmail(req: Request, res: Response, next: NextFunction) {
+  try {
+    const user = req.user!;
+    const { signerId } = req.params;
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ status: 'error', message: 'email is required.' });
+    }
+
+    const result = await updateSignerEmail({
+      signerId,
+      newEmail: email,
+      requestingUserId: user.userId,
+      requestingUserRole: user.role,
+      organizationId: user.organizationId
+    });
+
+    return res.status(200).json({
+      status: 'success',
+      message: 'Signer email updated successfully.',
+      data: { signatureRequest: result }
     });
   } catch (err) {
     next(err);

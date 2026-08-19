@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { SignatureRequest } from '../../types';
+import { api } from '../../services/api';
 
 interface SignatureStatusBadgeProps {
   signatureRequest: SignatureRequest | null;
   compact?: boolean;
+  onSignerEmailUpdated?: (updatedReq: SignatureRequest) => void;
 }
 
 const STATUS_CONFIG = {
@@ -24,13 +26,43 @@ const SIGNER_STATUS_CONFIG = {
 
 export const SignatureStatusBadge: React.FC<SignatureStatusBadgeProps> = ({
   signatureRequest,
-  compact = false
+  compact = false,
+  onSignerEmailUpdated
 }) => {
+  const [editingSignerId, setEditingSignerId] = useState<string | null>(null);
+  const [editEmailVal, setEditEmailVal] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
   if (!signatureRequest) return null;
 
   const cfg = STATUS_CONFIG[signatureRequest.status];
   const signedCount = signatureRequest.signers.filter((s) => s.status === 'SIGNED').length;
   const totalCount = signatureRequest.signers.length;
+
+  const handleSave = async (signerId: string) => {
+    if (!editEmailVal || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editEmailVal)) {
+      setErrorMsg('Please enter a valid email address.');
+      return;
+    }
+    setIsUpdating(true);
+    setErrorMsg('');
+    try {
+      const res = await api.put(`/signatures/signer/${signerId}/email`, { email: editEmailVal });
+      if (res.status === 'success' && res.data?.signatureRequest) {
+        if (onSignerEmailUpdated) {
+          onSignerEmailUpdated(res.data.signatureRequest);
+        }
+        setEditingSignerId(null);
+      } else {
+        setErrorMsg(res.message || 'Failed to update email');
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || 'An error occurred');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   if (compact) {
     return (
@@ -142,9 +174,81 @@ export const SignatureStatusBadge: React.FC<SignatureStatusBadgeProps> = ({
                 }}>
                   {signer.signerName}
                 </div>
-                <div style={{ fontSize: '11px', color: '#64748b' }}>
-                  {signer.signerRole} · {signer.signerEmail}
-                </div>
+                {editingSignerId === signer.id ? (
+                  <div style={{ marginTop: '4px', display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <input
+                      type="email"
+                      value={editEmailVal}
+                      onChange={(e) => setEditEmailVal(e.target.value)}
+                      disabled={isUpdating}
+                      style={{
+                        fontSize: '11px',
+                        padding: '2px 6px',
+                        border: '1px solid #cbd5e1',
+                        borderRadius: '4px',
+                        width: '180px',
+                        outline: 'none'
+                      }}
+                    />
+                    <button
+                      disabled={isUpdating}
+                      onClick={() => handleSave(signer.id)}
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        color: '#22c55e',
+                        border: 'none',
+                        background: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {isUpdating ? 'Saving...' : 'Save'}
+                    </button>
+                    <button
+                      disabled={isUpdating}
+                      onClick={() => setEditingSignerId(null)}
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 600,
+                        color: '#ef4444',
+                        border: 'none',
+                        background: 'none',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    {errorMsg && (
+                      <div style={{ fontSize: '10px', color: '#ef4444', width: '100%', marginTop: '2px' }}>
+                        {errorMsg}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: '11px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>{signer.signerRole} · {signer.signerEmail}</span>
+                    {signatureRequest.status !== 'COMPLETED' && signer.status !== 'SIGNED' && (
+                      <button
+                        onClick={() => {
+                          setEditingSignerId(signer.id);
+                          setEditEmailVal(signer.signerEmail);
+                          setErrorMsg('');
+                        }}
+                        style={{
+                          fontSize: '10px',
+                          color: '#3b82f6',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          padding: 0,
+                          textDecoration: 'underline'
+                        }}
+                      >
+                        Edit Email
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               <span style={{

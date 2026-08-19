@@ -796,3 +796,107 @@ export async function getSignatureStatusForTask(taskId: string, organizationId?:
     signers
   };
 }
+
+/**
+ * Updates a signer's email, invalidates the old token, generates a new one,
+ * and resends the signing email if the signer is currently ACTIVE.
+ */
+export async function updateSignerEmail(params: {
+  signerId: string;
+  newEmail: string;
+  requestingUserId: string;
+  requestingUserRole: string;
+  organizationId: string;
+}) {
+  const { signerId, newEmail, requestingUserId: _requestingUserId, requestingUserRole, organizationId } = params;
+
+  // 1. RBAC check: only BOSS
+  if (requestingUserRole !== 'BOSS') {
+    throw new AppError('Only Senior Partners can modify signer emails.', 403);
+  }
+
+  // 2. Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!newEmail || !emailRegex.test(newEmail)) {
+    throw new AppError('Invalid email format.', 422);
+  }
+
+  // 3. Query signer and verify ownership
+  const signer = await prisma.documentSigner.findUnique({
+    where: { id: signerId },
+    include: {
+      signatureRequest: {
+        include: {
+          document: true,
+          documentVersion: true,
+          signers: { orderBy: { signingOrder: 'asc' } }
+        }
+      }
+    }
+  });
+
+  if (!signer) {
+    throw new AppError('Signer record not found.', 404);
+  }
+
+  const req = signer.signatureRequest;
+  if (req.document.organizationId !== organizationId) {
+    throw new AppError('Access denied: Document belongs to a different organization.', 403);
+  }
+
+  // 4. Completed requests are immutable
+  if (req.status === 'COMPLETED') {
+    throw new AppError('This signature request has already been completed.', 400);
+  }
+
+  // 5. SIGNED signers cannot be modified
+  if (signer.status === 'SIGNED') {
+    throw new AppError('Cannot edit email for a signer who has already signed.', 400);
+  }
+
+  // 6. Update signer email
+  if (signer.status === 'ACTIVE') {
+    const { raw, hash } = generateSecureToken();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + SIGNER_TOKEN_EXPIRY_DAYS);
+
+    await prisma.documentSigner.update({
+      where: { id: signerId },
+      data: {
+        signerEmail: newEmail,
+        tokenHash: hash,
+        expiresAt
+      }
+    });
+
+    const signingUrl = `${APP_BASE_URL}/api/signatures/signer/${raw}`;
+
+    await sendSignatureRequestEmail({
+      recipientEmail: newEmail,
+      signerName: signer.signerName,
+      signerRole: signer.signerRole,
+      documentTitle: req.document.title,
+      documentVersion: req.documentVersion.versionNumber,
+      signingUrl,
+      expiresAt,
+      totalSigners: req.signers.length,
+      currentOrder: signer.signingOrder,
+      documentId: req.documentId
+    });
+  } else {
+    // PENDING signer: just update email in DB
+    await prisma.documentSigner.update({
+      where: { id: signerId },
+      data: {
+        signerEmail: newEmail
+      }
+    });
+  }
+
+  // Return updated signature request details
+  return prisma.signatureRequest.findUnique({
+    where: { id: req.id },
+    include: { signers: { orderBy: { signingOrder: 'asc' } } }
+  });
+}
+

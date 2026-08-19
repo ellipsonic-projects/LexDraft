@@ -668,7 +668,17 @@ export const WorkflowKanban: React.FC = () => {
             </div>
 
             <div className="max-h-[60vh] overflow-y-auto pr-1">
-              <SignatureStatusBadge signatureRequest={statusModalRequest} compact={false} />
+              <SignatureStatusBadge
+                signatureRequest={statusModalRequest}
+                compact={false}
+                onSignerEmailUpdated={(updatedReq) => {
+                  setStatusModalRequest(updatedReq);
+                  setSignatureMap((prev) => ({
+                    ...prev,
+                    [updatedReq.taskId]: updatedReq
+                  }));
+                }}
+              />
             </div>
 
             <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
